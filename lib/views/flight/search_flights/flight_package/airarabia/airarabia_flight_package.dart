@@ -498,14 +498,14 @@ class _AirArabiaPackageSelectionDialogState extends State<AirArabiaPackageSelect
       }
 
       return ListView.builder(
-        scrollDirection: Axis.horizontal,
+        scrollDirection: Axis.vertical,
         physics: const BouncingScrollPhysics(),
         primary: false,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: uniquePackages.length,
         itemBuilder: (context, index) {
           return Padding(
-            padding: const EdgeInsets.only(right: 16),
+            padding: const EdgeInsets.only(bottom: 16),
             child: _buildHorizontalPackageCard(uniquePackages[index], index),
           );
         },
@@ -559,7 +559,7 @@ class _AirArabiaPackageSelectionDialogState extends State<AirArabiaPackageSelect
         package.packageType == sortedPackages.first.packageType;
 
     return Container(
-      width: 280, // Decreased width so next card is partially visible
+      width: double.infinity,
       decoration: BoxDecoration(
         color: TColors.white,
         borderRadius: BorderRadius.circular(12),

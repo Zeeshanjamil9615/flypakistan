@@ -108,14 +108,14 @@ class SabrePackageSelectionDialog extends StatelessWidget {
 
   Widget _buildPackagesList() {
     return ListView.builder(
-      scrollDirection: Axis.horizontal,
+      scrollDirection: Axis.vertical,
       physics: const BouncingScrollPhysics(),
       primary: false,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: flight.packages.length,
       itemBuilder: (context, index) {
         return Padding(
-          padding: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.only(bottom: 16),
           child: _buildHorizontalPackageCard(flight.packages[index], index),
         );
       },
@@ -152,7 +152,7 @@ class SabrePackageSelectionDialog extends StatelessWidget {
     final isCheapest = sortedPackages.isNotEmpty && package == sortedPackages.first;
 
     return Container(
-      width: 280, // Decreased width so next card is partially visible
+      width: double.infinity,
       decoration: BoxDecoration(
         color: TColors.white,
         borderRadius: BorderRadius.circular(12),
