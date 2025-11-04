@@ -264,6 +264,8 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
 
     return ListView.builder(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      primary: false,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: packages.length,
       itemBuilder: (context, index) {

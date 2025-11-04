@@ -109,6 +109,8 @@ class SabrePackageSelectionDialog extends StatelessWidget {
   Widget _buildPackagesList() {
     return ListView.builder(
       scrollDirection: Axis.horizontal,
+      physics: const BouncingScrollPhysics(),
+      primary: false,
       padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: flight.packages.length,
       itemBuilder: (context, index) {

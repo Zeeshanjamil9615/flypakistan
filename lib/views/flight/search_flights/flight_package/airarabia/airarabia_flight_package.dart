@@ -499,6 +499,8 @@ class _AirArabiaPackageSelectionDialogState extends State<AirArabiaPackageSelect
 
       return ListView.builder(
         scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        primary: false,
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: uniquePackages.length,
         itemBuilder: (context, index) {
