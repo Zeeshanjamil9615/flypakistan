@@ -55,8 +55,7 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
         children: [
           _buildFlightInfo(),
           SizedBox(height: 12),
-          SizedBox(
-            height: 340, // Fixed height for the horizontal scrolling cards
+          Expanded(
             child: _buildPackagesList(),
           ),
         ],

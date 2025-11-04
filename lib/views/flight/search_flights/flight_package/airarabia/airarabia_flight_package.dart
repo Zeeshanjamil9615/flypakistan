@@ -90,8 +90,7 @@ class _AirArabiaPackageSelectionDialogState extends State<AirArabiaPackageSelect
         children: [
           _buildFlightInfo(),
           SizedBox(height: 12),
-          SizedBox(
-            height: 320, // Fixed height for the horizontal scrolling cards
+          Expanded(
             child: _buildPackagesList(),
           ),
         ],
