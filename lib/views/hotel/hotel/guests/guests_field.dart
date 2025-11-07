@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../widgets/colors.dart';
+import '../../../../../utility/app_constants.dart';
+import '../../../../../utility/colors.dart' as ucol;
 import 'guests_controller.dart';
 
 class GuestsField extends StatefulWidget {
@@ -19,18 +21,25 @@ class _GuestsFieldState extends State<GuestsField> {
     return GestureDetector(
       onTap: () => _showGuestsDialog(context),
       child: Container(
-        padding: const EdgeInsets.all(12),
+        height: AppConstants.fieldHeight,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.grey.withOpacity(0.3)),
-          borderRadius: BorderRadius.circular(8),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+          border: Border.all(color: AppConstants.fieldBorderColor),
+          boxShadow: AppConstants.cardShadow,
         ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            const Icon(Icons.person_outline, color: TColors.primary),
-            const SizedBox(width: 12),
-            Obx(() => Text(
-              '${controller.roomCount.value} Rooms, ${controller.totalAdults} Adults, ${controller.totalChildren} Children',
-            )),
+            Icon(Icons.person_outline, color: ucol.TColors.primary, size: AppConstants.smallIconSize),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Obx(() => Text(
+                '${controller.roomCount.value} Rooms, ${controller.totalAdults} Adults, ${controller.totalChildren} Children',
+                style: AppConstants.fieldValueStyle,
+                overflow: TextOverflow.ellipsis,
+              )),
+            ),
           ],
         ),
       ),
@@ -41,35 +50,84 @@ class _GuestsFieldState extends State<GuestsField> {
     showModalBottomSheet(
       isScrollControlled: true,
       context: context,
+      backgroundColor: Colors.transparent,
       builder: (ctx) {
-        return FractionallySizedBox(
-          heightFactor: 0.9,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildRoomsRow(),
-                const SizedBox(height: 24),
-                Expanded(
-                  child: Obx(() => ListView.builder(
-                    itemCount: controller.roomCount.value,
-                    itemBuilder: (context, index) {
-                      return _buildRoomSection(index);
-                    },
-                  )),
-                ),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                  onPressed: () => Navigator.of(context).pop(),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: TColors.primary,
-                    minimumSize: const Size.fromHeight(48),
-                  ),
-                  child: const Text('Apply', style: TextStyle(color: Colors.white)),
-                ),
-              ],
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.9,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
             ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: ucol.TColors.primary,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Rooms & Guests',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w600),
+                    ),
+                    GestureDetector(
+                      onTap: () => Navigator.of(context).pop(),
+                      child: const Icon(Icons.close, color: Colors.white, size: 24),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildRoomsRow(),
+                      const SizedBox(height: 16),
+                      Expanded(
+                        child: Obx(() => ListView.builder(
+                          itemCount: controller.roomCount.value,
+                          itemBuilder: (context, index) {
+                            return _buildRoomSection(index);
+                          },
+                        )),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: SizedBox(
+                  width: double.infinity,
+                  height: AppConstants.buttonHeight,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: ucol.TColors.primary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+                      ),
+                    ),
+                    child: const Text('Apply', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                  ),
+                ),
+              ),
+            ],
           ),
         );
       },

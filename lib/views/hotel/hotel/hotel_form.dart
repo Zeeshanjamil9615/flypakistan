@@ -12,6 +12,8 @@ import 'guests/guests_field.dart';
 import 'package:flutter_animate/flutter_animate.dart'; // Add this package for animations
 
 import '../../../utility/colors.dart';
+import '../../../utility/app_constants.dart';
+import '../../../widgets/custom_date_picker_sheet.dart';
 
 class HotelFormScreen extends StatelessWidget {
   const HotelFormScreen({super.key});
@@ -102,28 +104,51 @@ class HotelFormScreen extends StatelessWidget {
   }
 }
 
-class HotelForm extends StatelessWidget {
-  HotelForm({super.key}) {
-    // Initialize both controllers
+class HotelForm extends StatefulWidget {
+  HotelForm({super.key});
+
+  @override
+  State<HotelForm> createState() => _HotelFormState();
+}
+
+class _HotelFormState extends State<HotelForm> {
+  // Persistent state
+  final Rx<CityData?> selectedCity = Rx<CityData?>(null);
+  late final TextEditingController cityController;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controllers
     Get.find<HotelDateController>();
     Get.find<SearchHotelController>();
+    cityController = TextEditingController();
   }
 
-  // Add a variable to store the selected city data
-  final Rx<CityData?> selectedCity = Rx<CityData?>(null);
+  @override
+  void dispose() {
+    cityController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final cityController = TextEditingController();
     final hotelDateController = Get.find<HotelDateController>();
     final searchHotelController = Get.find<SearchHotelController>();
+
+    String _formatDate(DateTime date) {
+      const months = [
+        'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      ];
+      return '${months[date.month - 1]} ${date.day}, ${date.year}';
+    }
 
     return Padding(
       padding: const EdgeInsets.only(top: 10, bottom: 30),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Decorative travel elements
           _buildDecorativeHeader()
               .animate()
               .fadeIn(duration: const Duration(milliseconds: 600))
@@ -133,38 +158,33 @@ class HotelForm extends StatelessWidget {
                 duration: const Duration(milliseconds: 600),
               ),
 
-          const SizedBox(height: 30),
+          const SizedBox(height: 16),
 
-          // Field Title
           _buildSectionTitle('Where would you like to go?', Icons.location_on)
               .animate()
               .fadeIn(delay: const Duration(milliseconds: 200))
               .slideX(begin: -0.1, end: 0),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // City Input Field
+          // City field: directly use CustomTextField so bottom sheet opens immediately
           _buildFormField(
-                child: CustomTextField(
-                  hintText: 'Enter City Name',
-                  icon: Icons.location_on,
-                  controller: cityController,
-                  onCitySelected: (cityData) {
-                    // Store the selected city data
-                    selectedCity.value = cityData;
-                    print(
-                      'Selected city: ${cityData.value}, ${cityData.countryCode}',
-                    );
-                  },
-                ),
-              )
+            child: CustomTextField(
+              hintText: 'Enter City Name',
+              icon: Icons.location_on,
+              controller: cityController,
+              onCitySelected: (cityData) {
+                selectedCity.value = cityData;
+                cityController.text = cityData.displayName;
+              },
+            ),
+          )
               .animate()
               .fadeIn(delay: const Duration(milliseconds: 300))
               .slideX(begin: 0.1, end: 0),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          // Field Title
           _buildSectionTitle(
                 'When are you planning to travel?',
                 Icons.calendar_today,
@@ -173,46 +193,50 @@ class HotelForm extends StatelessWidget {
               .fadeIn(delay: const Duration(milliseconds: 400))
               .slideX(begin: -0.1, end: 0),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // Date Range Selector
-          _buildFormField(
-                child: Obx(
-                  () => CustomDateRangeSelector(
-                    dateRange: hotelDateController.dateRange.value,
-                    onDateRangeChanged: hotelDateController.updateDateRange,
-                    nights: hotelDateController.nights.value,
-                    onNightsChanged: hotelDateController.updateNights,
-                  ),
-                ),
-              )
+          // Date range selector using custom bottom sheet to match flights
+          Obx(() => _buildFieldContainer(
+                onTap: () async {
+                  final result = await showCustomDateRangePicker(
+                    context: context,
+                    selectedDateRange: hotelDateController.dateRange.value,
+                    title: 'Select Dates',
+                    label: 'Select your stay',
+                  );
+                  if (result != null) {
+                    hotelDateController.updateDateRange(result);
+                  }
+                },
+                leadingIcon: Icons.calendar_today,
+                placeholder: 'Select dates',
+                valueText:
+                    '${_formatDate(hotelDateController.dateRange.value.start)} - ${_formatDate(hotelDateController.dateRange.value.end)} (${hotelDateController.nights.value} night${hotelDateController.nights.value > 1 ? 's' : ''})',
+              ))
               .animate()
               .fadeIn(delay: const Duration(milliseconds: 500))
               .slideX(begin: 0.1, end: 0),
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
 
-          // Field Title
           _buildSectionTitle('How many guests?', Icons.person)
               .animate()
               .fadeIn(delay: const Duration(milliseconds: 600))
               .slideX(begin: -0.1, end: 0),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 8),
 
-          // Guests Field
           _buildFormField(child: const GuestsField())
               .animate()
               .fadeIn(delay: const Duration(milliseconds: 700))
               .slideX(begin: 0.1, end: 0),
 
-          const SizedBox(height: 40),
+          const SizedBox(height: 24),
 
-          // Search Button
           Center(
                 child: SizedBox(
                   width: double.infinity,
-                  height: 55,
+                  height: AppConstants.buttonHeight + 8,
                   child: _buildSearchButton(context),
                 ),
               )
@@ -220,11 +244,12 @@ class HotelForm extends StatelessWidget {
               .fadeIn(delay: const Duration(milliseconds: 800))
               .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1)),
 
-          const SizedBox(height: 20),
         ],
       ),
     );
   }
+
+  // removed redundant city bottom sheet trigger; CustomTextField handles it directly
 
   Widget _buildDecorativeHeader() {
     return Container(
@@ -317,41 +342,57 @@ class HotelForm extends StatelessWidget {
   Widget _buildFormField({required Widget child}) {
     return Container(
       decoration: BoxDecoration(
-        color: TColors.white,
-        borderRadius: BorderRadius.circular(15),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 10,
-            spreadRadius: 1,
-            offset: const Offset(0, 4),
-          ),
-        ],
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+        border: Border.all(color: AppConstants.fieldBorderColor),
+        boxShadow: AppConstants.cardShadow,
       ),
       child: child,
     );
   }
 
-  Widget _buildSearchButton(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 300),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [TColors.primary, TColors.secondary],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
+  Widget _buildFieldContainer({
+    required VoidCallback onTap,
+    required IconData leadingIcon,
+    required String placeholder,
+    String? valueText,
+  }) {
+    final hasValue = (valueText != null && valueText.isNotEmpty);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: AppConstants.fieldHeight,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+          border: Border.all(color: AppConstants.fieldBorderColor),
+          boxShadow: AppConstants.cardShadow,
         ),
-        borderRadius: BorderRadius.circular(27),
-        boxShadow: [
-          BoxShadow(
-            color: TColors.primary.withOpacity(0.3),
-            blurRadius: 12,
-            offset: const Offset(0, 5),
-          ),
-        ],
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              leadingIcon,
+              color: hasValue ? TColors.primary : AppConstants.tabInactiveColor,
+              size: AppConstants.smallIconSize,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                hasValue ? valueText! : placeholder,
+                style: hasValue ? AppConstants.fieldValueStyle : AppConstants.fieldLabelStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
       ),
-      child: ElevatedButton(
-        onPressed: () async {
+    );
+  }
+
+  Widget _buildSearchButton(BuildContext context) {
+    return GestureDetector(
+      onTap: () async {
           // Validate if a city is selected
           if (selectedCity.value == null) {
             Get.snackbar(
@@ -468,20 +509,31 @@ class HotelForm extends StatelessWidget {
               barrierDismissible: false,
             );
           }
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(27),
-          ),
+      },
+      child: Container(
+        height: AppConstants.buttonHeight,
+        decoration: BoxDecoration(
+          color: TColors.primary,
+          borderRadius: BorderRadius.circular(AppConstants.buttonBorderRadius),
+          boxShadow: [
+            BoxShadow(
+              color: TColors.primary.withOpacity(0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        child: const Text(
-          'Search Hotels',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
+        child: Center(
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Icon(Icons.search, color: Colors.white, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'SEARCH HOTELS',
+                style: AppConstants.buttonTextStyle,
+              ),
+            ],
           ),
         ),
       ),

@@ -254,7 +254,7 @@ class AuthController extends GetxController {
     return {'success': false, 'message': errorMessage};
   }
 
-  Future<Map<String, dynamic>> register({
+  Future<Map<String, dynamic>> registerRequest({
     required String agencyName,
     required String contactName,
     required String email,
@@ -267,7 +267,7 @@ class AuthController extends GetxController {
 
     try {
       final response = await dio.post(
-        '$_baseUrl/register',
+        '$_baseUrl/registerRequest',
         data: {
           "agency_name": agencyName,
           "contact_name": contactName,
@@ -281,7 +281,7 @@ class AuthController extends GetxController {
 
       // Debug log the raw response
       if (kDebugMode) {
-        print('Registration response: ${response.data}');
+        print('Registration request response: ${response.data}');
       }
 
       // Parse the response data
@@ -296,34 +296,38 @@ class AuthController extends GetxController {
 
       // Check the status field in the response
       if (responseData is Map && responseData.containsKey('status')) {
-        // Check if status is "error" or non-200 numeric
+        // Check if status is error or 400
         if (responseData['status'] == 'error' ||
-            (responseData['status'] is num && responseData['status'] != 200)) {
+            responseData['status'] == 400 ||
+            (responseData['status'] is num && responseData['status'] != 200 && responseData['status'] != 1)) {
           isLoading.value = false;
           return {
             'success': false,
-            'message': responseData['message'] ?? 'Registration failed',
+            'message': responseData['message'] ?? 'Registration request failed',
             'errors': responseData['errors'] ?? {},
             'data': responseData,
           };
         }
       }
 
-      // If we reach here and HTTP status is 200/201, consider it success
-      if (response.statusCode == 200 || response.statusCode == 201) {
+      // If we reach here and HTTP status is 200/201 and status is 1, consider it success
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          responseData is Map &&
+          (responseData['status'] == 1 || responseData['status'] == 200)) {
         isLoading.value = false;
         return {
           'success': true,
           'data': responseData,
+          'email': responseData['email'] ?? email,
           'message':
               responseData is Map
-                  ? (responseData['message'] ?? 'Registration successful')
-                  : 'Registration successful',
+                  ? (responseData['message'] ?? 'OTP sent successfully')
+                  : 'OTP sent successfully',
         };
       } else {
         // Handle other HTTP error codes
         String errorMessage =
-            'Registration failed with status code: ${response.statusCode}';
+            'Registration request failed with status code: ${response.statusCode}';
         if (responseData is Map && responseData.containsKey('message')) {
           errorMessage = responseData['message'];
         }
@@ -337,16 +341,107 @@ class AuthController extends GetxController {
       }
     } on DioException catch (e) {
       isLoading.value = false;
-      return _handleDioError(e, 'Registration');
+      return _handleDioError(e, 'Registration Request');
     } catch (e) {
       if (kDebugMode) {
-        print('Registration exception: ${e.toString()}');
+        print('Registration request exception: ${e.toString()}');
         print('Stack trace: ${StackTrace.current}');
       }
       isLoading.value = false;
       return {
         'success': false,
-        'message': 'Registration failed: ${e.toString()}',
+        'message': 'Registration request failed: ${e.toString()}',
+      };
+    }
+  }
+
+  Future<Map<String, dynamic>> registerVerify({
+    required String email,
+    required String otp,
+  }) async {
+    isLoading.value = true;
+
+    try {
+      final response = await dio.post(
+        '$_baseUrl/registerVerify',
+        data: {
+          "email": email,
+          "otp": otp,
+        },
+      );
+
+      // Debug log the raw response
+      if (kDebugMode) {
+        print('Registration verify response: ${response.data}');
+      }
+
+      // Parse the response data
+      var responseData = response.data;
+      if (responseData is String) {
+        try {
+          responseData = jsonDecode(responseData);
+        } catch (e) {
+          // If JSON parsing fails, keep it as string
+        }
+      }
+
+      // Check the status field in the response
+      if (responseData is Map && responseData.containsKey('status')) {
+        // Check if status is error, 400 (OTP mismatch), or 410 (OTP expired)
+        if (responseData['status'] == 'error' ||
+            responseData['status'] == 400 ||
+            responseData['status'] == 410 ||
+            (responseData['status'] is num && responseData['status'] != 200)) {
+          isLoading.value = false;
+          return {
+            'success': false,
+            'message': responseData['message'] ?? 'OTP verification failed',
+            'statusCode': responseData['status'],
+            'data': responseData,
+          };
+        }
+      }
+
+      // If we reach here and HTTP status is 200/201 and status is 200, consider it success
+      if ((response.statusCode == 200 || response.statusCode == 201) &&
+          responseData is Map &&
+          responseData['status'] == 200) {
+        isLoading.value = false;
+        return {
+          'success': true,
+          'data': responseData,
+          'message':
+              responseData is Map
+                  ? (responseData['message'] ?? 'Registration completed successfully')
+                  : 'Registration completed successfully',
+        };
+      } else {
+        // Handle other HTTP error codes
+        String errorMessage =
+            'OTP verification failed with status code: ${response.statusCode}';
+        if (responseData is Map && responseData.containsKey('message')) {
+          errorMessage = responseData['message'];
+        }
+
+        isLoading.value = false;
+        return {
+          'success': false,
+          'message': errorMessage,
+          'statusCode': response.statusCode,
+        };
+      }
+    } on DioException catch (e) {
+      isLoading.value = false;
+      return _handleDioError(e, 'Registration Verify');
+    } catch (e) {
+      if (kDebugMode) {
+        print('Registration verify exception: ${e.toString()}');
+        print('Stack trace: ${StackTrace.current}');
+      }
+      isLoading.value = false;
+      return {
+        'success': false,
+        'message': 'OTP verification failed: ${e.toString()}',
       };
     }
   }

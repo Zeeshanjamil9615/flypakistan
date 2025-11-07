@@ -212,6 +212,9 @@ class ApiServiceHotel extends GetxService {
     required String checkOutDate,
     required List<Map<String, dynamic>> rooms,
   }) async {
+
+    print("checking workinbg");
+
     final searchController = Get.find<SearchHotelController>();
 
     // Fetch margin and ROE before processing hotels     

@@ -49,7 +49,7 @@ class _HotelPaymentScreenState extends State<HotelPaymentScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: TColors.background,
       appBar: _buildAppBar(),
       body: Column(
         children: [
@@ -75,40 +75,22 @@ class _HotelPaymentScreenState extends State<HotelPaymentScreen>
 
   PreferredSizeWidget _buildAppBar() {
     return AppBar(
+      surfaceTintColor: TColors.background,
+      backgroundColor: TColors.background,
       elevation: 0,
-      backgroundColor: TColors.primary,
-      flexibleSpace: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              TColors.primary,
-              TColors.primary.withOpacity(0.8),
-            ],
-          ),
-        ),
-      ),
       title: const Text(
         "Payment Options",
         style: TextStyle(
-          color: Colors.white,
-          fontWeight: FontWeight.bold,
-          fontSize: 24,
+          color: Colors.black87,
+          fontWeight: FontWeight.w600,
+          fontSize: 18,
         ),
       ),
       leading: IconButton(
-        icon: Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.2),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-        ),
+        icon: const Icon(Icons.arrow_back),
         onPressed: () => Get.back(),
       ),
-      centerTitle: true,
+      centerTitle: false,
     );
   }
 
@@ -118,11 +100,12 @@ class _HotelPaymentScreenState extends State<HotelPaymentScreen>
     decoration: BoxDecoration(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.grey.shade200),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.08),
-          blurRadius: 20,
-          offset: const Offset(0, 5),
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
         ),
       ],
     ),
@@ -366,12 +349,13 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 25,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -404,8 +388,8 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                         child: Text(
                           'Bank Transfer Payment',
                           style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
                         ),
@@ -441,7 +425,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                   const Text(
                     'We will confirm your booking now if the booking is refundable and in case booking is nonrefundable, booking will be confirmed after we receive payment. In this payment option you may lose the selected price during the process of payment.',
                     style: TextStyle(
-                      fontSize: 15,
+                      fontSize: 13,
                       color: Colors.grey,
                       height: 1.6,
                     ),
@@ -450,23 +434,23 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                   const Text(
                     'Select Your Bank',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
                   const SizedBox(height: 16),
                   Obx(() => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.grey[50],
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.grey[300]!),
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade200),
                       boxShadow: [
                         BoxShadow(
-                          color: Colors.black.withOpacity(0.04),
-                          blurRadius: 10,
-                          offset: const Offset(0, 2),
+                          color: Colors.black.withOpacity(0.03),
+                          blurRadius: 4,
+                          offset: const Offset(0, 1),
                         ),
                       ],
                     ),
@@ -478,7 +462,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                             : paymentController.selectedBank.value,
                         hint: const Text(
                           'Choose your bank',
-                          style: TextStyle(color: Colors.grey, fontSize: 16),
+                          style: TextStyle(color: Colors.grey, fontSize: 14),
                         ),
                         icon: const Icon(Icons.keyboard_arrow_down_rounded),
                         items: paymentController.banks.map((String bank) {
@@ -493,7 +477,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                                   const SizedBox(width: 12),
                                   Text(
                                     bank,
-                                    style: const TextStyle(fontSize: 16),
+                                    style: const TextStyle(fontSize: 14),
                                   ),
                                 ],
                               ),
@@ -532,12 +516,13 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(24),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.grey.shade200),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.06),
-                  blurRadius: 25,
-                  offset: const Offset(0, 8),
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
               ],
             ),
@@ -549,8 +534,8 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                   const Text(
                     'Pay with Credit Card / Debit Card',
                     style: TextStyle(
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black87,
                     ),
                   ),
@@ -1167,9 +1152,17 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Payment Status'),
-        backgroundColor: TColors.primary,
-        foregroundColor: Colors.white,
+        surfaceTintColor: TColors.background,
+        backgroundColor: TColors.background,
+        elevation: 0,
+        title: const Text(
+          'Payment Status',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
+        ),
       ),
       body: Center(
         child: Padding(

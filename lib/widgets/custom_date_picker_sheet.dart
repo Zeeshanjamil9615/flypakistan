@@ -142,6 +142,7 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
         children: [
           // Header
           Container(
+            width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: TColors.primary,

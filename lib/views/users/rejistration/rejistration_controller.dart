@@ -4,6 +4,7 @@ import '../../../b2b/agent_dashboard/agent_dashboard.dart';
 import '../../../utility/colors.dart';
 import '../login/login.dart';
 import '../login/login_api_service/login_api.dart';
+import 'otp_verification_screen.dart';
 
 class RegistrationModel {
   String agencyName;
@@ -198,7 +199,7 @@ class RegisterController extends GetxController {
     return isValid;
   }
 
-  // Register method
+  // Register method - now sends registration request and navigates to OTP screen
   void register() async {
     // Clear focus to hide keyboard
     FocusManager.instance.primaryFocus?.unfocus();
@@ -223,8 +224,8 @@ class RegisterController extends GetxController {
       // Show loading indicator
       isLoading.value = true;
 
-      // Call the API service for registration
-      final response = await authController.register(
+      // Call the API service for registration request
+      final response = await authController.registerRequest(
         agencyName: agencyNameController.text.trim(),
         contactName: contactNameController.text.trim(),
         email: emailController.text.trim(),
@@ -235,21 +236,25 @@ class RegisterController extends GetxController {
       );
 
       if (response['success']) {
+        // Get email from response or use the entered email
+        final email = response['email'] ?? emailController.text.trim();
+
         // Show success message
         Get.snackbar(
-          'Success',
-          'Registration completed successfully',
+          'OTP Sent',
+          response['message'] ?? 'OTP has been sent to your email',
           backgroundColor: Colors.green,
           colorText: TColors.white,
           snackPosition: SnackPosition.BOTTOM,
           margin: EdgeInsets.all(10),
+          duration: Duration(seconds: 2),
         );
 
-        // Navigate to the agent dashboard screen
-        Get.to(() => Login());
+        // Navigate to OTP verification screen with email
+        Get.to(() => OtpVerificationScreen(), arguments: email);
       } else {
         // Store API error message
-        apiErrorMessage.value = response['message'] ?? 'Registration failed';
+        apiErrorMessage.value = response['message'] ?? 'Registration request failed';
 
         // Show error message
         Get.snackbar(
@@ -263,7 +268,7 @@ class RegisterController extends GetxController {
         );
 
         // Log error details
-        print('Registration API error: ${response['message']}');
+        print('Registration request API error: ${response['message']}');
       }
     } catch (e) {
       // Handle exception

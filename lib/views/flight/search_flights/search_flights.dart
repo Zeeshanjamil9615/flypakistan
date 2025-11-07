@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/flydubai/flydubai_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/search_flight_utils/widgets/emirates_ndc_card.dart';
@@ -173,7 +174,7 @@ class FlightBookingPage extends StatelessWidget {
       body: Column(
         children: [
           _buildFilterSection(context),
-          _buildFlightList(),
+          _buildFlightList(context),
         ],
       ),
     );
@@ -247,7 +248,7 @@ class FlightBookingPage extends StatelessWidget {
 
 // Update the _buildFlightList method to include Emirates
 
-Widget _buildFlightList() {
+Widget _buildFlightList(BuildContext context) {
   final airBlueController = Get.find<AirBlueFlightController>();
   final piaController = Get.put(PIAFlightController());
   final flightController = Get.find<SabreFlightController>();
@@ -272,24 +273,21 @@ Widget _buildFlightList() {
           airArabiaController.filteredFlights.isEmpty &&
           emiratesController.filteredFlights.isEmpty; // Add this
 
+      final hasFlights =
+          airBlueController.filteredFlights.isNotEmpty ||
+              flyDubaiController.filteredOutboundFlights.isNotEmpty ||
+              flightController.filteredFlights.isNotEmpty ||
+              piaController.filteredFlights.isNotEmpty ||
+              airArabiaController.filteredFlights.isNotEmpty ||
+              emiratesController.filteredFlights.isNotEmpty;
+
+      if (!hasFlights && isAnyLoading) {
+        return _buildInitialLoadingState(context);
+      }
+
       // Show main loading indicator when all controllers are loading and no flights are available
-      if (isAnyLoading && hasNoFlights) {
-        return const Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              CircularProgressIndicator(),
-              SizedBox(height: 16),
-              Text(
-                'Searching for flights...',
-                style: TextStyle(
-                  color: TColors.grey,
-                  fontSize: 16,
-                ),
-              ),
-            ],
-          ),
-        );
+      if (hasNoFlights) {
+        return _buildNoFlightsState();
       }
 
       return SingleChildScrollView(
@@ -364,12 +362,181 @@ Widget _buildTotalFlightsCount() {
   });
 }
 
+Widget _buildNoFlightsState() {
+  return Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: const [
+          Icon(
+            Icons.flight_takeoff,
+            size: 48,
+            color: TColors.grey,
+          ),
+          SizedBox(height: 16),
+          Text(
+            'No flights available right now.',
+            style: TextStyle(
+              fontSize: 16,
+              color: TColors.text,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          SizedBox(height: 8),
+          Text(
+            'Try adjusting your filters or search criteria.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: TColors.grey,
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildInitialLoadingState(BuildContext context) {
+  return SingleChildScrollView(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSkeletonBar(widthFactor: 0.6),
+          const SizedBox(height: 12),
+          _buildSkeletonBar(widthFactor: 0.45),
+          const SizedBox(height: 24),
+          _buildLoadingInfoCard(context),
+          const SizedBox(height: 24),
+          ...List.generate(3, (index) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 16),
+              child: _buildSkeletonCard(),
+            );
+          }),
+        ],
+      ),
+    ),
+  );
+}
+
+Widget _buildLoadingInfoCard(BuildContext context) {
+  return Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(20),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 20,
+          offset: const Offset(0, 12),
+        ),
+      ],
+    ),
+    child: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SvgPicture.asset(
+          'assets/images/flight-search.svg',
+          height: 160,
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          'Please wait, we are searching best flight deals for you.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 16,
+            color: TColors.text,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 12),
+        const Text(
+          'Our payment plans are flexible—you can pay cash, bank transfer, or choose to pay by credit card.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 13,
+            color: TColors.grey,
+            height: 1.4,
+          ),
+        ),
+        const SizedBox(height: 20),
+        const SizedBox(
+          width: 32,
+          height: 32,
+          child: CircularProgressIndicator(strokeWidth: 3),
+        ),
+      ],
+    ),
+  );
+}
+
+Widget _buildSkeletonBar({required double widthFactor}) {
+  return FractionallySizedBox(
+    widthFactor: widthFactor,
+    child: Container(
+      height: 14,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        gradient: LinearGradient(
+          colors: [
+            Colors.grey.shade200,
+            Colors.grey.shade100,
+            Colors.grey.shade200,
+          ],
+        ),
+      ),
+    ),
+  );
+}
+
+Widget _buildSkeletonCard() {
+  return Container(
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.03),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
+        ),
+      ],
+    ),
+    padding: const EdgeInsets.all(20),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSkeletonLine(widthFactor: 0.5),
+        const SizedBox(height: 12),
+        _buildSkeletonLine(widthFactor: 0.8),
+        const SizedBox(height: 12),
+        _buildSkeletonLine(widthFactor: 0.65),
+      ],
+    ),
+  );
+}
+
+Widget _buildSkeletonLine({required double widthFactor}) {
+  return FractionallySizedBox(
+    widthFactor: widthFactor,
+    child: Container(
+      height: 12,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        color: Colors.grey.shade200,
+      ),
+    ),
+  );
+}
+
 Widget _buildEmiratesSection() {
   return Obx(() {
-    if (emiratesController.isLoading.value) {
-      return _buildSectionLoader('Emirates');
-    }
-
     if (emiratesController.filteredFlights.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -383,10 +550,6 @@ Widget _buildEmiratesSection() {
 }
   Widget _buildAirBlueSection() {
     return Obx(() {
-      if (airBlueController.isLoading.value) {
-        return _buildSectionLoader('AirBlue');
-      }
-
       if (airBlueController.filteredFlights.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -401,10 +564,6 @@ Widget _buildEmiratesSection() {
 
   Widget _buildFlyDubaiSection() {
     return Obx(() {
-      if (flyDubaiController.isLoading.value) {
-        return _buildSectionLoader('FlyDubai');
-      }
-
       if (flyDubaiController.filteredOutboundFlights.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -419,10 +578,6 @@ Widget _buildEmiratesSection() {
 
   Widget _buildSabreSection() {
     return Obx(() {
-      if (controller.isLoading.value) {
-        return _buildSectionLoader('Sabre');
-      }
-
       if (controller.filteredFlights.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -437,10 +592,6 @@ Widget _buildEmiratesSection() {
 
   Widget _buildPIASection() {
     return Obx(() {
-      if (piaController.isLoading.value) {
-        return _buildSectionLoader('PIA');
-      }
-
       if (piaController.filteredFlights.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -458,10 +609,6 @@ Widget _buildEmiratesSection() {
 
   Widget _buildAirArabiaSection() {
     return Obx(() {
-      if (airArabiaController.isLoading.value) {
-        return _buildSectionLoader('Air Arabia');
-      }
-
       if (airArabiaController.filteredFlights.isEmpty) {
         return const SizedBox.shrink();
       }
@@ -475,42 +622,6 @@ Widget _buildEmiratesSection() {
         }).toList(),
       );
     });
-  }
-
-  Widget _buildSectionLoader(String airlineName) {
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
-      padding: const EdgeInsets.all(20.0),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.1),
-            spreadRadius: 1,
-            blurRadius: 6,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(strokeWidth: 2),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            'Searching flights...',
-            style: const TextStyle(
-              color: TColors.grey,
-              fontSize: 14,
-            ),
-          ),
-        ],
-      ),
-    );
   }
 
   Widget _filterButton(String text, bool isSelected, VoidCallback onPressed) {

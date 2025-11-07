@@ -720,12 +720,19 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? TColors.primary : Colors.grey.shade300,
+          color: isSelected ? TColors.primary : Colors.grey.shade200,
           width: isSelected ? 2 : 1,
         ),
-        borderRadius: BorderRadius.circular(8),
-        color: isSelected ? TColors.primary.withOpacity(0.05) : Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -745,9 +752,9 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                         Text(
                           room['meal'] ?? 'Not Available',
                           style: const TextStyle(
-                            color: TColors.text,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -758,12 +765,17 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                   ],
                 ),
                 const SizedBox(height: 16),
+                Container(height: 1, color: Colors.grey.shade200),
+                const SizedBox(height: 16),
                 _buildPriceSection(pricePerNight as double, totalPrice),
                 if (room['remarks']?['remark'] != null) ...[
                   const SizedBox(height: 16),
                   Text(
                     room['remarks']['remark'][0]['text'] ?? '',
-                    style: const TextStyle(color: TColors.grey, fontSize: 12),
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
+                    ),
                     maxLines: 3,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -782,11 +794,12 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                           size: 18,
                           color: TColors.primary,
                         ),
-                        label: const Text(
+                        label: Text(
                           'Cancellation Policy',
                           style: TextStyle(
                             color: TColors.primary,
                             fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -799,11 +812,12 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                           size: 18,
                           color: TColors.primary,
                         ),
-                        label: const Text(
+                        label: Text(
                           'Price BreakUp',
                           style: TextStyle(
                             color: TColors.primary,
                             fontSize: 13,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -872,40 +886,82 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.payment, size: 16, color: TColors.grey),
-                SizedBox(width: 4),
+                Icon(Icons.payment, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
                 Text(
                   'Per Night',
-                  style: TextStyle(color: TColors.grey, fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              '\PKR${pricePerNight.toStringAsFixed(0)}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'PKR ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  TextSpan(
+                    text: NumberFormat('#,###').format(pricePerNight.round()),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         Column(
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.calculate, size: 16, color: TColors.grey),
-                SizedBox(width: 4),
+                Icon(Icons.calculate, size: 16, color: Colors.grey.shade600),
+                const SizedBox(width: 4),
                 Text(
                   'Total',
-                  style: TextStyle(color: TColors.grey, fontSize: 12),
+                  style: TextStyle(
+                    color: Colors.grey.shade600,
+                    fontSize: 13,
+                  ),
                 ),
               ],
             ),
             const SizedBox(height: 4),
-            Text(
-              '\PKR${totalPrice.toStringAsFixed(0)}',
-              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+            Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: 'PKR ',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.normal,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  TextSpan(
+                    text: NumberFormat('#,###').format(totalPrice.round()),
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.black87,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

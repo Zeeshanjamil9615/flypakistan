@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:ready_flights/views/home/home_screen.dart';
 import '../../../b2b/agent_dashboard/agent_dashboard.dart';
 import 'login_api_service/login_api.dart';
-
+            
 class LoginController extends GetxController {
   final authController = Get.find<AuthController>();
 

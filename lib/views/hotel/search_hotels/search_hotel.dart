@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
 import 'package:ready_flights/utility/colors.dart';
 import 'package:ready_flights/views/hotel/hotel/hotel_date_controller.dart';
 import 'package:ready_flights/views/hotel/search_hotels/hotel_info/hotel_info.dart';
@@ -147,27 +148,28 @@ class _HotelScreenState extends State<HotelScreen> {
     }
 
     return Scaffold(
+      backgroundColor: TColors.background,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: TColors.primary,
-        title: const Text(
-          "",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 24,
-          ),
-        ),
+        surfaceTintColor: TColors.background,
+        backgroundColor: TColors.background,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Get.back(),
+        ),
+        title: const Text(
+          'Hotels',
+          style: TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w600,
+            fontSize: 18,
+          ),
         ),
       ),
       body: Column(
         children: [
           // Header Section with Search Text Field and Buttons
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -175,18 +177,27 @@ class _HotelScreenState extends State<HotelScreen> {
                 SizedBox(
                   height: 50,
                   child: TextField(
-                    style: TextStyle(color: TColors.black),
+                    style: const TextStyle(color: Colors.black87),
                     onChanged: (value) {
                       controller.searchHotelsByName(value);
                     },
                     decoration: InputDecoration(
                       hintText: 'Search for hotels...',
-                      hintStyle: TextStyle(color: TColors.black),
+                      hintStyle: TextStyle(color: Colors.grey.shade600),
                       prefixIcon: Icon(Icons.search, color: TColors.primary),
                       fillColor: Colors.white,
+                      filled: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: TColors.black),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(color: TColors.primary),
                       ),
                     ),
                   ),
@@ -242,14 +253,25 @@ class _HotelScreenState extends State<HotelScreen> {
     String label,
     VoidCallback onPressed,
   ) {
-    return ElevatedButton.icon(
+    return TextButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, color: TColors.text),
-      label: Text(label, style: TextStyle(color: TColors.text)),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: TColors.primary.withOpacity(0.3),
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      icon: Icon(icon, size: 16, color: Colors.grey.shade600),
+      label: Text(
+        label,
+        style: TextStyle(
+          fontSize: 12,
+          color: Colors.grey.shade600,
+          fontWeight: FontWeight.normal,
+        ),
+      ),
+      style: TextButton.styleFrom(
+        foregroundColor: Colors.grey.shade600,
+        backgroundColor: Colors.transparent,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(color: Colors.grey.shade300),
+        ),
       ),
     );
   }
@@ -467,7 +489,7 @@ class _HotelScreenState extends State<HotelScreen> {
 }
 
 class HotelCard extends StatelessWidget {
-   final Map<String, dynamic> hotel;
+  final Map<String, dynamic> hotel;
 
   HotelCard({super.key, required this.hotel});
 
@@ -483,112 +505,118 @@ class HotelCard extends StatelessWidget {
     controller.lon.value = hotel['longitude'];
     controller.hotelAddress.value = hotel['address'] ?? "";
     // controller.hotelid.value=(hotel['code'] as double).toInt()??0;
-    
+
     controller.roomsdata.clear();
 
     ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
     controller.filterhotler();
-    Get.to(() => HotelInfoScreen(
-      hotelId: hotel['hotelCode'],
-      hotelData: hotel as Map<String, dynamic>,
-    ));
+    Get.to(
+      () => HotelInfoScreen(
+        hotelId: hotel['hotelCode'],
+        hotelData: hotel as Map<String, dynamic>,
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 4,
-      child: Column(
-        children: <Widget>[
-          // Make hotel image clickable
-          GestureDetector(
-            onTap: _selectRoom,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
+    return InkWell(
+      onTap: _selectRoom,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.grey.shade200),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 8,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: Column(
+          children: [
+            // Hotel Image
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
               child: _buildHotelImage(),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.all(12.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Make hotel title clickable
-                          GestureDetector(
-                            onTap: _selectRoom,
-                            child: Text(
-                              hotel['name'] ?? 'Unknown Hotel',
-                              style: const TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.black,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hotel['address'] ?? 'Address not available',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[700],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
+            const SizedBox(height: 16),
+            // Hotel Name and Location
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        hotel['name'] ?? 'Unknown Hotel',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                    // Map icon with text below
-                    GestureDetector(
-                      onTap: () {
-                        Get.to(
-                          () => MapScreen(
-                            latitude:
-                                double.tryParse(
-                                  hotel['latitude']?.toString() ?? '',
-                                ) ??
-                                0.0,
-                            longitude:
-                                double.tryParse(
-                                  hotel['longitude']?.toString() ?? '',
-                                ) ??
-                                0.0,
-                            hotelName: hotel['name'] ?? 'Unknown Hotel',
-                          ),
-                        );
-                      },
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.location_on_rounded,
-                            color: TColors.primary,
-                            size: 30,
-                          ),
-                          Text(
-                            'See Map',
-                            style: TextStyle(
-                              color: TColors.primary,
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                        ],
+                      const SizedBox(height: 4),
+                      Text(
+                        hotel['address'] ?? 'Address not available',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 8),
+                // Map icon button
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () {
+                      Get.to(
+                        () => MapScreen(
+                          latitude:
+                              double.tryParse(
+                                hotel['latitude']?.toString() ?? '',
+                              ) ??
+                              0.0,
+                          longitude:
+                              double.tryParse(
+                                hotel['longitude']?.toString() ?? '',
+                              ) ??
+                              0.0,
+                          hotelName: hotel['name'] ?? 'Unknown Hotel',
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      child: Icon(
+                        Icons.location_on_rounded,
+                        color: TColors.primary,
+                        size: 24,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            Container(height: 1, color: Colors.grey.shade200),
+            const SizedBox(height: 12),
+            // Rating and Price Row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Row(
                   children: [
                     RatingBar.builder(
@@ -597,54 +625,58 @@ class HotelCard extends StatelessWidget {
                       direction: Axis.horizontal,
                       allowHalfRating: true,
                       itemCount: 5,
-                      itemSize: 15,
+                      itemSize: 14,
                       itemPadding: const EdgeInsets.symmetric(horizontal: 1.0),
                       itemBuilder:
-                          (context, _) =>
-                              const Icon(Icons.star, color: Colors.amber),
+                          (context, _) => const Icon(
+                            Icons.star,
+                            color: Colors.amber,
+                            size: 14,
+                          ),
                       onRatingUpdate: (rating) {},
+                      ignoreGestures: true,
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 4),
                     Text(
-                      'PKR ${(((hotel['price'] ?? 0.0) / dateController.nights.value).round())}',
+                      '${(hotel['rating'] ?? 3.0).toDouble()}',
                       style: TextStyle(
-                        fontSize: 18,
-                        color: TColors.text,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
+                Text.rich(
+                  TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'PKR ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.normal,
+                          color: Colors.black54,
+                        ),
+                      ),
+                      TextSpan(
+                        text: NumberFormat('#,###').format(
+                          ((hotel['price'] ?? 0.0) /
+                                  dateController.nights.value)
+                              .round(),
+                        ),
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ],
             ),
-          ),
-          Container(
-            height: 60,
-            padding: const EdgeInsets.symmetric(
-              horizontal: 12.0,
-              vertical: 8.0,
-            ),
-            child: ElevatedButton(
-              onPressed: _selectRoom,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: TColors.primary,
-                foregroundColor: Colors.black,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-                minimumSize: const Size(double.infinity, 40),
-              ),
-              child: Text(
-                'Select Room',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: TColors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -661,7 +693,7 @@ class HotelCard extends StatelessWidget {
 
       return CachedNetworkImage(
         imageUrl: imageUrl,
-        height: 200,
+        height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
         placeholder: (context, url) {
@@ -678,7 +710,7 @@ class HotelCard extends StatelessWidget {
           print('Error details: $error');
           return Image.asset(
             'assets/img/cardbg/broken-image.png',
-            height: 200,
+            height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
           );
@@ -710,7 +742,7 @@ class HotelCard extends StatelessWidget {
           print('Error details: $error');
           return Image.asset(
             'assets/img/cardbg/broken-image.png',
-            height: 200,
+            height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
           );
@@ -725,14 +757,14 @@ class HotelCard extends StatelessWidget {
 
       return Image.asset(
         assetPath,
-        height: 200,
+        height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) {
           print('Error loading asset: $assetPath');
           return Image.asset(
             'assets/img/cardbg/broken-image.png',
-            height: 200,
+            height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
           );
@@ -741,6 +773,7 @@ class HotelCard extends StatelessWidget {
     }
   }
 }
+
 class MapScreen extends StatefulWidget {
   final double latitude;
   final double longitude;
@@ -771,18 +804,19 @@ class _MapScreenState extends State<MapScreen> {
 
   Future<void> _createMarkers() async {
     markers.clear();
-    
+
     // Add the selected hotel marker with price
     final selectedHotelPrice = _getSelectedHotelPrice();
-    final selectedPricePerNight = selectedHotelPrice != null 
-        ? (selectedHotelPrice / dateController.nights.value).round()
-        : 0;
-    
+    final selectedPricePerNight =
+        selectedHotelPrice != null
+            ? (selectedHotelPrice / dateController.nights.value).round()
+            : 0;
+
     final selectedMarkerIcon = await _createPriceMarker(
-      'PKR $selectedPricePerNight', 
+      'PKR $selectedPricePerNight',
       true, // isSelected
     );
-    
+
     markers.add(
       Marker(
         markerId: MarkerId('selected_${widget.hotelName}'),
@@ -799,27 +833,36 @@ class _MapScreenState extends State<MapScreen> {
       double lat = double.tryParse(hotel['latitude']?.toString() ?? '') ?? 0.0;
       double lon = double.tryParse(hotel['longitude']?.toString() ?? '') ?? 0.0;
       String name = hotel['name'] ?? 'Unknown Hotel';
-      
+
       // Skip if it's the same hotel or coordinates are invalid
       if (name == widget.hotelName || (lat == 0.0 && lon == 0.0)) continue;
-      
+
       // Calculate distance to filter nearby hotels (within ~50km radius)
-      double distance = _calculateDistance(widget.latitude, widget.longitude, lat, lon);
-      
-      if (distance <= 50) { // Show hotels within 50km
-        double hotelPrice = double.tryParse(
-          hotel['price'].toString().replaceAll(',', '').trim(),
-        ) ?? 0.0;
-        
-        int pricePerNight = hotelPrice > 0 
-            ? (hotelPrice / dateController.nights.value).round()
-            : 0;
-        
+      double distance = _calculateDistance(
+        widget.latitude,
+        widget.longitude,
+        lat,
+        lon,
+      );
+
+      if (distance <= 50) {
+        // Show hotels within 50km
+        double hotelPrice =
+            double.tryParse(
+              hotel['price'].toString().replaceAll(',', '').trim(),
+            ) ??
+            0.0;
+
+        int pricePerNight =
+            hotelPrice > 0
+                ? (hotelPrice / dateController.nights.value).round()
+                : 0;
+
         final nearbyMarkerIcon = await _createPriceMarker(
-          pricePerNight > 0 ? 'PKR $pricePerNight' : 'N/A', 
+          pricePerNight > 0 ? 'PKR $pricePerNight' : 'N/A',
           false, // isSelected
         );
-        
+
         markers.add(
           Marker(
             markerId: MarkerId('nearby_$name'),
@@ -832,56 +875,62 @@ class _MapScreenState extends State<MapScreen> {
         );
       }
     }
-    
+
     if (mounted) {
       setState(() {});
     }
   }
 
-  Future<BitmapDescriptor> _createPriceMarker(String price, bool isSelected) async {
+  Future<BitmapDescriptor> _createPriceMarker(
+    String price,
+    bool isSelected,
+  ) async {
     final ui.PictureRecorder pictureRecorder = ui.PictureRecorder();
     final Canvas canvas = Canvas(pictureRecorder);
-    final Paint paint = Paint()..color = isSelected ? Colors.red : TColors.primary;
-    final Paint borderPaint = Paint()
-      ..color = Colors.white
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2;
-    
+    final Paint paint =
+        Paint()..color = isSelected ? Colors.red : TColors.primary;
+    final Paint borderPaint =
+        Paint()
+          ..color = Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2;
+
     const double width = 150;
     const double height = 80;
     const double borderRadius = 22;
-    
+
     // Draw background with rounded rectangle
     final RRect rect = RRect.fromRectAndRadius(
       Rect.fromLTWH(0, 0, width, height),
       const Radius.circular(borderRadius),
     );
-    
+
     canvas.drawRRect(rect, paint);
     canvas.drawRRect(rect, borderPaint);
-    
+
     // Draw text
     final textStyle = ui.TextStyle(
       color: Colors.white,
       fontSize: 30,
       fontWeight: FontWeight.bold,
     );
-    final paragraphStyle = ui.ParagraphStyle(
-      textAlign: TextAlign.center,
-    );
-    final paragraphBuilder = ui.ParagraphBuilder(paragraphStyle)
-      ..pushStyle(textStyle)
-      ..addText(price);
+    final paragraphStyle = ui.ParagraphStyle(textAlign: TextAlign.center);
+    final paragraphBuilder =
+        ui.ParagraphBuilder(paragraphStyle)
+          ..pushStyle(textStyle)
+          ..addText(price);
     final paragraph = paragraphBuilder.build();
     paragraph.layout(const ui.ParagraphConstraints(width: width));
-    
+
     canvas.drawParagraph(paragraph, Offset(0, (height - paragraph.height) / 2));
-    
+
     final ui.Picture picture = pictureRecorder.endRecording();
     final ui.Image image = await picture.toImage(width.toInt(), height.toInt());
-    final ByteData? byteData = await image.toByteData(format: ui.ImageByteFormat.png);
+    final ByteData? byteData = await image.toByteData(
+      format: ui.ImageByteFormat.png,
+    );
     final Uint8List uint8List = byteData!.buffer.asUint8List();
-    
+
     return BitmapDescriptor.fromBytes(uint8List);
   }
 
@@ -911,17 +960,26 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   // Calculate distance between two coordinates using Haversine formula
-  double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+  double _calculateDistance(
+    double lat1,
+    double lon1,
+    double lat2,
+    double lon2,
+  ) {
     const double earthRadius = 6371; // Earth's radius in kilometers
-    
+
     double dLat = _toRadians(lat2 - lat1);
     double dLon = _toRadians(lon2 - lon1);
-    
-    double a = sin(dLat / 2) * sin(dLat / 2) +
-        cos(_toRadians(lat1)) * cos(_toRadians(lat2)) * sin(dLon / 2) * sin(dLon / 2);
-    
+
+    double a =
+        sin(dLat / 2) * sin(dLat / 2) +
+        cos(_toRadians(lat1)) *
+            cos(_toRadians(lat2)) *
+            sin(dLon / 2) *
+            sin(dLon / 2);
+
     double c = 2 * asin(sqrt(a));
-    
+
     return earthRadius * c;
   }
 
@@ -929,306 +987,316 @@ class _MapScreenState extends State<MapScreen> {
     return degrees * pi / 180;
   }
 
-void _showHotelDetails(Map hotel, double distance, {bool isSelected = false}) {
-  double hotelPrice = double.tryParse(
-    hotel['price'].toString().replaceAll(',', '').trim(),
-  ) ?? 0.0;
-  
-  int pricePerNight = hotelPrice > 0 
-      ? (hotelPrice / dateController.nights.value).round()
-      : 0;
-  
-  showModalBottomSheet(
-    context: context,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-    ),
-    builder: (context) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Make the entire hotel info container clickable
-            GestureDetector(
-              onTap: () {
-                // Close the bottom sheet first
-                Get.back();
-                
-                // Navigate to hotel details
-                _navigateToHotelDetails(hotel);
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.withOpacity(0.05),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                padding: const EdgeInsets.all(12),
-                child: Row(
-                  children: [
-                    // Hotel Image on left side - also clickable
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: _buildSmallHotelImage(hotel),
-                    ),
-                    const SizedBox(width: 12),
-                    // Hotel details
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            hotel['name'] ?? 'Unknown Hotel',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            hotel['address'] ?? 'Address not available',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[600],
-                            ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                          if (!isSelected && distance > 0) ...[
-                            const SizedBox(height: 4),
-                            Text(
-                              '${distance.toStringAsFixed(1)} km away',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-                    // Arrow icon to indicate clickability and selected badge
-                    Column(
-                      children: [
-                        if (isSelected)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: Colors.green,
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: const Text(
-                              'Selected',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
-                        const SizedBox(height: 8),
-                        Icon(
-                          Icons.arrow_forward_ios,
-                          color: TColors.primary,
-                          size: 16,
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // Rating and Price Row
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                // Rating
-                Row(
-                  children: [
-                    RatingBarIndicator(
-                      rating: (hotel['rating'] ?? 3.0).toDouble(),
-                      itemBuilder: (context, index) => const Icon(
-                        Icons.star,
-                        color: Colors.orange,
-                      ),
-                      itemCount: 5,
-                      itemSize: 16.0,
-                      direction: Axis.horizontal,
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${(hotel['rating'] ?? 3.0).toDouble()}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-                
-                // Price with larger text
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      'PKR $pricePerNight',
-                      style: TextStyle(
-                        fontSize: 22,
-                        color: TColors.primary,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Text(
-                      'per night',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // View Details Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  Get.back(); // Close the bottom sheet
+  void _showHotelDetails(
+    Map hotel,
+    double distance, {
+    bool isSelected = false,
+  }) {
+    double hotelPrice =
+        double.tryParse(hotel['price'].toString().replaceAll(',', '').trim()) ??
+        0.0;
+
+    int pricePerNight =
+        hotelPrice > 0 ? (hotelPrice / dateController.nights.value).round() : 0;
+
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (context) {
+        return Container(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Make the entire hotel info container clickable
+              GestureDetector(
+                onTap: () {
+                  // Close the bottom sheet first
+                  Get.back();
+
+                  // Navigate to hotel details
                   _navigateToHotelDetails(hotel);
                 },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: TColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.withOpacity(0.05),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
-                child: const Text(
-                  'View Details',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      // Hotel Image on left side - also clickable
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(8),
+                        child: _buildSmallHotelImage(hotel),
+                      ),
+                      const SizedBox(width: 12),
+                      // Hotel details
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              hotel['name'] ?? 'Unknown Hotel',
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              hotel['address'] ?? 'Address not available',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[600],
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            if (!isSelected && distance > 0) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                '${distance.toStringAsFixed(1)} km away',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: Colors.grey[500],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      // Arrow icon to indicate clickability and selected badge
+                      Column(
+                        children: [
+                          if (isSelected)
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.green,
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Text(
+                                'Selected',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          const SizedBox(height: 8),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            color: TColors.primary,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
                 ),
               ),
+              const SizedBox(height: 16),
+
+              // Rating and Price Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  // Rating
+                  Row(
+                    children: [
+                      RatingBarIndicator(
+                        rating: (hotel['rating'] ?? 3.0).toDouble(),
+                        itemBuilder:
+                            (context, index) =>
+                                const Icon(Icons.star, color: Colors.orange),
+                        itemCount: 5,
+                        itemSize: 16.0,
+                        direction: Axis.horizontal,
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        '${(hotel['rating'] ?? 3.0).toDouble()}',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  // Price with larger text
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        'PKR $pricePerNight',
+                        style: TextStyle(
+                          fontSize: 22,
+                          color: TColors.primary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const Text(
+                        'per night',
+                        style: TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 16),
+
+              // View Details Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.back(); // Close the bottom sheet
+                    _navigateToHotelDetails(hotel);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: TColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text(
+                    'View Details',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Add this new method to handle navigation to hotel details
+  void _navigateToHotelDetails(Map hotel) {
+    // Update controller values with selected hotel data
+    controller.ratingstar.value = (hotel['rating'] as double).toInt();
+    controller.hotelCode.value = hotel['hotelCode'];
+    controller.hotelCity.value = hotel['hotelCity'];
+    controller.lat.value = hotel['latitude'];
+    controller.lon.value = hotel['longitude'];
+    controller.hotelAddress.value = hotel['address'] ?? "";
+
+    // Clear previous room data
+    controller.roomsdata.clear();
+
+    // Fetch hotel details and navigate
+    ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
+    controller.filterhotler();
+
+    Get.off(
+      () => HotelInfoScreen(
+        hotelId: hotel['hotelCode'],
+        hotelData: hotel as Map<String, dynamic>,
+      ),
+    );
+  }
+
+  // Helper method to build small hotel image
+  Widget _buildSmallHotelImage(Map hotel) {
+    String imageUrl = hotel['image'] ?? '';
+
+    Widget imageWidget;
+
+    // Check if the image is a full URL (starts with http/https)
+    if (imageUrl.startsWith('http')) {
+      imageWidget = CachedNetworkImage(
+        imageUrl: imageUrl,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        placeholder:
+            (context, url) => Container(
+              width: 60,
+              height: 60,
+              color: Colors.grey[300],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: TColors.primary,
+                  strokeWidth: 2,
+                ),
+              ),
             ),
-          ],
-        ),
+        errorWidget:
+            (context, url, error) => Image.asset(
+              'assets/img/cardbg/broken-image.png',
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            ),
       );
-    },
-  );
-}
+    }
+    // Check if the image is a relative path starting with '/'
+    else if (imageUrl.startsWith('/')) {
+      String fullImageUrl = 'https://static.giinfotech.ae/medianew$imageUrl';
+      imageWidget = CachedNetworkImage(
+        imageUrl: fullImageUrl,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        placeholder:
+            (context, url) => Container(
+              width: 60,
+              height: 60,
+              color: Colors.grey[300],
+              child: const Center(
+                child: CircularProgressIndicator(
+                  color: TColors.primary,
+                  strokeWidth: 2,
+                ),
+              ),
+            ),
+        errorWidget:
+            (context, url, error) => Image.asset(
+              'assets/img/cardbg/broken-image.png',
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            ),
+      );
+    }
+    // If imageUrl is empty or doesn't match above conditions, use default asset
+    else {
+      String assetPath =
+          imageUrl.isEmpty ? 'assets/images/hotel1.jpg' : imageUrl;
+      imageWidget = Image.asset(
+        assetPath,
+        width: 60,
+        height: 60,
+        fit: BoxFit.cover,
+        errorBuilder:
+            (context, error, stackTrace) => Image.asset(
+              'assets/img/cardbg/broken-image.png',
+              width: 60,
+              height: 60,
+              fit: BoxFit.cover,
+            ),
+      );
+    }
 
-// Add this new method to handle navigation to hotel details
-void _navigateToHotelDetails(Map hotel) {
-  // Update controller values with selected hotel data
-  controller.ratingstar.value = (hotel['rating'] as double).toInt();
-  controller.hotelCode.value = hotel['hotelCode'];
-  controller.hotelCity.value = hotel['hotelCity'];
-  controller.lat.value = hotel['latitude'];
-  controller.lon.value = hotel['longitude'];
-  controller.hotelAddress.value = hotel['address'] ?? "";
-  
-  // Clear previous room data
-  controller.roomsdata.clear();
+    return imageWidget;
+  }
 
-  // Fetch hotel details and navigate
-  ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
-  controller.filterhotler();
-  
-  Get.off(() => HotelInfoScreen(
-    hotelId: hotel['hotelCode'],
-    hotelData: hotel as Map<String, dynamic>,
-  ));
-}
-// Helper method to build small hotel image
-Widget _buildSmallHotelImage(Map hotel) {
-  String imageUrl = hotel['image'] ?? '';
-  
-  Widget imageWidget;
-  
-  // Check if the image is a full URL (starts with http/https)
-  if (imageUrl.startsWith('http')) {
-    imageWidget = CachedNetworkImage(
-      imageUrl: imageUrl,
-      width: 60,
-      height: 60,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(
-        width: 60,
-        height: 60,
-        color: Colors.grey[300],
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: TColors.primary,
-            strokeWidth: 2,
-          ),
-        ),
-      ),
-      errorWidget: (context, url, error) => Image.asset(
-        'assets/img/cardbg/broken-image.png',
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-  // Check if the image is a relative path starting with '/'
-  else if (imageUrl.startsWith('/')) {
-    String fullImageUrl = 'https://static.giinfotech.ae/medianew$imageUrl';
-    imageWidget = CachedNetworkImage(
-      imageUrl: fullImageUrl,
-      width: 60,
-      height: 60,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Container(
-        width: 60,
-        height: 60,
-        color: Colors.grey[300],
-        child: const Center(
-          child: CircularProgressIndicator(
-            color: TColors.primary,
-            strokeWidth: 2,
-          ),
-        ),
-      ),
-      errorWidget: (context, url, error) => Image.asset(
-        'assets/img/cardbg/broken-image.png',
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-  // If imageUrl is empty or doesn't match above conditions, use default asset
-  else {
-    String assetPath = imageUrl.isEmpty ? 'assets/images/hotel1.jpg' : imageUrl;
-    imageWidget = Image.asset(
-      assetPath,
-      width: 60,
-      height: 60,
-      fit: BoxFit.cover,
-      errorBuilder: (context, error, stackTrace) => Image.asset(
-        'assets/img/cardbg/broken-image.png',
-        width: 60,
-        height: 60,
-        fit: BoxFit.cover,
-      ),
-    );
-  }
-  
-  return imageWidget;
-} @override
+  @override
   Widget build(BuildContext context) {
     final CameraPosition initialPosition = CameraPosition(
       target: LatLng(widget.latitude, widget.longitude),
@@ -1365,7 +1433,7 @@ Widget _buildSmallHotelImage(Map hotel) {
     // This function could be used to toggle between different price display modes
     // For now, it refreshes the markers
     _createMarkers();
-    
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text('Prices updated!'),
@@ -1378,10 +1446,15 @@ Widget _buildSmallHotelImage(Map hotel) {
   void _fitAllMarkers() {
     if (mapController == null || markers.isEmpty) return;
 
-    LatLngBounds bounds = _createBounds(markers.map((marker) => marker.position).toList());
-    
+    LatLngBounds bounds = _createBounds(
+      markers.map((marker) => marker.position).toList(),
+    );
+
     mapController!.animateCamera(
-      CameraUpdate.newLatLngBounds(bounds, 100), // Increased padding for price markers
+      CameraUpdate.newLatLngBounds(
+        bounds,
+        100,
+      ), // Increased padding for price markers
     );
   }
 

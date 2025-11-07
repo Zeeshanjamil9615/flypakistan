@@ -234,19 +234,21 @@ class _SelectRoomScreenState extends State<SelectRoomScreen>
 @override
 Widget build(BuildContext context) {
   return Scaffold(
+    backgroundColor: TColors.background,
     appBar: AppBar(
+      surfaceTintColor: TColors.background,
+      backgroundColor: TColors.background,
       elevation: 0,
-      backgroundColor: TColors.primary,
       title: const Text(
         "Select Room",
         style: TextStyle(
-          color: Colors.white,
+          color: Colors.black87,
           fontWeight: FontWeight.w600,
-          fontSize: 24,
+          fontSize: 18,
         ),
       ),
       leading: IconButton(
-        icon: const Icon(Icons.arrow_back, color: Colors.white),
+        icon: const Icon(Icons.arrow_back),
         onPressed: () => Get.back(),
       ),
       bottom: guestsController.roomCount.value > 1
@@ -262,17 +264,31 @@ Widget build(BuildContext context) {
                       children: [
                         Text(
                           'Room ${index + 1}',
-                          style: const TextStyle(fontSize: 14),
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: selectedRooms.containsKey(index)
+                                ? TColors.primary
+                                : Colors.grey.shade600,
+                            fontWeight: selectedRooms.containsKey(index)
+                                ? FontWeight.w600
+                                : FontWeight.normal,
+                          ),
                         ),
-                        if (selectedRooms.containsKey(index))
-                          const Icon(Icons.check_circle, size: 10),
+                        if (selectedRooms.containsKey(index)) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.check_circle,
+                            size: 16,
+                            color: TColors.primary,
+                          ),
+                        ],
                       ],
                     ),
                   ),
                 ),
               ),
-              labelColor: TColors.white,
-              unselectedLabelColor: TColors.white,
+              labelColor: TColors.primary,
+              unselectedLabelColor: Colors.grey.shade600,
               indicatorColor: TColors.primary,
             )
           : null,
@@ -292,9 +308,9 @@ Widget build(BuildContext context) {
               Text(
                 'No Rooms Available',
                 style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: TColors.text,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
               ),
               SizedBox(height: 12),
@@ -304,8 +320,8 @@ Widget build(BuildContext context) {
                   'Sorry, there are no rooms available for this hotel at the moment. Please go back and try another hotel.',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
-                    color: TColors.grey,
+                    fontSize: 13,
+                    color: Colors.grey.shade600,
                     height: 1.5,
                   ),
                 ),
@@ -457,7 +473,19 @@ Widget build(BuildContext context) {
  Widget _buildHotelInfo() {
   return Container(
     padding: const EdgeInsets.all(16),
-    color: TColors.background,
+    margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+    decoration: BoxDecoration(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      border: Border.all(color: Colors.grey.shade200),
+      boxShadow: [
+        BoxShadow(
+          color: Colors.black.withOpacity(0.05),
+          blurRadius: 8,
+          offset: const Offset(0, 2),
+        ),
+      ],
+    ),
     child: Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -467,7 +495,7 @@ Widget build(BuildContext context) {
           height: 60,
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: TColors.background3, width: 1),
+            border: Border.all(color: Colors.grey.shade200, width: 1),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
@@ -483,9 +511,9 @@ Widget build(BuildContext context) {
               Text(
                 controller.hotelName.value,
                 style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                  color: TColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -497,9 +525,9 @@ Widget build(BuildContext context) {
                   const SizedBox(width: 4),
                   Text(
                     '${controller.ratingstar.value.toString()} Star Hotel',
-                    style: const TextStyle(
-                      color: TColors.grey,
-                      fontSize: 14,
+                    style: TextStyle(
+                      color: Colors.grey.shade600,
+                      fontSize: 13,
                     ),
                   ),
                 ],
@@ -630,7 +658,12 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
       children: [
         Container(
           padding: const EdgeInsets.all(16),
-          color: TColors.secondary.withOpacity(0.3),
+          margin: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey.shade200),
+          ),
           child: Row(
             children: [
               InkWell(
@@ -640,14 +673,14 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                   height: 24,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: TColors.background4,
-                    border: Border.all(color: TColors.background3),
+                    color: Colors.white,
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
                   child: Center(
                     child: Icon(
                       isExpanded ? Icons.remove : Icons.add,
                       size: 16,
-                      color: TColors.background3,
+                      color: Colors.grey.shade600,
                     ),
                   ),
                 ),
@@ -658,7 +691,8 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                   widget.roomTypeName,
                   style: const TextStyle(
                     fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
                   ),
                 ),
               ),

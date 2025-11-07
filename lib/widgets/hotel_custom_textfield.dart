@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 import '../services/api_service_hotel.dart';
+import '../utility/app_constants.dart';
+import '../utility/colors.dart';
 
 class CityData {
   final String value;
@@ -150,7 +152,8 @@ class CityController extends GetxController {
       isLoading.value = false;
     }
   }
-}class CustomTextField extends StatelessWidget {
+}
+class CustomTextField extends StatefulWidget {
   final String hintText;
   final IconData icon;
   final TextEditingController controller;
@@ -167,21 +170,59 @@ class CityController extends GetxController {
   }) : super(key: key);
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cityController = Get.put(CityController());
 
     return GestureDetector(
       onTap: () => _showCitySuggestions(context, cityController),
-      child: AbsorbPointer(
-        child: TextField(
-
-          controller: controller,
-          decoration: InputDecoration(
-            prefixIcon: Icon(icon),
-            hintText: hintText,
-            labelText: label,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-          ),
+      child: Container(
+        height: AppConstants.fieldHeight,
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+          border: Border.all(color: AppConstants.fieldBorderColor),
+          boxShadow: AppConstants.cardShadow,
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              widget.icon,
+              color: widget.controller.text.isNotEmpty ? TColors.primary : AppConstants.tabInactiveColor,
+              size: AppConstants.smallIconSize,
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                widget.controller.text.isNotEmpty ? widget.controller.text : widget.hintText,
+                style: widget.controller.text.isNotEmpty
+                    ? AppConstants.fieldValueStyle
+                    : AppConstants.fieldLabelStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -198,34 +239,78 @@ class CityController extends GetxController {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
+      backgroundColor: Colors.transparent,
       builder: (context) {
         return Container(
           height: MediaQuery.of(context).size.height * 0.9,
-          padding: const EdgeInsets.all(16.0),
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.only(
+              topLeft: Radius.circular(20),
+              topRight: Radius.circular(20),
+            ),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Select City',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              TextField(
-                autofocus: true,
-                decoration: InputDecoration(
-                  prefixIcon: const Icon(Icons.search),
-                  hintText: 'Search for a city',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
+              // Header
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: BoxDecoration(
+                  color: TColors.primary,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(20),
+                    topRight: Radius.circular(20),
                   ),
-                  contentPadding: const EdgeInsets.symmetric(vertical: 12),
                 ),
-                onChanged: (value) => cityController.updateSearchQuery(value),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Select City',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close, color: Colors.white, size: 24),
+                  ),
+                ],
+                ),
               ),
-              const SizedBox(height: 16),
+
+              // Search field
+              Padding(
+                padding: const EdgeInsets.all(AppConstants.screenPadding),
+                child: Container(
+                  height: AppConstants.fieldHeight,
+                  decoration: BoxDecoration(
+                    color: AppConstants.fieldBackgroundColor,
+                    borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                    border: Border.all(color: AppConstants.fieldBorderColor),
+                    boxShadow: AppConstants.cardShadow,
+                  ),
+                  child: TextField(
+                    autofocus: true,
+                    decoration: InputDecoration(
+                      hintText: 'Search for a city',
+                      hintStyle: AppConstants.fieldLabelStyle,
+                      prefixIcon: Icon(
+                        Icons.search,
+                        color: AppConstants.tabInactiveColor,
+                        size: AppConstants.smallIconSize,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    ),
+                    onChanged: (value) => cityController.updateSearchQuery(value),
+                  ),
+                ),
+              ),
+
               Obx(() {
                 if (cityController.isLoading.value) {
                   return const Padding(
@@ -235,6 +320,7 @@ class CityController extends GetxController {
                 }
                 return const SizedBox.shrink();
               }),
+
               Expanded(
                 child: Obx(() {
                   if (cityController.cities.isEmpty) {
@@ -247,7 +333,7 @@ class CityController extends GetxController {
                       );
                     }
                     if (cityController.isLoading.value) {
-                      return const SizedBox.shrink(); // Loading indicator is shown above
+                      return const SizedBox.shrink();
                     }
                     return const Center(
                       child: Text('Loading cities...'),
@@ -258,16 +344,64 @@ class CityController extends GetxController {
                     itemCount: cityController.cities.length,
                     itemBuilder: (context, index) {
                       final city = cityController.cities[index];
-                      return ListTile(
-                        title: Text(city.zone),
-                        subtitle: Text(city.label),
-                        onTap: () {
-                          controller.text = city.displayName;
-                          if (onCitySelected != null) {
-                            onCitySelected!(city);
-                          }
-                          Navigator.pop(context);
-                        },
+                      return Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: AppConstants.screenPadding,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                          border: Border.all(color: AppConstants.fieldBorderColor),
+                          boxShadow: AppConstants.cardShadow,
+                        ),
+                        child: ListTile(
+                          onTap: () {
+                            widget.controller.text = city.displayName;
+                            if (widget.onCitySelected != null) {
+                              widget.onCitySelected!(city);
+                            }
+                            Navigator.pop(context);
+                          },
+                          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          title: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      city.zone,
+                                      style: AppConstants.fieldValueStyle,
+                                    ),
+                                    const SizedBox(height: 2),
+                                    Text(
+                                      city.label,
+                                      style: AppConstants.fieldLabelStyle,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: TColors.primary.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+                                ),
+                                child: Text(
+                                  city.countryCode,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: TColors.primary,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
                       );
                     },
                   );
@@ -278,4 +412,5 @@ class CityController extends GetxController {
         );
       },
     );
-  }}
+  }
+}
