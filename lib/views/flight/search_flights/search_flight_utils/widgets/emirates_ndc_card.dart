@@ -14,6 +14,7 @@ class EmiratesFlightCard extends StatefulWidget {
   final bool isShowBookButton;
   final bool isMultiCity;
   final int currentSegment;
+  final VoidCallback? onSelect;
 
   const EmiratesFlightCard({
     super.key,
@@ -22,6 +23,7 @@ class EmiratesFlightCard extends StatefulWidget {
     this.isMultiCity = false,
     this.currentSegment = 0,
     this.isShowBookButton = true,
+    this.onSelect,
   });
 
   @override
@@ -99,51 +101,45 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
   }
 
   String getFlightDuration() {
-    if (widget.flight.legSchedules.isNotEmpty) {
-      final elapsedTime = widget.flight.legSchedules[0]['elapsedTime'] ?? 0;
-      final hours = elapsedTime ~/ 60;
-      final minutes = elapsedTime % 60;
-      if (hours > 0 && minutes > 0) {
-        return '${hours}h ${minutes}m';
-      } else if (hours > 0) {
-        return '${hours}h';
-      } else {
-        return '${minutes}m';
-      }
+    if (widget.flight.legSchedules.isEmpty) {
+      return 'N/A';
     }
-    return 'N/A';
+    final totalMinutes = widget.flight.legSchedules.fold<int>(
+      0,
+      (previousValue, leg) =>
+          previousValue + (leg['elapsedTime'] is int ? leg['elapsedTime'] as int : 0),
+    );
+    if (totalMinutes <= 0) return 'N/A';
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+    if (hours > 0 && minutes > 0) {
+      return '${hours}h ${minutes}m';
+    } else if (hours > 0) {
+      return '${hours}h';
+    }
+    return '${minutes}m';
   }
 
   String getDepartureAirport() {
-    if (widget.flight.legSchedules.isNotEmpty) {
-      return widget.flight.legSchedules[0]['departure']['airport'] ?? 'N/A';
-    }
-    return 'N/A';
+    if (widget.flight.legSchedules.isEmpty) return 'N/A';
+    return widget.flight.legSchedules.first['departure']['airport'] ?? 'N/A';
   }
 
   String getArrivalAirport() {
-    if (widget.flight.legSchedules.isNotEmpty) {
-      return widget.flight.legSchedules[0]['arrival']['airport'] ?? 'N/A';
-    }
-    return 'N/A';
+    if (widget.flight.legSchedules.isEmpty) return 'N/A';
+    return widget.flight.legSchedules.last['arrival']['airport'] ?? 'N/A';
   }
 
   String getDepartureTime() {
-    if (widget.flight.legSchedules.isNotEmpty) {
-      return formatTimeFromDateTime(
-        widget.flight.legSchedules[0]['departure']['dateTime'],
-      );
-    }
-    return 'N/A';
+    if (widget.flight.legSchedules.isEmpty) return 'N/A';
+    final departure = widget.flight.legSchedules.first['departure']['dateTime']?.toString() ?? '';
+    return departure.isEmpty ? 'N/A' : formatTimeFromDateTime(departure);
   }
 
   String getArrivalTime() {
-    if (widget.flight.legSchedules.isNotEmpty) {
-      return formatTimeFromDateTime(
-        widget.flight.legSchedules[0]['arrival']['dateTime'],
-      );
-    }
-    return 'N/A';
+    if (widget.flight.legSchedules.isEmpty) return 'N/A';
+    final arrival = widget.flight.legSchedules.last['arrival']['dateTime']?.toString() ?? '';
+    return arrival.isEmpty ? 'N/A' : formatTimeFromDateTime(arrival);
   }
 
   void _showFlightDetailsDialog() {
@@ -612,9 +608,17 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: widget.isShowBookButton ? () {
-        emiratesController.handleEmiratesFlightSelection(widget.flight);
-      } : _showFlightDetailsDialog,
+      onTap: () {
+        if (widget.onSelect != null) {
+          widget.onSelect!();
+          return;
+        }
+        if (widget.isShowBookButton) {
+          emiratesController.handleEmiratesFlightSelection(widget.flight);
+        } else {
+          _showFlightDetailsDialog();
+        }
+      },
       borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),

@@ -46,7 +46,8 @@ class ApiServiceEmirates {
       String cabinCode = cabin == 'Economy' ? 'Y' : cabin == 'Business' ? 'J' : 'F';
       
       for (int i = 0; i < origins.length; i++) {
-        sectorDetail += '<OriginDestinationReferences>OD${i + 1}</OriginDestinationReferences>';
+        sectorDetail += '''
+                <OriginDestinationReferences>OD${i + 1}</OriginDestinationReferences>''';
       }
 
       String passengerListXml = '';
@@ -77,14 +78,17 @@ class ApiServiceEmirates {
         }
       }
 
-      final xmlData = '''<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+      const endpoint = 'https://ek.farelogix.com:443/prod/oc';
+
+      final xmlData = '''<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
   <SOAP-ENV:Header>
     <t:TransactionControl>
       <tc>
         <app version="5.0.0" language="en-US">SOAP</app>
-        <iden u="emiratestoc" p="Trav3locityFSD" pseudocity="EPAO" agt="travelocityemir" agtpwd="Tocityv231elemirates" agy="27304023"/>
-        <agent user="XXagentXX"/>
-        <trace>EPAO_EK</trace>
+        <iden u="emiratestoc" p="4H3irGhQ1vb9" pseudocity="EPAO" agt="travelocityemir" agtpwd="k34teTgZ0345" agtrole="Ticketing Agent" agy="27304023"/>
+        <agent user="travelocityemir"/>
+        <trace>EPAO_ek</trace>
         <script engine="FLXDM" name="Travelocity-ek-dispatch.flxdm"/>
       </tc>
     </t:TransactionControl>
@@ -106,6 +110,12 @@ class ApiServiceEmirates {
             <OriginDestinations>$originDestinationsXml
             </OriginDestinations>
           </CoreQuery>
+          <Qualifier>
+            <SpecialFareQualifiers>
+              <AirlineID>EK</AirlineID>
+              <Account/>
+            </SpecialFareQualifiers>
+          </Qualifier>
           <Preference>
             <FarePreferences>
               <Types>
@@ -122,7 +132,7 @@ class ApiServiceEmirates {
             <CabinPreferences>
               <CabinType>
                 <Code>$cabinCode</Code>
-                $sectorDetail
+$sectorDetail
               </CabinType>
             </CabinPreferences>
           </Preference>
@@ -137,7 +147,7 @@ class ApiServiceEmirates {
 </SOAP-ENV:Envelope>''';
 
       final headers = {
-        'Ocp-Apim-Subscription-Key': '46b329e56e9f462183e1ca68e9f95fd8',
+        'Ocp-Apim-Subscription-Key': '0d3150002a8b417082aab2be54bb963a',
         'SOAPAction': 'AirShoppingRQ',
         'Agency': 'travelocityemir',
         'IATA': '27304023',
@@ -152,7 +162,7 @@ class ApiServiceEmirates {
       print("===============================================");
       print("EMIRATES SOAP REQUEST");
       print("===============================================");
-      print("URL: https://ek.farelogix.com:443/sandbox-uat/oc");
+      print("URL: $endpoint");
       print("Headers:");
       headers.forEach((key, value) {
         print("  $key: $value");
@@ -162,7 +172,7 @@ class ApiServiceEmirates {
       print("===============================================");
 
       final response = await _dio.request(
-        'https://ek.farelogix.com:443/sandbox-uat/oc',
+        endpoint,
         options: Options(
           method: 'POST',
           headers: headers,
@@ -612,9 +622,6 @@ class ApiServiceEmirates {
   }
   // Add this method to your existing ApiServiceEmirates class
 
-// Update the createEmiratesNdcPnr method in api_service_emirates.dart
-// Replace the XML building section with this corrected version:
-
 Future<Map<String, dynamic>> createEmiratesNdcPnr({
   required String offerId,
   required Map<String, dynamic> offerData,
@@ -622,43 +629,82 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
   required int passengerCount,
 }) async {
   try {
-    debugPrint('\n🎫 === CREATING EMIRATES NDC PNR ===');
-    debugPrint('Offer ID: $offerId');
+    debugPrint('createEmiratesNdcPnr -> Start');
+    debugPrint('OfferID: $offerId');
     debugPrint('Passenger Count: $passengerCount');
-    
+
     // ✅ CRITICAL: Extract ResponseID - Check multiple locations
     String responseId = '';
-    
-    // First try: Direct ResponseID field (injected by controller)
-   
-    // Second try: ShoppingResponseID structure
-   if (offerData['ShoppingResponseID'] != null) {
-      responseId = offerData['ShoppingResponseID']['ResponseID']?.toString() ?? '';
-      debugPrint('✅ Found ResponseID in ShoppingResponseID: $responseId');
+
+    String deepSearchForResponseId(dynamic node) {
+      if (node == null) return '';
+      if (node is Map) {
+        if (node.containsKey('ResponseID')) {
+          final extracted = _extractNodeText(node['ResponseID']);
+          if (extracted.isNotEmpty) return extracted;
+        }
+        for (final entry in node.entries) {
+          final found = deepSearchForResponseId(entry.value);
+          if (found.isNotEmpty) return found;
+        }
+        return '';
+      }
+      if (node is Iterable) {
+        for (final item in node) {
+          final found = deepSearchForResponseId(item);
+          if (found.isNotEmpty) return found;
+        }
+        return '';
+      }
+      return '';
     }
-    // Third try: Extract from OfferID prefix (fallback)
-    else if (offerData['OfferID'] != null) {
-      final offerIdStr = offerData['OfferID'].toString();
-      final offerIdParts = offerIdStr.split('-');
-      if (offerIdParts.isNotEmpty) {
-        responseId = offerIdParts[0];
-        debugPrint('⚠️ Using OfferID prefix as ResponseID: $responseId');
+
+    final directResponseNode = offerData['ResponseID'];
+    if (directResponseNode != null) {
+      responseId = _extractNodeText(directResponseNode);
+      debugPrint('ResponseID (direct): $responseId');
+    }
+
+    // Second try: ShoppingResponseID structure
+    if (responseId.isEmpty && offerData['ShoppingResponseID'] != null) {
+      final shoppingResponse = offerData['ShoppingResponseID'];
+      responseId = _extractNodeText(shoppingResponse['ResponseID']);
+      debugPrint('ResponseID (ShoppingResponseID): $responseId');
+    }
+
+    if (responseId.isEmpty) {
+      responseId = deepSearchForResponseId(offerData);
+      if (responseId.isNotEmpty) {
+        debugPrint('ResponseID (deep search): $responseId');
       }
     }
-    
+
+    // Third try: Extract from OfferID prefix (fallback)
+    if (responseId.isEmpty && offerData['OfferID'] != null) {
+      final offerIdStr = offerData['OfferID'].toString();
+      final lastDash = offerIdStr.lastIndexOf('-');
+      if (lastDash > 0) {
+        responseId = offerIdStr.substring(0, lastDash);
+      } else {
+        responseId = offerIdStr;
+      }
+      debugPrint('ResponseID fallback (OfferID prefix): $responseId');
+    }
+
     if (responseId.isEmpty) {
       debugPrint('❌ CRITICAL ERROR: ResponseID is missing!');
       debugPrint('OfferData keys: ${offerData.keys}');
       return {
         'success': false,
-        'error': 'Missing ResponseID in offer data. This is required for PNR creation.',
+        'error':
+            'Missing ResponseID in offer data. This is required for PNR creation.',
       };
     }
 
     // ✅ CRITICAL: Extract real OfferItemID from offerData
     String offerItemId = '';
     List<Map<String, dynamic>> offerItems = [];
-    
+
     try {
       final offerItem = offerData['OfferItem'];
       if (offerItem != null) {
@@ -666,7 +712,11 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
           // Multiple offer items
           for (var item in offerItem) {
             final itemId = item['OfferItemID']?.toString() ?? '';
-            final passengerRefs = item['PassengerRefs']?.toString() ?? '';
+            String passengerRefs = item['PassengerRefs']?.toString() ?? '';
+            if (passengerRefs.isEmpty) {
+              final service = item['Service'];
+              passengerRefs = _collectPassengerRefs(service);
+            }
             if (itemId.isNotEmpty) {
               offerItems.add({
                 'id': itemId,
@@ -677,7 +727,11 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
         } else if (offerItem is Map) {
           // Single offer item
           final itemId = offerItem['OfferItemID']?.toString() ?? '';
-          final passengerRefs = offerItem['PassengerRefs']?.toString() ?? '';
+          String passengerRefs = offerItem['PassengerRefs']?.toString() ?? '';
+          if (passengerRefs.isEmpty) {
+            final service = offerItem['Service'];
+            passengerRefs = _collectPassengerRefs(service);
+          }
           if (itemId.isNotEmpty) {
             offerItems.add({
               'id': itemId,
@@ -686,7 +740,7 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
           }
         }
       }
-      
+
       if (offerItems.isNotEmpty) {
         offerItemId = offerItems.first['id']!;
         debugPrint('✅ Extracted OfferItemID: $offerItemId');
@@ -696,27 +750,28 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
         offerItemId = '$offerId-1';
         debugPrint('⚠️ Using fallback OfferItemID: $offerItemId');
       }
-      
     } catch (e) {
       offerItemId = '$offerId-1';
       debugPrint('⚠️ Error extracting OfferItemID, using fallback: $e');
     }
-    
+
     // Build passenger list XML with proper infant linking (matching PHP logic)
     String passengerListXml = '';
     int passengerIndex = 1;
-    
+
+    debugPrint('Building passenger XML...');
+
     // Add adults with infant references
     for (int i = 0; i < bookingController.adults.length; i++) {
       final adult = bookingController.adults[i];
-      
+
       // Check if this adult has an infant
       String infantRef = '';
       String infantDetails = '';
-      
+
       if (i < bookingController.infants.length) {
         final infant = bookingController.infants[i];
-        
+
         // Create infant passenger (exactly like PHP)
         infantDetails = '''
                     <Passenger PassengerID="T$passengerIndex.1">
@@ -729,11 +784,12 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                             <Surname>${infant.lastNameController.text}</Surname>
                         </Individual>
                     </Passenger>''';
-        
+
         // Add infant reference to adult
         infantRef = '<InfantRef>T$passengerIndex.1</InfantRef>';
+        debugPrint('Linked infant to adult index $i with ID T$passengerIndex.1');
       }
-      
+
       // Create adult passenger (exactly like PHP)
       passengerListXml += '''
                 <Passenger PassengerID="T$passengerIndex">
@@ -746,23 +802,26 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                              <GivenName>${adult.firstNameController.text}</GivenName>
                              <Surname>${adult.lastNameController.text}</Surname>
                          </Individual>''';
-      
+
       // Add ContactInfoRef only for first adult (exactly like PHP)
       if (i == 0) {
         passengerListXml += '''
                          <ContactInfoRef>CID1</ContactInfoRef>''';
       }
-      
+
       passengerListXml += '''
                          $infantRef
                      </Passenger>''';
-      
+
       // Add infant details after adult
       passengerListXml += infantDetails;
-      
+
+      debugPrint(
+          'Added adult passenger: ${adult.firstNameController.text} ${adult.lastNameController.text}');
+
       passengerIndex++;
     }
-    
+
     // Add children (exactly like PHP)
     for (int i = 0; i < bookingController.children.length; i++) {
       final child = bookingController.children[i];
@@ -778,18 +837,23 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                              <Surname>${child.lastNameController.text}</Surname>
                          </Individual> 
                      </Passenger>''';
+      debugPrint(
+          'Added child passenger: ${child.firstNameController.text} ${child.lastNameController.text}');
       passengerIndex++;
     }
-    
+
     // Build passenger refs (T1 T2 T3...)
     String passengerRefs = '';
     for (int i = 1; i <= passengerCount; i++) {
       passengerRefs += i == 1 ? 'T$i' : ' T$i';
     }
-    
+
+    debugPrint('PassengerRefs: $passengerRefs');
+
     // Extract owner
     final owner = offerData['Owner']?.toString() ?? 'EK';
-    
+    debugPrint('Owner: $owner');
+
     debugPrint('\n📋 PNR Creation Parameters:');
     debugPrint('  OfferID: $offerId');
     debugPrint('  OfferItemID: $offerItemId');
@@ -797,91 +861,93 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
     debugPrint('  ResponseID: $responseId');
     debugPrint('  PassengerRefs: $passengerRefs');
     debugPrint('  Total Passengers: $passengerCount');
-    
-    // ✅ VERIFIED: Using exact PHP credentials and structure
-    final xmlData = '''<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
-                                 <SOAP-ENV:Header>
-                                    <t:TransactionControl>
-                                       <tc>
-                                            <app version="5.0.0" language="en-US">SOAP</app> 
-                                            <iden u="emiratesfaizan" p="Fai1ZanDaska" pseudocity="ESNV" agt="faizemir" agtpwd="Fai231elemirates" agtrole="Ticketing Agent" agy="27323671"/>
-                                            <agent user="faizemir"/>
-                                            <trace admin="Y">ESNV_ek</trace>
-                                            <script engine="FLXDM" name="FaizanAfzal_ToursandTravels-ek-dispatch.flxdm"/>
-                                        </tc>
-                                    </t:TransactionControl>
-                         </SOAP-ENV:Header>
-                         <SOAP-ENV:Body>
-                         <ns1:XXTransaction>
-                        <REQ> 
-                           <OrderCreateRQ Version="17.2" TransactionIdentifier="${_generateTransactionId()}">
-                          <Document id="document"/>
-                          <Party>
-                              <Sender>
-                                <TravelAgencySender>
-                                 <PseudoCity>ESNV</PseudoCity>
-                                 <AgencyID>27323671</AgencyID>
-                                </TravelAgencySender>
-                               </Sender>
-                          </Party>
-                          
-                          <Query>
-                           <Order>
-                              <Offer OfferID="$offerId" Owner="$owner" ResponseID="$responseId">
-                                <OfferItem OfferItemID="$offerItemId">
-                                  <PassengerRefs>$passengerRefs</PassengerRefs>
-                                </OfferItem>
-                              </Offer>
-                          </Order>
-                            <Commission>
-                                <Amount Code="PKR">0</Amount>
-                            </Commission>
-                            <DataLists>
-                                <PassengerList>
-                                     $passengerListXml
-                                </PassengerList>
-                                <ContactList>
-                                     <ContactInformation ContactID="CID1">
-                                         <PostalAddress>
-                                             <Label>AddressAtDestination</Label>
-                                             <Street>123 STREET</Street>
-                                             <PostalCode>33160</PostalCode>
-                                             <CityName>MIAMI</CityName>
-                                             <CountrySubdivisionName>FL</CountrySubdivisionName>
-                                             <CountryCode>US</CountryCode>
-                                         </PostalAddress>
-                                         <ContactProvided>
-                                             <EmailAddress>
-                                             <Label>Personal</Label>
-                                             <EmailAddressValue>${bookingController.emailController.text}</EmailAddressValue>
-                                             </EmailAddress>
-                                         </ContactProvided>
-                                         <ContactProvided>
-                                             <Phone>
-                                             <Label>Home</Label>
-                                             <CountryDialingCode>${bookingController.bookerPhoneCountry.value?.phoneCode ?? '92'}</CountryDialingCode>
-                                             <PhoneNumber>${bookingController.phoneController.text}</PhoneNumber>
-                                             </Phone>
-                                         </ContactProvided>
-                                     </ContactInformation>
-                                </ContactList>
-                            </DataLists>
-                            <Metadata> 
-                            </Metadata>
-                         </Query>
-                            </OrderCreateRQ>
-                         </REQ>
-                         </ns1:XXTransaction>
-                         </SOAP-ENV:Body>
-                        </SOAP-ENV:Envelope>''';
 
-    // ✅ VERIFIED: Using exact PHP headers
+    // ✅ Using EPAO/travelocity credentials (PROD) to match working PHP implementation
+    final xmlData =
+        '''<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP-ENV:Header>
+    <t:TransactionControl>
+      <tc>
+        <app version="5.0.0" language="en-US">SOAP</app>
+        <iden u="emiratestoc" p="4H3irGhQ1vb9" pseudocity="EPAO" agy="27304023" agt="travelocityemir" agtpwd="k34teTgZ0345" agtrole="Ticketing Agent"/>
+        <agent user="travelocityemir"/>
+        <trace>EPAO_ek</trace>
+        <script engine="FLXDM" name="Travelocity-ek-dispatch.flxdm"/>
+      </tc>
+    </t:TransactionControl>
+  </SOAP-ENV:Header>
+  <SOAP-ENV:Body>
+    <ns1:XXTransaction>
+      <REQ>
+        <OrderCreateRQ Version="17.2" TransactionIdentifier="${_generateTransactionId()}">
+          <Document id="document"/>
+          <Party>
+            <Sender>
+              <TravelAgencySender>
+                <PseudoCity>EPAO</PseudoCity>
+                <AgencyID>27304023</AgencyID>
+              </TravelAgencySender>
+            </Sender>
+          </Party>
+          <Query>
+            <Order>
+              <Offer OfferID="$offerId" Owner="$owner" ResponseID="$responseId">
+                <OfferItem OfferItemID="$offerItemId">
+                  <PassengerRefs>$passengerRefs</PassengerRefs>
+                </OfferItem>
+              </Offer>
+            </Order>
+            <Commission>
+              <Amount Code="PKR">0</Amount>
+            </Commission>
+            <DataLists>
+              <PassengerList>
+$passengerListXml
+              </PassengerList>
+              <ContactList>
+                <ContactInformation ContactID="CID1">
+                  <PostalAddress>
+                    <Label>AddressAtDestination</Label>
+                    <Street>123 STREET</Street>
+                    <PostalCode>33160</PostalCode>
+                    <CityName>MIAMI</CityName>
+                    <CountrySubdivisionName>FL</CountrySubdivisionName>
+                    <CountryCode>US</CountryCode>
+                  </PostalAddress>
+                  <ContactProvided>
+                    <EmailAddress>
+                      <Label>Personal</Label>
+                      <EmailAddressValue>${bookingController.emailController.text}</EmailAddressValue>
+                    </EmailAddress>
+                  </ContactProvided>
+                  <ContactProvided>
+                    <Phone>
+                      <Label>Home</Label>
+                      <CountryDialingCode>${bookingController.bookerPhoneCountry.value?.phoneCode ?? '92'}</CountryDialingCode>
+                      <PhoneNumber>${bookingController.phoneController.text}</PhoneNumber>
+                    </Phone>
+                  </ContactProvided>
+                </ContactInformation>
+              </ContactList>
+            </DataLists>
+            <Metadata>
+            </Metadata>
+          </Query>
+        </OrderCreateRQ>
+      </REQ>
+    </ns1:XXTransaction>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>''';
+
+    debugPrint('XML payload prepared (length: ${xmlData.length})');
+
+    // ✅ Matching headers with EPAO/travelocity credential set
     final headers = {
-      'Ocp-Apim-Subscription-Key': '7bdbbd0e3a8c4f939b3370dddbabf1a4',
+      'Ocp-Apim-Subscription-Key': '0d3150002a8b417082aab2be54bb963a',
       'SOAPAction': 'OrderCreateRQ',
-      'Agency': 'faizemir',
-      'IATA': '27323671',
-      'PCC': 'ESNV',
+      'Agency': 'travelocityemir',
+      'IATA': '27304023',
+      'PCC': 'EPAO',
       'apiTraceId': '77d1147a-e370-16e4-d5db-24cf01b61f19',
       'clientIp': '91.108.109.86',
       'contEnc': '',
@@ -889,21 +955,11 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       'Content-Type': 'application/xml',
     };
 
-    debugPrint("\n===============================================");
-    debugPrint("EMIRATES PNR CREATION REQUEST");
-    debugPrint("===============================================");
-    debugPrint("URL: https://ek.farelogix.com:443/sandbox-uat/oc");
-    debugPrint("\nHeaders:");
-    headers.forEach((key, value) {
-      debugPrint("  $key: $value");
-    });
-    debugPrint("\nXML Body:");
-    _printLargeText(xmlData, "PNR REQUEST XML");
-    debugPrint("===============================================\n");
+    debugPrint('Headers set: $headers');
 
-    // ✅ VERIFIED: Using exact PHP URL
+    // ✅ Use production endpoint (same as PHP script)
     final response = await _dio.request(
-      'https://ek.farelogix.com:443/sandbox-uat/oc',
+      'https://ek.farelogix.com:443/prod/oc',
       options: Options(
         method: 'POST',
         headers: headers,
@@ -913,18 +969,11 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       data: xmlData,
     );
 
-    debugPrint("\n===============================================");
-    debugPrint("EMIRATES PNR CREATION RESPONSE");
-    debugPrint("===============================================");
-    debugPrint("Status Code: ${response.statusCode}");
-    debugPrint("Response Length: ${response.data.toString().length} characters");
-    
-    _printLargeText(response.data.toString(), "PNR RESPONSE XML");
-    debugPrint("===============================================\n");
+    debugPrint('Response received with status code: ${response.statusCode}');
 
     if (response.statusCode == 200) {
       final parsedResponse = _parsePnrResponse(response.data.toString());
-      
+
       debugPrint("\n📋 === PNR PARSING RESULT ===");
       debugPrint("Success: ${parsedResponse['success']}");
       if (parsedResponse['success']) {
@@ -935,13 +984,13 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
         debugPrint("Error: ${parsedResponse['error']}");
       }
       debugPrint("============================\n");
-      
+
       return parsedResponse;
     } else {
       debugPrint("\n❌ SERVER ERROR RESPONSE:");
       debugPrint("Status: ${response.statusCode}");
       debugPrint("Response: ${response.data}");
-      
+
       return {
         'success': false,
         'error': 'Server error ${response.statusCode}: ${response.data}',
@@ -955,7 +1004,370 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       'error': 'Error: ${e.toString()}',
     };
   }
-}Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
+}
+
+  Future<Map<String, dynamic>> priceEmiratesOffer({
+    required String offerId,
+    required String offerItemId,
+    required String owner,
+    required String responseId,
+    required List<Map<String, String>> passengerDetails,
+  }) async {
+    try {
+      final passengerRefs = passengerDetails.map((p) => p['id']).whereType<String>().join(' ');
+      final passengerListXml = _buildPassengerListXml(passengerDetails);
+      final credential = OfferPriceCredential(
+        credentialName: 'EPAO/travelocity-prod',
+        endpoint: 'https://ek.farelogix.com:443/prod/oc',
+        subscriptionKey: '0d3150002a8b417082aab2be54bb963a',
+        agencyHeader: 'travelocityemir',
+        iataHeader: '27304023',
+        pccHeader: 'EPAO',
+        idenUser: 'emiratestoc',
+        idenPassword: '4H3irGhQ1vb9',
+        pseudoCity: 'EPAO',
+        agencyId: '27304023',
+        agt: 'travelocityemir',
+        agtPassword: 'k34teTgZ0345',
+        agtRole: 'Ticketing Agent',
+        agentUser: 'travelocityemir',
+        trace: 'EPAO_ek',
+        traceAdmin: false,
+        scriptName: 'Travelocity-ek-dispatch.flxdm',
+        scriptEngine: 'FLXDM',
+      );
+
+        final xmlData = _buildOfferPriceEnvelope(
+          credential: credential,
+          offerId: offerId,
+          offerItemId: offerItemId,
+          owner: owner,
+          responseId: responseId,
+          passengerRefs: passengerRefs,
+          passengerListXml: passengerListXml,
+        );
+
+        final headers = _buildOfferPriceHeaders(credential);
+
+        debugPrint("===============================================");
+        debugPrint("EMIRATES OFFER PRICE REQUEST (${credential.credentialName})");
+        debugPrint("===============================================");
+        debugPrint("URL: ${credential.endpoint}");
+        debugPrint("Headers:");
+        headers.forEach((key, value) {
+          debugPrint("  $key: $value");
+        });
+        debugPrint("XML Body:");
+        _printLargeText(xmlData, "OFFER PRICE REQUEST XML");
+        debugPrint("===============================================\n");
+
+      Map<String, dynamic>? lastError;
+
+        try {
+          final response = await _dio.request(
+            credential.endpoint,
+            options: Options(
+              method: 'POST',
+              headers: headers,
+              responseType: ResponseType.plain,
+              validateStatus: (status) => status! < 600,
+            ),
+            data: xmlData,
+          );
+
+          debugPrint("===============================================");
+          debugPrint("EMIRATES OFFER PRICE RESPONSE (${credential.credentialName})");
+          debugPrint("===============================================");
+          debugPrint("Status Code: ${response.statusCode}");
+          debugPrint("Response Length: ${response.data.toString().length} characters");
+          _printLargeText(response.data.toString(), "OFFER PRICE RESPONSE XML");
+          debugPrint("===============================================\n");
+
+          if (response.statusCode == 200) {
+            final parsedResponse = _parseOfferPriceResponse(response.data.toString());
+            parsedResponse['credential'] = credential.credentialName;
+            return parsedResponse;
+          }
+
+          final errorMap = {
+            'success': false,
+            'error': 'Server error ${response.statusCode}: ${response.data}',
+            'raw_xml': response.data.toString(),
+            'credential': credential.credentialName,
+          };
+
+          lastError = errorMap;
+        } catch (e, stackTrace) {
+          debugPrint('❌ ERROR pricing Emirates offer with ${credential.credentialName}: $e');
+          debugPrint('Stack trace: $stackTrace');
+          lastError = {
+            'success': false,
+            'error': 'Error (${credential.credentialName}): ${e.toString()}',
+          };
+        }
+
+      return lastError ??
+          {
+            'success': false,
+            'error': 'Offer pricing failed',
+          };
+    } catch (e, stackTrace) {
+      debugPrint('❌ ERROR pricing Emirates offer: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return {
+        'success': false,
+        'error': 'Error: ${e.toString()}',
+      };
+    }
+  }
+
+String _buildOfferPriceEnvelope({
+  required OfferPriceCredential credential,
+  required String offerId,
+  required String offerItemId,
+  required String owner,
+  required String responseId,
+  required String passengerRefs,
+  required String passengerListXml,
+}) {
+    final traceAttribute = credential.traceAdmin ? ' admin="Y"' : '';
+    final transactionId = _generateTransactionId();
+
+    return '''<?xml version="1.0"?>
+<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+  <SOAP-ENV:Header>
+    <t:TransactionControl>
+      <tc>
+        <app version="5.0.0" language="en-US">SOAP</app>
+        <iden u="${credential.idenUser}" p="${credential.idenPassword}" pseudocity="${credential.pseudoCity}" agy="${credential.agencyId}" agt="${credential.agt}" agtpwd="${credential.agtPassword}" agtrole="${credential.agtRole}"/>
+        <agent user="${credential.agentUser}"/>
+        <trace$traceAttribute>${credential.trace}</trace>
+        <script engine="${credential.scriptEngine}" name="${credential.scriptName}"/>
+      </tc>
+    </t:TransactionControl>
+  </SOAP-ENV:Header>
+  <SOAP-ENV:Body>
+    <ns1:XXTransaction>
+      <REQ>
+        <OfferPriceRQ Version="17.2" TransactionIdentifier="$transactionId">
+          <Document id="document"/>
+          <Party>
+            <Sender>
+              <TravelAgencySender>
+                <PseudoCity>${credential.pseudoCity}</PseudoCity>
+                <AgencyID>${credential.agencyId}</AgencyID>
+              </TravelAgencySender>
+            </Sender>
+          </Party>
+          <Query>
+            <Offer OfferID="$offerId" Owner="$owner" ResponseID="$responseId">
+              <OfferItem OfferItemID="$offerItemId">
+                <PassengerRefs>$passengerRefs</PassengerRefs>
+              </OfferItem>
+            </Offer>
+          </Query>
+          <Preference>
+            <FarePreferences>
+              <Types>
+                <Type>70J</Type>
+                <Type>749</Type>
+              </Types>
+              <Exclusion>
+                <NoMinStayInd>false</NoMinStayInd>
+                <NoMaxStayInd>false</NoMaxStayInd>
+                <NoAdvPurchaseInd>false</NoAdvPurchaseInd>
+                <NoPenaltyInd>false</NoPenaltyInd>
+              </Exclusion>
+            </FarePreferences>
+            <PricingMethodPreference>
+              <BestPricingOption>N</BestPricingOption>
+            </PricingMethodPreference>
+          </Preference>
+          <DataLists>
+            <PassengerList>
+$passengerListXml
+            </PassengerList>
+          </DataLists>
+        </OfferPriceRQ>
+      </REQ>
+    </ns1:XXTransaction>
+  </SOAP-ENV:Body>
+</SOAP-ENV:Envelope>''';
+  }
+
+Map<String, String> _buildOfferPriceHeaders(OfferPriceCredential credential) {
+    return {
+      'Ocp-Apim-Subscription-Key': credential.subscriptionKey,
+      'SOAPAction': 'OfferPriceRQ',
+      'Agency': credential.agencyHeader,
+      'IATA': credential.iataHeader,
+      'PCC': credential.pccHeader,
+      'apiTraceId': '77d1147a-e370-16e4-d5db-24cf01b61f19',
+      'clientIp': '91.108.109.86',
+      'contEnc': '',
+      'agencyName': '',
+      'Content-Type': 'application/xml',
+    };
+  }
+
+String _buildPassengerListXml(List<Map<String, String>> passengerDetails) {
+    if (passengerDetails.isEmpty) {
+      return '''
+              <Passenger PassengerID="T1">
+                <PTC>ADT</PTC>
+              </Passenger>''';
+    }
+
+    final buffer = StringBuffer();
+    for (final passenger in passengerDetails) {
+      final id = passenger['id'] ?? '';
+      final ptc = passenger['ptc'] ?? 'ADT';
+      if (id.isEmpty) continue;
+      buffer.writeln('              <Passenger PassengerID="$id">');
+      buffer.writeln('                <PTC>${ptc.isEmpty ? 'ADT' : ptc}</PTC>');
+      buffer.writeln('              </Passenger>');
+    }
+    final xml = buffer.toString();
+    return xml.isEmpty
+        ? '''
+              <Passenger PassengerID="T1">
+                <PTC>ADT</PTC>
+              </Passenger>'''
+        : xml;
+  }
+
+String _extractNodeText(dynamic value) {
+  if (value == null) return '';
+  if (value is String) return value.trim();
+  if (value is Map) {
+    for (final key in ['\$t', 'value', 'text', '_text']) {
+      if (value.containsKey(key)) {
+        final inner = _extractNodeText(value[key]);
+        if (inner.isNotEmpty) return inner;
+      }
+    }
+    if (value.length == 1) {
+      return _extractNodeText(value.values.first);
+    }
+    for (final entry in value.entries) {
+      final extracted = _extractNodeText(entry.value);
+      if (extracted.isNotEmpty) return extracted;
+    }
+    return '';
+  }
+  if (value is Iterable) {
+    for (final item in value) {
+      final extracted = _extractNodeText(item);
+      if (extracted.isNotEmpty) return extracted;
+    }
+    return '';
+  }
+  return value.toString().trim();
+}
+
+Map<String, dynamic> _parseOfferPriceResponse(String xmlResponse) {
+  try {
+    final document = xml.XmlDocument.parse(xmlResponse);
+
+    final errors = document.findAllElements('Error');
+    if (errors.isNotEmpty) {
+      final errorMsg = errors.first.text;
+      return {
+        'success': false,
+        'error': errorMsg,
+        'raw_xml': xmlResponse,
+      };
+    }
+
+    final offerPriceRS = document.findAllElements('OfferPriceRS').firstOrNull;
+    if (offerPriceRS == null) {
+      return {
+        'success': false,
+        'error': 'OfferPriceRS not found in response',
+        'raw_xml': xmlResponse,
+      };
+    }
+
+    final result = <String, dynamic>{};
+
+    final shoppingResponse = offerPriceRS.findElements('ShoppingResponseID').firstOrNull;
+    if (shoppingResponse != null) {
+      result['ShoppingResponseID'] = _xmlElementToMap(shoppingResponse);
+    }
+
+    final pricedOffer = offerPriceRS.findElements('PricedOffer').firstOrNull;
+    if (pricedOffer != null) {
+      result['PricedOffer'] = _xmlElementToMap(pricedOffer);
+    }
+
+    final dataLists = offerPriceRS.findElements('DataLists').firstOrNull;
+    if (dataLists != null) {
+      result['DataLists'] = _xmlElementToMap(dataLists);
+    }
+
+    if (!result.containsKey('PricedOffer')) {
+      return {
+        'success': false,
+        'error': 'PricedOffer element not found in response',
+        'raw_xml': xmlResponse,
+      };
+    }
+
+    final shoppingResponseId = result['ShoppingResponseID'];
+    String responseId = '';
+    if (shoppingResponseId is Map && shoppingResponseId['ResponseID'] != null) {
+      responseId = _extractNodeText(shoppingResponseId['ResponseID']);
+    }
+
+    return {
+      'success': true,
+      'pricedOffer': result['PricedOffer'],
+      'shoppingResponse': shoppingResponseId,
+      'responseId': responseId,
+      'dataLists': result['DataLists'],
+      'raw_xml': xmlResponse,
+      'message': 'Offer priced successfully',
+    };
+  } catch (e, stackTrace) {
+    debugPrint('❌ ERROR parsing OfferPrice response: $e');
+    debugPrint('Stack trace: $stackTrace');
+    return {
+      'success': false,
+      'error': 'Failed to parse OfferPrice response: $e',
+      'raw_xml': xmlResponse,
+    };
+  }
+}
+
+String _collectPassengerRefs(dynamic serviceNode) {
+  if (serviceNode == null) return '';
+
+  if (serviceNode is String) return serviceNode.trim();
+
+  if (serviceNode is Map) {
+    if (serviceNode.containsKey('PassengerRefs')) {
+      final extracted = _collectPassengerRefs(serviceNode['PassengerRefs']);
+      if (extracted.isNotEmpty) return extracted;
+    }
+    for (final entry in serviceNode.values) {
+      final nested = _collectPassengerRefs(entry);
+      if (nested.isNotEmpty) return nested;
+    }
+    return '';
+  }
+
+  if (serviceNode is Iterable) {
+    for (final item in serviceNode) {
+      final nested = _collectPassengerRefs(item);
+      if (nested.isNotEmpty) return nested;
+    }
+    return '';
+  }
+
+  return serviceNode.toString().trim();
+}
+
+Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
   try {
     final document = xml.XmlDocument.parse(xmlResponse);
     
@@ -1057,4 +1469,46 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
   }
 }
 
+}
+
+class OfferPriceCredential {
+  final String credentialName;
+  final String endpoint;
+  final String subscriptionKey;
+  final String agencyHeader;
+  final String iataHeader;
+  final String pccHeader;
+  final String idenUser;
+  final String idenPassword;
+  final String pseudoCity;
+  final String agencyId;
+  final String agt;
+  final String agtPassword;
+  final String agtRole;
+  final String agentUser;
+  final String trace;
+  final bool traceAdmin;
+  final String scriptName;
+  final String scriptEngine;
+
+  const OfferPriceCredential({
+    required this.credentialName,
+    required this.endpoint,
+    required this.subscriptionKey,
+    required this.agencyHeader,
+    required this.iataHeader,
+    required this.pccHeader,
+    required this.idenUser,
+    required this.idenPassword,
+    required this.pseudoCity,
+    required this.agencyId,
+    required this.agt,
+    required this.agtPassword,
+    required this.agtRole,
+    required this.agentUser,
+    required this.trace,
+    required this.traceAdmin,
+    required this.scriptName,
+    required this.scriptEngine,
+  });
 }

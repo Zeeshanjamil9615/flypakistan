@@ -2,24 +2,28 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:intl/intl.dart';
 import 'package:ready_flights/views/flight/booking_flight/emirates%20_ndc/emirates_ndc_booking_flight.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
+import 'package:ready_flights/views/flight/search_flights/search_flight_utils/widgets/emirates_ndc_card.dart';
 import '../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
 
 class EmiratesReviewTripPage extends StatefulWidget {
-  final EmiratesFlight flight;
-  final EmiratesFarePackage selectedPackage;
-  final bool isReturn;
+  final EmiratesFlight outboundFlight;
+  final EmiratesFarePackage outboundPackage;
+  final EmiratesFlight? returnFlight;
+  final EmiratesFarePackage? returnPackage;
+  final bool isRoundTrip;
 
   const EmiratesReviewTripPage({
     super.key,
-    required this.flight,
-    required this.selectedPackage,
-    this.isReturn = false,
+    required this.outboundFlight,
+    required this.outboundPackage,
+    this.returnFlight,
+    this.returnPackage,
+    this.isRoundTrip = false,
   });
 
   @override
@@ -93,9 +97,21 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
     final adults = travelersController.adultCount.value;
     final children = travelersController.childrenCount.value;
     final infants = travelersController.infantCount.value;
-    
-    return widget.selectedPackage.price * (adults + children + infants);
+    final passengerCount = adults + children + infants;
+    if (passengerCount == 0) return 0;
+
+    final outboundTotal = widget.outboundPackage.price * passengerCount;
+    final returnTotal = widget.returnPackage != null
+        ? widget.returnPackage!.price * passengerCount
+        : 0;
+
+    return outboundTotal + returnTotal;
   }
+
+  bool get hasReturnSegment =>
+      widget.isRoundTrip && widget.returnFlight != null && widget.returnPackage != null;
+
+  String get primaryCurrency => widget.outboundPackage.currency;
 
   @override
   Widget build(BuildContext context) {
@@ -118,13 +134,14 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
           children: [
             const SizedBox(height: 8),
             
-            // Flight Card
-            _buildFlightCard(),
+            _buildFlightSection('Outbound Flight', widget.outboundFlight),
+            if (widget.isRoundTrip && widget.returnFlight != null)
+              _buildFlightSection('Return Flight', widget.returnFlight!),
             
-            // Selected Package Info
-            _buildPackageInfo(),
+            _buildPackageInfo('Outbound Package', widget.outboundPackage),
+            if (widget.isRoundTrip && widget.returnPackage != null)
+              _buildPackageInfo('Return Package', widget.returnPackage!),
             
-            // Pricing Breakdown
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 12),
               child: Text(
@@ -136,7 +153,15 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
               ),
             ),
             
-            _buildPricingCard(),
+            _buildPricingCard(
+              'Outbound Fare (${widget.outboundPackage.name})',
+              widget.outboundPackage,
+            ),
+            if (widget.isRoundTrip && widget.returnPackage != null)
+              _buildPricingCard(
+                'Return Fare (${widget.returnPackage!.name})',
+                widget.returnPackage!,
+              ),
           ],
         ),
       ),
@@ -144,130 +169,29 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
     );
   }
 
-  Widget _buildFlightCard() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: TColors.secondary.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Header
-          Row(
-            children: [
-              CachedNetworkImage(
-                imageUrl: widget.flight.airlineImg,
-                height: 40,
-                width: 40,
-                placeholder: (context, url) => const CircularProgressIndicator(strokeWidth: 2),
-                errorWidget: (context, url, error) => const Icon(Icons.flight, size: 40),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'EK-${widget.flight.flightNumber}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      widget.selectedPackage.cabinName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: TColors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 16),
-          
-          // Flight Info
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildAirportInfo(
-                widget.flight.legSchedules.first['departure']['airport'],
-                widget.flight.legSchedules.first['departure']['time'],
-                widget.flight.departureDate,
-                true,
-              ),
-              Column(
-                children: [
-                  const Icon(Icons.flight, color: TColors.primary),
-                  const SizedBox(height: 4),
-                  Text(
-                    _getFlightDuration(),
-                    style: const TextStyle(fontSize: 12, color: TColors.grey),
-                  ),
-                  Text(
-                    _getStopsText(),
-                    style: const TextStyle(fontSize: 10, color: TColors.grey),
-                  ),
-                ],
-              ),
-              _buildAirportInfo(
-                widget.flight.legSchedules.last['arrival']['airport'],
-                widget.flight.legSchedules.last['arrival']['time'],
-                widget.flight.legSchedules.last['arrival']['date'],
-                false,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildAirportInfo(String airport, String time, String date, bool isDeparture) {
+  Widget _buildFlightSection(String title, EmiratesFlight flight) {
     return Column(
-      crossAxisAlignment: isDeparture ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          airport,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
+        Padding(
+          padding: const EdgeInsets.only(left: 16, right: 16, top: 8, bottom: 4),
+          child: Text(
+            title,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
           ),
         ),
-        Text(
-          _formatTime(time),
-          style: const TextStyle(
-            fontSize: 14,
-            color: TColors.grey,
-          ),
-        ),
-        Text(
-          _formatDate(date),
-          style: const TextStyle(
-            fontSize: 12,
-            color: TColors.grey,
-          ),
+        EmiratesFlightCard(
+          flight: flight,
+          isShowBookButton: false,
         ),
       ],
     );
   }
 
-  Widget _buildPackageInfo() {
+  Widget _buildPackageInfo(String title, EmiratesFarePackage package) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       padding: const EdgeInsets.all(16),
@@ -286,24 +210,24 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Selected Package',
-            style: TextStyle(
+          Text(
+            title,
+            style: const TextStyle(
               fontWeight: FontWeight.bold,
               fontSize: 16,
             ),
           ),
           const SizedBox(height: 12),
           _buildPackageDetail(Icons.luggage, 'Baggage', 
-              '${widget.selectedPackage.checkedWeight.toStringAsFixed(0)} ${widget.selectedPackage.checkedUnit}'),
+              '${package.checkedWeight.toStringAsFixed(0)} ${package.checkedUnit}'),
           const SizedBox(height: 8),
           _buildPackageDetail(Icons.restaurant, 'Meal', 'Included'),
           const SizedBox(height: 8),
           _buildPackageDetail(Icons.swap_horiz, 'Changes', 
-              widget.selectedPackage.isRefundable ? 'Allowed' : 'Not Allowed'),
+              package.isRefundable ? 'Allowed' : 'Not Allowed'),
           const SizedBox(height: 8),
           _buildPackageDetail(Icons.money_off, 'Refund', 
-              widget.selectedPackage.isRefundable ? 'Allowed' : 'Not Allowed'),
+              package.isRefundable ? 'Allowed' : 'Not Allowed'),
         ],
       ),
     );
@@ -326,7 +250,7 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
     );
   }
 
-  Widget _buildPricingCard() {
+  Widget _buildPricingCard(String title, EmiratesFarePackage package) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 18.0, vertical: 8),
       child: AnimatedContainer(
@@ -342,7 +266,7 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              widget.selectedPackage.name,
+              title,
               style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 14,
@@ -354,14 +278,14 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
             if (travelersController.adultCount.value > 0)
               _buildPriceRow(
                 'Adult Price x ${travelersController.adultCount.value}',
-                '${widget.selectedPackage.currency} ${_formatPrice(widget.selectedPackage.price * travelersController.adultCount.value)}',
+                '${package.currency} ${_formatPrice(package.price * travelersController.adultCount.value)}',
               ),
             
             if (travelersController.childrenCount.value > 0) ...[
               const SizedBox(height: 8),
               _buildPriceRow(
                 'Child Price x ${travelersController.childrenCount.value}',
-                '${widget.selectedPackage.currency} ${_formatPrice(widget.selectedPackage.price * travelersController.childrenCount.value)}',
+                '${package.currency} ${_formatPrice(package.price * travelersController.childrenCount.value)}',
               ),
             ],
             
@@ -369,7 +293,7 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
               const SizedBox(height: 8),
               _buildPriceRow(
                 'Infant Price x ${travelersController.infantCount.value}',
-                '${widget.selectedPackage.currency} ${_formatPrice(widget.selectedPackage.price * travelersController.infantCount.value)}',
+                '${package.currency} ${_formatPrice(package.price * travelersController.infantCount.value)}',
               ),
             ],
             
@@ -378,8 +302,8 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
             const SizedBox(height: 8),
             
             _buildPriceRow(
-              'Total Amount',
-              '${widget.selectedPackage.currency} ${_formatPrice(totalPrice)}',
+              'Subtotal',
+              '${package.currency} ${_formatPrice(package.price * (travelersController.adultCount.value + travelersController.childrenCount.value + travelersController.infantCount.value))}',
               isTotal: true,
             ),
           ],
@@ -425,16 +349,16 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Total',
-                    style: TextStyle(
+                  Text(
+                    hasReturnSegment ? 'Round Trip Total' : 'Total',
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       color: TColors.grey,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${widget.selectedPackage.currency} ${_formatPrice(totalPrice)}',
+                    '$primaryCurrency ${_formatPrice(totalPrice)}',
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
@@ -447,10 +371,13 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
                 child: ElevatedButton(
                   onPressed: () {
                     Get.to(() => EmiratesNdcBookingFlight(
-                      flight: widget.flight,
-                      selectedPackage: widget.selectedPackage,
+                      flight: widget.outboundFlight,
+                      selectedPackage: widget.outboundPackage,
+                      returnFlight: widget.returnFlight,
+                      returnPackage: widget.returnPackage,
+                      isRoundTrip: widget.isRoundTrip && hasReturnSegment,
                       totalPrice: totalPrice,
-                      currency: widget.selectedPackage.currency,
+                      currency: primaryCurrency,
                     ));
                   },
                   style: ElevatedButton.styleFrom(
@@ -474,38 +401,4 @@ class EmiratesReviewTripPageState extends State<EmiratesReviewTripPage> {
     );
   }
 
-  String _getFlightDuration() {
-    if (widget.flight.legSchedules.isNotEmpty) {
-      final elapsedTime = widget.flight.legSchedules[0]['elapsedTime'] ?? 0;
-      return '${elapsedTime ~/ 60}h ${elapsedTime % 60}m';
-    }
-    return 'N/A';
-  }
-
-  String _getStopsText() {
-    final stops = widget.flight.legSchedules.length - 1;
-    if (stops == 0) return 'Non-stop';
-    return '$stops Stop${stops > 1 ? 's' : ''}';
-  }
-
-  String _formatTime(String time) {
-    try {
-      final parts = time.split(':');
-      if (parts.length >= 2) {
-        return '${parts[0]}:${parts[1]}';
-      }
-      return time;
-    } catch (e) {
-      return time;
-    }
-  }
-
-  String _formatDate(String date) {
-    try {
-      final dateTime = DateTime.parse(date);
-      return DateFormat('EEE, d MMM').format(dateTime);
-    } catch (e) {
-      return date;
-    }
-  }
 }

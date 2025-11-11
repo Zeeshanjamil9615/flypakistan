@@ -5,8 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:ready_flights/utility/colors.dart';
+import 'package:ready_flights/services/api_service_emirates.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
+import 'package:ready_flights/views/flight/form/flight_booking_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/review_flight/emirates_ndc_review.dart';
 
 class EmiratesPackageSelectionDialog extends StatelessWidget {
@@ -526,7 +528,7 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
       ),
     );
   }
- void _onSelectPackage(EmiratesFarePackage package) {
+  Future<void> _onSelectPackage(EmiratesFarePackage package) async {
     try {
       isLoading.value = true;
 
@@ -535,21 +537,121 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
       debugPrint('Price: PKR ${package.price.toStringAsFixed(0)}');
       debugPrint('========================\n');
 
-      // Store the selected package
-      emiratesController.handlePackageSelection(flight, package);
+      final passengerDetails = _extractPassengerDetails(package.rawFlightData);
+      final offerItem = _extractOfferItem(package.rawFlightData);
+      final offerItemId = offerItem?['OfferItemID']?.toString() ?? '${package.offerId}-1';
+      final owner = package.rawFlightData['Owner']?.toString() ?? 'EK';
+      final responseId = _deriveResponseId(package);
 
-      // Navigate to review page
+      if (responseId.isEmpty) {
+        throw Exception('Missing ResponseID for selected offer.');
+      }
+
+      if (offerItemId.isEmpty) {
+        throw Exception('Missing OfferItemID for selected offer.');
+      }
+
+      final pricingResult = await ApiServiceEmirates().priceEmiratesOffer(
+        offerId: package.offerId,
+        offerItemId: offerItemId,
+        owner: owner,
+        responseId: responseId,
+        passengerDetails: passengerDetails,
+      );
+
+      if (pricingResult['success'] != true) {
+        final error = pricingResult['error'] ?? 'Failed to price offer';
+        debugPrint('❌ Offer pricing failed: $error');
+        Get.snackbar(
+          'Error',
+          error.toString(),
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      final Map<String, dynamic> pricedOffer =
+          Map<String, dynamic>.from(pricingResult['pricedOffer'] as Map<String, dynamic>);
+      final Map<String, dynamic>? shoppingResponse =
+          pricingResult['shoppingResponse'] as Map<String, dynamic>?;
+      final String pricedResponseId =
+          pricingResult['responseId']?.toString() ??
+          _toText(shoppingResponse?['ResponseID']) ??
+          responseId;
+
+      pricedOffer['ResponseID'] = pricedResponseId;
+      if (shoppingResponse != null) {
+        pricedOffer['ShoppingResponseID'] = shoppingResponse;
+      }
+      if (pricingResult['dataLists'] != null) {
+        pricedOffer['DataLists'] = pricingResult['dataLists'];
+      }
+      if (!pricedOffer.containsKey('Owner')) {
+        pricedOffer['Owner'] = owner;
+      }
+
+      final Map<String, dynamic>? pricedOfferItem = _extractOfferItem(pricedOffer);
+      final double pricedTotal =
+          _parseAmount(((pricedOffer['TotalPrice'] ?? {})['DetailCurrencyPrice'] ?? {})['Total']);
+      final String pricedCurrency =
+          _extractCurrency(((pricedOffer['TotalPrice'] ?? {})['DetailCurrencyPrice'] ?? {})['Total']) ??
+              package.currency;
+      final double pricedBase = _parseAmount(
+        (((pricedOfferItem?['FareDetail'] ?? {})['Price'] ?? {})['BaseAmount']),
+      );
+      final double pricedTaxes = _parseAmount(
+        ((((pricedOfferItem?['FareDetail'] ?? {})['Price'] ?? {})['Taxes'] ?? {})['Total']),
+      );
+
+      final EmiratesFarePackage updatedPackage = EmiratesFarePackage(
+        name: package.name,
+        code: package.code,
+        price: pricedTotal > 0 ? pricedTotal : package.price,
+        basePrice: pricedBase > 0 ? pricedBase : package.basePrice,
+        taxAmount: pricedTaxes >= 0 ? pricedTaxes : package.taxAmount,
+        currency: pricedCurrency.isNotEmpty ? pricedCurrency : package.currency,
+        isRefundable: package.isRefundable,
+        cabinName: package.cabinName,
+        checkedWeight: package.checkedWeight,
+        checkedUnit: package.checkedUnit,
+        carryOnPieces: package.carryOnPieces,
+        amenities: package.amenities,
+        offerId: pricedOffer['OfferID']?.toString() ?? package.offerId,
+        rawFlightData: pricedOffer,
+      );
+
+      emiratesController.handlePackageSelection(
+        flight,
+        updatedPackage,
+        isReturnFlight: isReturnFlight,
+      );
+
+      final bookingController = Get.find<FlightBookingController>();
+      final tripType = bookingController.tripType.value;
+      final bool isRoundTrip = tripType == TripType.roundTrip;
+
       Get.back(); // Close package selection
-      
-      // Import the review page
-      Get.to(() => EmiratesReviewTripPage(
-        flight: flight,
-        selectedPackage: package,
-        isReturn: isReturnFlight,
-      ));
 
-    } catch (e) {
+      Future.delayed(const Duration(milliseconds: 200), () {
+        if (isRoundTrip && !isReturnFlight) {
+          emiratesController.openReturnFlightsSelection();
+        } else {
+          Get.to(() => EmiratesReviewTripPage(
+                outboundFlight:
+                    emiratesController.selectedOutboundFlight ?? flight,
+                outboundPackage:
+                    emiratesController.selectedOutboundPackage ?? updatedPackage,
+                returnFlight: emiratesController.selectedReturnFlight,
+                returnPackage: emiratesController.selectedReturnPackage,
+                isRoundTrip: isRoundTrip,
+              ));
+        }
+      });
+    } catch (e, stackTrace) {
       debugPrint('❌ Error selecting package: $e');
+      debugPrint('Stack trace: $stackTrace');
       Get.snackbar(
         'Error',
         'Failed to select package. Please try again.',
@@ -560,6 +662,151 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
     } finally {
       isLoading.value = false;
     }
-  }}
+  }
+
+  List<Map<String, String>> _extractPassengerDetails(Map<String, dynamic> rawData) {
+    final results = <Map<String, String>>[];
+    final dataLists = rawData['DataLists'];
+    if (dataLists is Map) {
+      final passengerListNode = dataLists['PassengerList'];
+      dynamic passengers;
+      if (passengerListNode is Map) {
+        passengers = passengerListNode['Passenger'] ?? passengerListNode;
+      } else {
+        passengers = passengerListNode;
+      }
+
+      void handle(dynamic node) {
+        if (node == null) return;
+        if (node is List) {
+          for (final item in node) {
+            handle(item);
+          }
+        } else if (node is Map) {
+          if (node.containsKey('PassengerID')) {
+            final id = node['PassengerID']?.toString() ?? '';
+            final ptc = _toText(node['PTC']);
+            if (id.isNotEmpty) {
+              results.add({'id': id, 'ptc': ptc.isNotEmpty ? ptc : 'ADT'});
+            }
+          } else {
+            for (final entry in node.values) {
+              handle(entry);
+            }
+          }
+        }
+      }
+
+      handle(passengers);
+    }
+
+    if (results.isEmpty) {
+      return [
+        {'id': 'T1', 'ptc': 'ADT'}
+      ];
+    }
+
+    results.sort((a, b) => (a['id'] ?? '').compareTo(b['id'] ?? ''));
+    return results;
+  }
+
+  Map<String, dynamic>? _extractOfferItem(Map<String, dynamic> rawData) {
+    final offerItem = rawData['OfferItem'];
+    if (offerItem is List) {
+      return offerItem.isNotEmpty ? Map<String, dynamic>.from(offerItem.first) : null;
+    }
+    if (offerItem is Map<String, dynamic>) {
+      return offerItem;
+    }
+    return null;
+  }
+
+  double _parseAmount(dynamic node) {
+    final text = _toText(node);
+    if (text.isEmpty) return 0;
+    return double.tryParse(text.replaceAll(',', '')) ?? 0;
+  }
+
+  String? _extractCurrency(dynamic node) {
+    if (node is Map) {
+      if (node['Code'] != null) return node['Code'].toString();
+      if (node['CurrencyCode'] != null) return node['CurrencyCode'].toString();
+    }
+    return null;
+  }
+
+  String _toText(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value.trim();
+    if (value is Map) {
+      if (value.containsKey('\$t')) {
+        return _toText(value['\$t']);
+      }
+      if (value.length == 1) {
+        return _toText(value.values.first);
+      }
+      for (final entry in value.entries) {
+        final extracted = _toText(entry.value);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      return '';
+    }
+    if (value is Iterable) {
+      for (final item in value) {
+        final extracted = _toText(item);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      return '';
+    }
+    return value.toString().trim();
+  }
+
+  String _deriveResponseId(EmiratesFarePackage package) {
+    final raw = package.rawFlightData;
+
+    String searchForResponseId(dynamic source) {
+      if (source == null) return '';
+      if (source is Map) {
+        if (source.containsKey('ResponseID')) {
+          final value = _toText(source['ResponseID']);
+          if (value.isNotEmpty) return value;
+        }
+        for (final entry in source.entries) {
+          final found = searchForResponseId(entry.value);
+          if (found.isNotEmpty) return found;
+        }
+        return '';
+      }
+      if (source is Iterable) {
+        for (final item in source) {
+          final found = searchForResponseId(item);
+          if (found.isNotEmpty) return found;
+        }
+        return '';
+      }
+      return '';
+    }
+
+    final candidates = <String>[
+      searchForResponseId(raw),
+      flight.responseId,
+      searchForResponseId(flight.rawData),
+    ];
+
+    for (final candidate in candidates) {
+      if (candidate.isNotEmpty) return candidate;
+    }
+
+    final offerId = package.offerId;
+    if (offerId.isEmpty) return '';
+
+    final lastDash = offerId.lastIndexOf('-');
+    if (lastDash > 0) {
+      return offerId.substring(0, lastDash);
+    }
+
+    return offerId;
+  }
+}
 
     

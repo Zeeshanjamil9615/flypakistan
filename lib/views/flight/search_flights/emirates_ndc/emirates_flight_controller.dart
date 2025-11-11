@@ -1,9 +1,10 @@
-// controllers/emirates_flight_controller.dart
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
 import 'package:ready_flights/services/api_service_emirates.dart';
 import 'package:ready_flights/views/flight/search_flights/flight_package/emirates_ndc/emirates_ndc_package.dart';
+import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_return_flights_page.dart';
+import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 
 class EmiratesFlightController extends GetxController {
@@ -12,6 +13,8 @@ class EmiratesFlightController extends GetxController {
 
   // Filtered list showing flights based on filters
   final RxList<EmiratesFlight> filteredFlights = <EmiratesFlight>[].obs;
+  final RxList<EmiratesFlight> outboundFlights = <EmiratesFlight>[].obs;
+  final RxList<EmiratesFlight> returnFlights = <EmiratesFlight>[].obs;
 
   // Keep flights getter for backward compatibility
   RxList<EmiratesFlight> get flights => filteredFlights;
@@ -19,9 +22,15 @@ class EmiratesFlightController extends GetxController {
   // Selected flights
   EmiratesFlight? selectedOutboundFlight;
   EmiratesFarePackage? selectedOutboundPackage;
+  EmiratesFlight? selectedReturnFlight;
+  EmiratesFarePackage? selectedReturnPackage;
+
+  String? _lastSearchOrigin;
+  String? _lastSearchDestination;
 
   // Loading state
   final RxBool isLoading = false.obs;
+  final RxBool isRoundTripSearch = false.obs;
 
   // Error message
   final RxString errorMessage = ''.obs;
@@ -31,21 +40,42 @@ class EmiratesFlightController extends GetxController {
   void clearFlights() {
     _allFlights.clear();
     filteredFlights.clear();
+    outboundFlights.clear();
+    returnFlights.clear();
     errorMessage.value = '';
     selectedOutboundFlight = null;
     selectedOutboundPackage = null;
+    selectedReturnFlight = null;
+    selectedReturnPackage = null;
+    isRoundTripSearch.value = false;
+    _lastSearchOrigin = null;
+    _lastSearchDestination = null;
   }
 
   void setErrorMessage(String message) {
     errorMessage.value = message;
   }
 
-  void loadFlights(Map<String, dynamic> response, {String? searchOrigin, String? searchDestination}) {
+  void loadFlights(
+    Map<String, dynamic> response, {
+    String? searchOrigin,
+    String? searchDestination,
+    bool isRoundTrip = false,
+  }) {
      try {
     isLoading.value = true;
     errorMessage.value = '';
     _allFlights.clear();
     filteredFlights.clear();
+    outboundFlights.clear();
+    returnFlights.clear();
+    selectedOutboundFlight = null;
+    selectedOutboundPackage = null;
+    selectedReturnFlight = null;
+    selectedReturnPackage = null;
+    isRoundTripSearch.value = isRoundTrip;
+    _lastSearchOrigin = searchOrigin?.toUpperCase();
+    _lastSearchDestination = searchDestination?.toUpperCase();
 
     debugPrint('\n=== PARSING EMIRATES RESPONSE ===');
     
@@ -62,7 +92,7 @@ class EmiratesFlightController extends GetxController {
       final shoppingRS = data['AirShoppingRS'];
       final shopRespId = shoppingRS['ShoppingResponseID'];
       if (shopRespId != null) {
-        shoppingResponseId = shopRespId['ResponseID']?.toString() ?? '';
+        shoppingResponseId = _extractNodeText(shopRespId['ResponseID']);
         debugPrint('✅ Found ShoppingResponseID: $shoppingResponseId');
       }
     }
@@ -78,7 +108,7 @@ class EmiratesFlightController extends GetxController {
       if (offersGroup != null) {
         final airlineOffers = offersGroup['AirlineOffers'];
         if (airlineOffers != null) {
-          offersData = airlineOffers['Offers']; // ✅ CHANGED FROM 'Offer' to 'Offers'
+          offersData = airlineOffers['Offer'] ?? airlineOffers['Offers'];
         }
       }
     }
@@ -196,7 +226,49 @@ class EmiratesFlightController extends GetxController {
         return a.departureTime.compareTo(b.departureTime);
       });
 
-      filteredFlights.assignAll(displayFlights);
+      final searchOriginUpper = searchOrigin?.toUpperCase();
+      final searchDestinationUpper = searchDestination?.toUpperCase();
+
+      final List<EmiratesFlight> outboundList = [];
+      final List<EmiratesFlight> returnList = [];
+
+      for (final flight in displayFlights) {
+        final firstLeg = flight.legSchedules.isNotEmpty ? flight.legSchedules.first : null;
+        final lastLeg = flight.legSchedules.isNotEmpty ? flight.legSchedules.last : null;
+
+        final firstDeparture = _extractAirportCode(firstLeg, 'departure');
+        final finalArrival = _extractAirportCode(lastLeg, 'arrival');
+
+        if (searchOriginUpper != null &&
+            searchDestinationUpper != null &&
+            firstDeparture != null &&
+            finalArrival != null) {
+          if (firstDeparture == searchOriginUpper &&
+              finalArrival == searchDestinationUpper) {
+            outboundList.add(flight);
+            continue;
+          }
+          if (firstDeparture == searchDestinationUpper &&
+              finalArrival == searchOriginUpper) {
+            returnList.add(flight);
+            continue;
+          }
+        }
+
+        outboundList.add(flight);
+      }
+
+      outboundList.sort((a, b) => a.price.compareTo(b.price));
+      returnList.sort((a, b) => a.price.compareTo(b.price));
+
+      outboundFlights.assignAll(outboundList);
+      returnFlights.assignAll(returnList);
+
+      if (isRoundTrip) {
+        filteredFlights.assignAll(outboundList);
+      } else {
+        filteredFlights.assignAll(displayFlights);
+      }
 
       debugPrint('\n🎉 FINAL RESULTS:');
       debugPrint('Flights to display: ${filteredFlights.length}');
@@ -316,26 +388,74 @@ class EmiratesFlightController extends GetxController {
   void handleEmiratesFlightSelection(EmiratesFlight flight) {
     debugPrint('\n🎯 Flight selected: EK-${flight.flightNumber}');
     debugPrint('Opening package selection dialog...\n');
-    
-    // Open package selection dialog
+    selectedOutboundFlight = flight;
+    selectedOutboundPackage = null;
+    selectedReturnFlight = null;
+    selectedReturnPackage = null;
+
+    final bookingController = Get.find<FlightBookingController>();
+    final tripType = bookingController.tripType.value;
+    final isRoundTrip = tripType == TripType.roundTrip;
+
     Get.to(() => EmiratesPackageSelectionDialog(
-      flight: flight,
-      isReturnFlight: false,
-      segmentIndex: 0,
-      isMultiCity: false,
-    ));
+          flight: flight,
+          isReturnFlight: false,
+          segmentIndex: 0,
+          isMultiCity: false,
+        ));
+
+    if (!isRoundTrip) {
+      selectedReturnFlight = null;
+      selectedReturnPackage = null;
+    }
   }
 
   // Handle package selection
-  void handlePackageSelection(EmiratesFlight flight, EmiratesFarePackage package) {
-    selectedOutboundFlight = flight;
-    selectedOutboundPackage = package;
+  void handlePackageSelection(
+    EmiratesFlight flight,
+    EmiratesFarePackage package, {
+    bool isReturnFlight = false,
+  }) {
+    if (isReturnFlight) {
+      selectedReturnFlight = flight;
+      selectedReturnPackage = package;
+    } else {
+      selectedOutboundFlight = flight;
+      selectedOutboundPackage = package;
+    }
 
     debugPrint('\n✅ Package selected:');
     debugPrint('  ${package.name}');
-    debugPrint('  ${package.currency} ${package.price.toStringAsFixed(0)}\n');
-    
-    // TODO: Navigate to review/booking page
+    debugPrint('  ${package.currency} ${package.price.toStringAsFixed(0)}');
+    debugPrint('  Segment: ${isReturnFlight ? 'Return' : 'Outbound'}\n');
+  }
+
+  void handleReturnFlightSelection(EmiratesFlight flight) {
+    debugPrint('\n🎯 Return flight selected: EK-${flight.flightNumber}');
+    selectedReturnFlight = flight;
+    selectedReturnPackage = null;
+
+    Get.to(() => EmiratesPackageSelectionDialog(
+          flight: flight,
+          isReturnFlight: true,
+          segmentIndex: 1,
+          isMultiCity: false,
+        ));
+  }
+
+  void openReturnFlightsSelection() {
+    if (returnFlights.isEmpty) {
+      Get.snackbar(
+        'No Return Flights',
+        'We could not find any return flights for the selected route.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.orange,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    Get.to(() => EmiratesReturnFlightsPage(returnFlights: returnFlights.toList()));
   }
 
   void applyFilters({
@@ -419,13 +539,101 @@ class EmiratesFlightController extends GetxController {
         break;
     }
 
-    filteredFlights.assignAll(filtered);
+    final searchOriginUpper = _lastSearchOrigin;
+    final searchDestinationUpper = _lastSearchDestination;
+
+    final List<EmiratesFlight> outboundList = [];
+    final List<EmiratesFlight> returnList = [];
+
+    for (final flight in filtered) {
+      final firstLeg = flight.legSchedules.isNotEmpty ? flight.legSchedules.first : null;
+      final lastLeg = flight.legSchedules.isNotEmpty ? flight.legSchedules.last : null;
+
+      final firstDeparture = _extractAirportCode(firstLeg, 'departure');
+      final finalArrival = _extractAirportCode(lastLeg, 'arrival');
+
+      if (searchOriginUpper != null &&
+          searchDestinationUpper != null &&
+          firstDeparture != null &&
+          finalArrival != null) {
+        if (firstDeparture == searchOriginUpper &&
+            finalArrival == searchDestinationUpper) {
+          outboundList.add(flight);
+          continue;
+        }
+        if (firstDeparture == searchDestinationUpper &&
+            finalArrival == searchOriginUpper) {
+          returnList.add(flight);
+          continue;
+        }
+      }
+
+      outboundList.add(flight);
+    }
+
+    outboundList.sort((a, b) => a.price.compareTo(b.price));
+    returnList.sort((a, b) => a.price.compareTo(b.price));
+
+    outboundFlights.assignAll(outboundList);
+    returnFlights.assignAll(returnList);
+
+    if (isRoundTripSearch.value) {
+      filteredFlights.assignAll(outboundList);
+    } else {
+      filteredFlights.assignAll(filtered);
+    }
   }
 
   List<EmiratesFlight> getFlightsByAirline(String airlineCode) {
     return filteredFlights.where((flight) {
       return flight.airlineCode.toUpperCase() == airlineCode.toUpperCase();
     }).toList();
+  }
+
+  String _extractNodeText(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value.trim();
+    if (value is Map) {
+      for (final key in ['\$t', 'value', 'text', '_text']) {
+        if (value.containsKey(key)) {
+          final extracted = _extractNodeText(value[key]);
+          if (extracted.isNotEmpty) return extracted;
+        }
+      }
+      if (value.length == 1) {
+        return _extractNodeText(value.values.first);
+      }
+      for (final entry in value.entries) {
+        final extracted = _extractNodeText(entry.value);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      return '';
+    }
+    if (value is Iterable) {
+      for (final item in value) {
+        final extracted = _extractNodeText(item);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      return '';
+    }
+    return value.toString().trim();
+  }
+
+  String? _extractAirportCode(dynamic leg, String key) {
+    if (leg is Map) {
+      final segmentInfo = leg[key];
+      if (segmentInfo is Map) {
+        final airport = segmentInfo['airport'] ?? segmentInfo['AirportCode'];
+        if (airport != null) {
+          return airport.toString().toUpperCase();
+        }
+      }
+    }
+    return null;
+  }
+
+  List<EmiratesFlight> getReturnFlightOptions() {
+    return returnFlights.toList();
   }
 
   int getFlightCountByAirline(String airlineCode) {

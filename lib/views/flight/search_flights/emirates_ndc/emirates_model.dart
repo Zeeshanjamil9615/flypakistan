@@ -71,12 +71,19 @@ class EmiratesFlight {
       final dataLists = json['DataLists'] ?? {};
       
       // Extract flight segment information - throw exception if extraction fails
-      final flightSegmentData = _extractFlightSegmentData(json, dataLists, searchOrigin: searchOrigin, searchDestination: searchDestination);
-      if (flightSegmentData == null) {
+      final segments = _extractFlightSegments(
+        json,
+        dataLists,
+        searchOrigin: searchOrigin,
+        searchDestination: searchDestination,
+      );
+      if (segments.isEmpty) {
         debugPrint('❌ Failed to extract flight segment data - skipping this offer');
         throw Exception('Failed to extract flight segment data');
       }
-      debugPrint('Flight segment data extracted: ${flightSegmentData['departure']['airport']} -> ${flightSegmentData['arrival']['airport']}');
+      final firstSegment = segments.first;
+      final lastSegment = segments.last;
+      debugPrint('Flight segment data extracted: ${firstSegment['departure']['airport']} -> ${lastSegment['arrival']['airport']} (Segments: ${segments.length})');
 
       // Extract price information (real price without margin)
       final priceInfo = _extractPriceInfo(json);
@@ -94,8 +101,8 @@ class EmiratesFlight {
       debugPrint('   Cabin: ${priceClassInfo['cabinName']}');
 
       // Create leg schedules with proper airport codes
-      final legSchedules = _createLegSchedules(flightSegmentData);
-      final stopSchedules = _createStopSchedules(flightSegmentData);
+      final legSchedules = _createLegSchedules(segments);
+      final stopSchedules = _createStopSchedules(segments);
 
       debugPrint('✅ EmiratesFlight created successfully\n');
 
@@ -119,9 +126,9 @@ class EmiratesFlight {
         cabinName: priceClassInfo['cabinName'],
         priceClassName: priceClassInfo['name'],
         amenities: priceClassInfo['amenities'],
-        flightNumber: flightSegmentData['flightNumber'],
-        departureDate: flightSegmentData['departure']['date'],
-        departureTime: flightSegmentData['departure']['time'],
+        flightNumber: firstSegment['flightNumber'],
+        departureDate: firstSegment['departure']['date'],
+        departureTime: firstSegment['departure']['time'],
         responseId: responseId, 
       );
     } catch (e, stackTrace) {
@@ -251,7 +258,7 @@ class EmiratesFlight {
     }
   }
 
-  static Map<String, dynamic>? _extractFlightSegmentData(
+  static List<Map<String, dynamic>> _extractFlightSegments(
     Map<String, dynamic> offer,
     Map<String, dynamic> dataLists, {
     String? searchOrigin,
@@ -259,96 +266,226 @@ class EmiratesFlight {
   }) {
     try {
       final offerItem = offer['OfferItem'];
-      if (offerItem == null) return null;
+      if (offerItem == null) return [];
 
       final fareDetail = offerItem['FareDetail'];
-      if (fareDetail == null) return null;
+      if (fareDetail == null) return [];
 
-      final fareComponent = fareDetail['FareComponent'];
-      if (fareComponent == null) return null;
+      final fareComponentRaw = fareDetail['FareComponent'];
+      if (fareComponentRaw == null) return [];
 
-      final segmentRefs = fareComponent['SegmentRefs'];
-      if (segmentRefs == null) return null;
-
-      final onPoint = segmentRefs['ON_Point']?.toString() ?? '';
-      final offPoint = segmentRefs['OFF_Point']?.toString() ?? '';
-      final segmentKey = segmentRefs['\$t']?.toString() ?? segmentRefs.toString();
+      final List<dynamic> fareComponents = fareComponentRaw is List
+          ? fareComponentRaw
+          : [fareComponentRaw];
 
       final flightSegmentList = dataLists['FlightSegmentList'];
-      if (flightSegmentList == null) return null;
+      if (flightSegmentList == null) return [];
 
       final flightSegments = flightSegmentList['FlightSegment'];
-      if (flightSegments == null) return null;
+      if (flightSegments == null) return [];
 
-      Map<String, dynamic>? segmentData;
-      if (flightSegments is Map) {
-        if (flightSegments.containsKey(segmentKey)) {
-          segmentData = flightSegments[segmentKey];
+      final segments = <Map<String, dynamic>>[];
+
+      for (var component in fareComponents) {
+        if (component == null) continue;
+
+        final originDestinationRefs = _extractStringValues(
+          component['OriginDestinationReferences'] ??
+              component['OriginDestinationReference'],
+        );
+
+        final segmentReferenceNode = component['SegmentRefs'] ??
+            component['SegmentRef'] ??
+            component['SegmentReference'];
+
+        final segmentKeys = _extractStringValues(segmentReferenceNode);
+
+        if (segmentKeys.isNotEmpty) {
+          for (var segmentKey in segmentKeys) {
+            final segmentData = flightSegments[segmentKey];
+            if (segmentData is Map<String, dynamic>) {
+              final segment = _buildSegmentFromData(
+                segmentKey,
+                segmentData,
+                originDestinationRefs,
+              );
+              segments.add(segment);
+            }
+          }
         } else {
-          for (var entry in flightSegments.entries) {
-            final segment = entry.value;
-            final departure = segment['Departure'];
-            final arrival = segment['Arrival'];
-            
-            if (departure != null && arrival != null) {
-              final depAirport = _extractValue(departure['AirportCode']);
-              final arrAirport = _extractValue(arrival['AirportCode']);
-              
-              if (depAirport == onPoint && arrAirport == offPoint) {
-                segmentData = segment;
-                break;
+          // Fallback: try matching using ON/OFF point data
+          if (segmentReferenceNode is Map) {
+            final onPoint = segmentReferenceNode['ON_Point']?.toString() ?? '';
+            final offPoint = segmentReferenceNode['OFF_Point']?.toString() ?? '';
+
+            if (onPoint.isNotEmpty && offPoint.isNotEmpty) {
+              final matchedSegment = _matchSegmentByAirports(
+                flightSegments,
+                onPoint,
+                offPoint,
+                originDestinationRefs,
+              );
+              if (matchedSegment != null) {
+                segments.add(matchedSegment);
               }
             }
           }
         }
-      } else if (flightSegments is List && flightSegments.isNotEmpty) {
-        segmentData = flightSegments.first;
       }
 
-      if (segmentData == null) return null;
+      // Deduplicate segments by segment key
+      final seen = <String>{};
+      final uniqueSegments = <Map<String, dynamic>>[];
+      for (var segment in segments) {
+        final key = segment['segmentKey']?.toString() ?? '';
+        if (key.isEmpty) continue;
+        if (seen.add(key)) {
+          uniqueSegments.add(segment);
+        }
+      }
 
-      final departure = segmentData['Departure'] ?? {};
-      final arrival = segmentData['Arrival'] ?? {};
-      final marketingCarrier = segmentData['MarketingCarrier'] ?? {};
-      final flightDetail = segmentData['FlightDetail'] ?? {};
+      uniqueSegments.sort((a, b) {
+        final aDateTime = a['departure']?['dateTime']?.toString() ?? '';
+        final bDateTime = b['departure']?['dateTime']?.toString() ?? '';
+        return aDateTime.compareTo(bDateTime);
+      });
 
-      final departureAirport = _extractValue(departure['AirportCode']) ?? onPoint;
-      final arrivalAirport = _extractValue(arrival['AirportCode']) ?? offPoint;
-      final departureDate = _extractValue(departure['Date']) ?? '';
-      final departureTime = _extractValue(departure['Time']) ?? '00:00';
-      final arrivalDate = _extractValue(arrival['Date']) ?? '';
-      final arrivalTime = _extractValue(arrival['Time']) ?? '00:00';
-
-      return {
-        'departure': {
-          'airport': departureAirport,
-          'city': _getCityName(departureAirport),
-          'terminal': _extractValue(departure['Terminal']?['Name']) ?? 'Main',
-          'time': departureTime,
-          'date': departureDate,
-          'dateTime': '${departureDate}T$departureTime',
-        },
-        'arrival': {
-          'airport': arrivalAirport,
-          'city': _getCityName(arrivalAirport),
-          'terminal': _extractValue(arrival['Terminal']?['Name']) ?? 'Main',
-          'time': arrivalTime,
-          'date': arrivalDate,
-          'dateTime': '${arrivalDate}T$arrivalTime',
-        },
-        'carrier': {
-          'marketing': _extractValue(marketingCarrier['AirlineID']) ?? 'EK',
-          'marketingFlightNumber': _extractValue(marketingCarrier['FlightNumber']) ?? '623',
-          'operating': _extractValue(marketingCarrier['AirlineID']) ?? 'EK',
-        },
-        'equipment': _extractValue(segmentData['Equipment']?['AircraftCode']) ?? '777',
-        'flightNumber': _extractValue(marketingCarrier['FlightNumber']) ?? '623',
-        'duration': _calculateFlightDuration(flightDetail),
-      };
-    } catch (e) {
-      debugPrint('❌ Error extracting flight segment: $e');
-      return null;
+      return uniqueSegments;
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error extracting flight segments: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return [];
     }
+  }
+
+  static List<String> _extractStringValues(dynamic node) {
+    final values = <String>[];
+    if (node == null) return values;
+
+    if (node is String) {
+      values.addAll(
+        node
+            .split(RegExp(r'\s+'))
+            .where((element) => element.isNotEmpty)
+            .map((e) => e.trim()),
+      );
+    } else if (node is Map) {
+      if (node.containsKey('\$t')) {
+        values.addAll(_extractStringValues(node['\$t']));
+      } else {
+        for (var entry in node.values) {
+          values.addAll(_extractStringValues(entry));
+        }
+      }
+    } else if (node is List) {
+      for (var item in node) {
+        values.addAll(_extractStringValues(item));
+      }
+    }
+    return values.where((value) => value.isNotEmpty).toList();
+  }
+
+  static Map<String, dynamic> _buildSegmentFromData(
+    String segmentKey,
+    Map<String, dynamic> segmentData,
+    List<String> originDestinationRefs,
+  ) {
+    final departureRaw = segmentData['Departure'] ?? {};
+    final arrivalRaw = segmentData['Arrival'] ?? {};
+    final marketingCarrier = segmentData['MarketingCarrier'] ?? segmentData['Carrier'] ?? {};
+    final operatingCarrier = segmentData['OperatingCarrier'] ?? marketingCarrier;
+    final flightDetail = segmentData['FlightDetail'] ?? {};
+
+    final departureAirport = _extractValue(departureRaw['AirportCode']) ?? '';
+    final arrivalAirport = _extractValue(arrivalRaw['AirportCode']) ?? '';
+    final departureDate = _extractValue(departureRaw['Date']) ?? '';
+    final departureTime = _extractValue(departureRaw['Time']) ?? '00:00';
+    final arrivalDate = _extractValue(arrivalRaw['Date']) ?? '';
+    final arrivalTime = _extractValue(arrivalRaw['Time']) ?? '00:00';
+
+    return {
+      'segmentKey': segmentKey,
+      'originDestinationReference': originDestinationRefs.isNotEmpty ? originDestinationRefs.first : '',
+      'departure': {
+        'airport': departureAirport,
+        'city': _getCityName(departureAirport),
+        'terminal': _extractValue(departureRaw['Terminal']?['Name']) ?? 'Main',
+        'time': departureTime,
+        'date': departureDate,
+        'dateTime': '${departureDate}T$departureTime',
+      },
+      'arrival': {
+        'airport': arrivalAirport,
+        'city': _getCityName(arrivalAirport),
+        'terminal': _extractValue(arrivalRaw['Terminal']?['Name']) ?? 'Main',
+        'time': arrivalTime,
+        'date': arrivalDate,
+        'dateTime': '${arrivalDate}T$arrivalTime',
+      },
+      'carrier': {
+        'marketing': _extractValue(marketingCarrier['AirlineID']) ?? 'EK',
+        'marketingFlightNumber': _extractValue(marketingCarrier['FlightNumber']) ?? '',
+        'operating': _extractValue(operatingCarrier['AirlineID']) ??
+            _extractValue(marketingCarrier['AirlineID']) ??
+            'EK',
+      },
+      'equipment': _extractValue(segmentData['Equipment']?['AircraftCode']) ?? '777',
+      'flightNumber': _extractValue(marketingCarrier['FlightNumber']) ?? '',
+      'duration': _calculateFlightDuration(flightDetail),
+    };
+  }
+
+  static Map<String, dynamic>? _matchSegmentByAirports(
+    dynamic flightSegments,
+    String onPoint,
+    String offPoint,
+    List<String> originDestinationRefs,
+  ) {
+    if (flightSegments is Map) {
+      for (var entry in flightSegments.entries) {
+        final segmentData = entry.value;
+        if (segmentData is Map<String, dynamic>) {
+          final departure = segmentData['Departure'];
+          final arrival = segmentData['Arrival'];
+
+          if (departure != null && arrival != null) {
+            final depAirport = _extractValue(departure['AirportCode']);
+            final arrAirport = _extractValue(arrival['AirportCode']);
+
+            if (depAirport == onPoint && arrAirport == offPoint) {
+              return _buildSegmentFromData(
+                entry.key.toString(),
+                segmentData,
+                originDestinationRefs,
+              );
+            }
+          }
+        }
+      }
+    } else if (flightSegments is List) {
+      for (var segmentData in flightSegments) {
+        if (segmentData is Map<String, dynamic>) {
+          final departure = segmentData['Departure'];
+          final arrival = segmentData['Arrival'];
+
+          if (departure != null && arrival != null) {
+            final depAirport = _extractValue(departure['AirportCode']);
+            final arrAirport = _extractValue(arrival['AirportCode']);
+
+            if (depAirport == onPoint && arrAirport == offPoint) {
+              final segmentKey = segmentData['SegmentKey']?.toString() ?? '';
+              return _buildSegmentFromData(
+                segmentKey,
+                segmentData,
+                originDestinationRefs,
+              );
+            }
+          }
+        }
+      }
+    }
+
+    return null;
   }
 
   static String _extractValue(dynamic value) {
@@ -476,37 +613,41 @@ class EmiratesFlight {
     }
   }
 
-  static List<Map<String, dynamic>> _createLegSchedules(Map<String, dynamic> segmentData) {
-    return [
-      {
+  static List<Map<String, dynamic>> _createLegSchedules(List<Map<String, dynamic>> segments) {
+    return segments.map((segment) {
+      return {
         'airlineCode': 'EK',
         'airlineName': 'Emirates',
         'airlineImg': 'https://images.kiwi.com/airlines/64/EK.png',
-        'departure': segmentData['departure'],
-        'arrival': segmentData['arrival'],
-        'elapsedTime': segmentData['duration'],
+        'departure': segment['departure'],
+        'arrival': segment['arrival'],
+        'elapsedTime': segment['duration'],
         'stops': 0,
         'schedules': [
           {
-            'carrier': segmentData['carrier'],
-            'departure': segmentData['departure'],
-            'arrival': segmentData['arrival'],
-            'equipment': segmentData['equipment'],
+            'carrier': segment['carrier'],
+            'departure': segment['departure'],
+            'arrival': segment['arrival'],
+            'equipment': segment['equipment'],
           }
         ],
-      }
-    ];
+        'segmentKey': segment['segmentKey'],
+        'originDestinationReference': segment['originDestinationReference'],
+      };
+    }).toList();
   }
 
-  static List<Map<String, dynamic>> _createStopSchedules(Map<String, dynamic> segmentData) {
-    return [
-      {
-        'carrier': segmentData['carrier'],
-        'departure': segmentData['departure'],
-        'arrival': segmentData['arrival'],
-        'equipment': segmentData['equipment'],
-      }
-    ];
+  static List<Map<String, dynamic>> _createStopSchedules(List<Map<String, dynamic>> segments) {
+    return segments.map((segment) {
+      return {
+        'carrier': segment['carrier'],
+        'departure': segment['departure'],
+        'arrival': segment['arrival'],
+        'equipment': segment['equipment'],
+        'segmentKey': segment['segmentKey'],
+        'originDestinationReference': segment['originDestinationReference'],
+      };
+    }).toList();
   }
 
   static int _calculateFlightDuration(Map<String, dynamic> flightDetail) {

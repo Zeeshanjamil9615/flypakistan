@@ -422,11 +422,19 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
       origin = formattedOrigins;
       destination = formattedDestinations;
     } else {
-      origin = ',${fromCity.value}';
-      destination = ',${toCity.value}';
-      formattedDates = ',${_formatDateForAPI(departureDateTimeValue.value)}';
+      final departureDate = _formatDateForAPI(departureDateTimeValue.value);
+
       if (tripType.value == TripType.roundTrip) {
-        formattedDates += ',${_formatDateForAPI(returnDateTimeValue.value)}';
+        final returnDate = _formatDateForAPI(returnDateTimeValue.value);
+
+        // Build two legs: outbound and inbound
+        origin = ',${fromCity.value},${toCity.value}';
+        destination = ',${toCity.value},${fromCity.value}';
+        formattedDates = ',$departureDate,$returnDate';
+      } else {
+        origin = ',${fromCity.value}';
+        destination = ',${toCity.value}';
+        formattedDates = ',$departureDate';
       }
     }
 
@@ -736,7 +744,12 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
     debugPrint('Emirates API result keys: ${result.keys}');
 
     // Load flights into controller with search parameters
-    emiratesController.loadFlights(result, searchOrigin: fromCity.value, searchDestination: toCity.value);
+    emiratesController.loadFlights(
+      result,
+      searchOrigin: fromCity.value,
+      searchDestination: toCity.value,
+      isRoundTrip: type == 1,
+    );
     
     debugPrint('Emirates flights loaded successfully');
   } catch (e, stackTrace) {

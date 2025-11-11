@@ -18,6 +18,9 @@ import '../booking_flight_controller.dart';
 class EmiratesNdcBookingFlight extends StatefulWidget {
   final EmiratesFlight flight;
   final EmiratesFarePackage selectedPackage;
+  final EmiratesFlight? returnFlight;
+  final EmiratesFarePackage? returnPackage;
+  final bool isRoundTrip;
   final double totalPrice;
   final String currency;
 
@@ -25,6 +28,9 @@ class EmiratesNdcBookingFlight extends StatefulWidget {
     super.key,
     required this.flight,
     required this.selectedPackage,
+    this.returnFlight,
+    this.returnPackage,
+    this.isRoundTrip = false,
     required this.totalPrice,
     required this.currency,
   });
@@ -1009,6 +1015,11 @@ ElevatedButton(
           debugPrint('  Passengers: ${travelersController.adultCount.value} Adults, '
               '${travelersController.childrenCount.value} Children, '
               '${travelersController.infantCount.value} Infants');
+          debugPrint('  Round Trip: ${widget.isRoundTrip}');
+          if (widget.isRoundTrip && widget.returnPackage != null) {
+            debugPrint('  Return Offer ID: ${widget.returnPackage!.offerId}');
+            debugPrint('  Return Package: ${widget.returnPackage!.name}');
+          }
           
           final totalPassengers = travelersController.adultCount.value +
               travelersController.childrenCount.value +
