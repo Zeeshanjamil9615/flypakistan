@@ -1024,14 +1024,27 @@ ElevatedButton(
           final totalPassengers = travelersController.adultCount.value +
               travelersController.childrenCount.value +
               travelersController.infantCount.value;
+          debugPrint('  Total passengers (incl. infants): $totalPassengers');
+
+          final selectedOffers = <Map<String, dynamic>>[
+            {
+              'offerId': widget.selectedPackage.offerId,
+              'offerData': widget.selectedPackage.rawFlightData,
+            },
+          ];
+
+          if (widget.isRoundTrip && widget.returnPackage != null) {
+            selectedOffers.add({
+              'offerId': widget.returnPackage!.offerId,
+              'offerData': widget.returnPackage!.rawFlightData,
+            });
+          }
 
           // Call Emirates NDC PNR API
           final emiratesApiService = ApiServiceEmirates();
           pnrResponse = await emiratesApiService.createEmiratesNdcPnr(
-            offerId: widget.selectedPackage.offerId,
-            offerData: widget.selectedPackage.rawFlightData,
+            selectedOffers: selectedOffers,
             bookingController: bookingController,
-            passengerCount: totalPassengers,
           );
 
           debugPrint('\n📋 === PNR CREATION RESPONSE ===');

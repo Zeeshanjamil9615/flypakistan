@@ -401,6 +401,7 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
     String origin = '';
     String destination = '';
     String formattedDates = '';
+    List<Map<String, String>>? emiratesMultiCitySegments;
 
     if (tripType.value == TripType.multiCity) {
       origins.clear();
@@ -421,6 +422,16 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
 
       origin = formattedOrigins;
       destination = formattedDestinations;
+
+      emiratesMultiCitySegments = cityPairs
+          .map(
+            (pair) => {
+              'origin': pair.fromCity.value,
+              'destination': pair.toCity.value,
+              'date': _formatDateForAPI(pair.departureDateTime.value),
+            },
+          )
+          .toList();
     } else {
       final departureDate = _formatDateForAPI(departureDateTimeValue.value);
 
@@ -449,6 +460,7 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
         child: childrenCount.value,
         infant: infantCount.value,
         cabin: travelClass.value,
+        multiCitySegments: emiratesMultiCitySegments,
       ),
       _callSabreApi(
         type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
@@ -717,6 +729,7 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
   required int child,
   required int infant,
   required String cabin,
+  List<Map<String, String>>? multiCitySegments,
 }) async {
   try {
     // Clear previous flights before new search
@@ -739,6 +752,7 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
       child: child,
       infant: infant,
       cabin: cabin,
+      multiCitySegments: multiCitySegments,
     );
 
     debugPrint('Emirates API result keys: ${result.keys}');

@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:ready_flights/utility/colors.dart';
-import 'package:ready_flights/services/api_service_emirates.dart';
+import 'package:ready_flights/services/api_service_emirates.dart'
+    as emirates_service;
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
 import 'package:ready_flights/views/flight/form/flight_booking_controller.dart';
@@ -532,129 +533,93 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
     try {
       isLoading.value = true;
 
+      final bookingController = Get.find<FlightBookingController>();
+      final tripType = bookingController.tripType.value;
+      final bool isRoundTrip = tripType == TripType.roundTrip;
+
+      if (isRoundTrip && !isReturnFlight) {
+        // Store outbound package and prompt for return selection
+      emiratesController.handlePackageSelection(
+        flight,
+        package,
+        isReturnFlight: false,
+      );
+        isLoading.value = false;
+        Get.back();
+        Future.delayed(const Duration(milliseconds: 250), () {
+          emiratesController.openReturnFlightsSelection();
+        });
+        return;
+      }
+
       debugPrint('\n=== PACKAGE SELECTED ===');
       debugPrint('Package: ${package.name}');
       debugPrint('Price: PKR ${package.price.toStringAsFixed(0)}');
       debugPrint('========================\n');
 
-      final passengerDetails = _extractPassengerDetails(package.rawFlightData);
-      final offerItem = _extractOfferItem(package.rawFlightData);
-      final offerItemId = offerItem?['OfferItemID']?.toString() ?? '${package.offerId}-1';
-      final owner = package.rawFlightData['Owner']?.toString() ?? 'EK';
-      final responseId = _deriveResponseId(package);
+      if (isRoundTrip && isReturnFlight) {
+        final outboundFlight = emiratesController.selectedOutboundFlight;
+        final outboundPackage = emiratesController.selectedOutboundPackage;
+        if (outboundFlight == null || outboundPackage == null) {
+          throw Exception('Outbound selection missing. Please reselect outbound flight.');
+        }
 
-      if (responseId.isEmpty) {
-        throw Exception('Missing ResponseID for selected offer.');
-      }
+        final pricedPackages = await _pricePackages([outboundPackage, package]);
+        final pricedOutbound = pricedPackages[0];
+        final pricedReturn = pricedPackages[1];
 
-      if (offerItemId.isEmpty) {
-        throw Exception('Missing OfferItemID for selected offer.');
-      }
-
-      final pricingResult = await ApiServiceEmirates().priceEmiratesOffer(
-        offerId: package.offerId,
-        offerItemId: offerItemId,
-        owner: owner,
-        responseId: responseId,
-        passengerDetails: passengerDetails,
-      );
-
-      if (pricingResult['success'] != true) {
-        final error = pricingResult['error'] ?? 'Failed to price offer';
-        debugPrint('❌ Offer pricing failed: $error');
-        Get.snackbar(
-          'Error',
-          error.toString(),
-          snackPosition: SnackPosition.BOTTOM,
-          backgroundColor: Colors.red,
-          colorText: Colors.white,
+        emiratesController.handlePackageSelection(
+          outboundFlight,
+          pricedOutbound,
+          isReturnFlight: false,
         );
+        emiratesController.handlePackageSelection(
+          flight,
+          pricedReturn,
+          isReturnFlight: true,
+        );
+        Get.back();
+        Future.delayed(const Duration(milliseconds: 200), () {
+          Get.to(
+            () => EmiratesReviewTripPage(
+              outboundFlight: outboundFlight,
+              outboundPackage: pricedOutbound,
+              returnFlight: flight,
+              returnPackage: pricedReturn,
+              isRoundTrip: true,
+            ),
+          );
+        });
         return;
       }
 
-      final Map<String, dynamic> pricedOffer =
-          Map<String, dynamic>.from(pricingResult['pricedOffer'] as Map<String, dynamic>);
-      final Map<String, dynamic>? shoppingResponse =
-          pricingResult['shoppingResponse'] as Map<String, dynamic>?;
-      final String pricedResponseId =
-          pricingResult['responseId']?.toString() ??
-          _toText(shoppingResponse?['ResponseID']) ??
-          responseId;
-
-      pricedOffer['ResponseID'] = pricedResponseId;
-      if (shoppingResponse != null) {
-        pricedOffer['ShoppingResponseID'] = shoppingResponse;
-      }
-      if (pricingResult['dataLists'] != null) {
-        pricedOffer['DataLists'] = pricingResult['dataLists'];
-      }
-      if (!pricedOffer.containsKey('Owner')) {
-        pricedOffer['Owner'] = owner;
-      }
-
-      final Map<String, dynamic>? pricedOfferItem = _extractOfferItem(pricedOffer);
-      final double pricedTotal =
-          _parseAmount(((pricedOffer['TotalPrice'] ?? {})['DetailCurrencyPrice'] ?? {})['Total']);
-      final String pricedCurrency =
-          _extractCurrency(((pricedOffer['TotalPrice'] ?? {})['DetailCurrencyPrice'] ?? {})['Total']) ??
-              package.currency;
-      final double pricedBase = _parseAmount(
-        (((pricedOfferItem?['FareDetail'] ?? {})['Price'] ?? {})['BaseAmount']),
-      );
-      final double pricedTaxes = _parseAmount(
-        ((((pricedOfferItem?['FareDetail'] ?? {})['Price'] ?? {})['Taxes'] ?? {})['Total']),
-      );
-
-      final EmiratesFarePackage updatedPackage = EmiratesFarePackage(
-        name: package.name,
-        code: package.code,
-        price: pricedTotal > 0 ? pricedTotal : package.price,
-        basePrice: pricedBase > 0 ? pricedBase : package.basePrice,
-        taxAmount: pricedTaxes >= 0 ? pricedTaxes : package.taxAmount,
-        currency: pricedCurrency.isNotEmpty ? pricedCurrency : package.currency,
-        isRefundable: package.isRefundable,
-        cabinName: package.cabinName,
-        checkedWeight: package.checkedWeight,
-        checkedUnit: package.checkedUnit,
-        carryOnPieces: package.carryOnPieces,
-        amenities: package.amenities,
-        offerId: pricedOffer['OfferID']?.toString() ?? package.offerId,
-        rawFlightData: pricedOffer,
-      );
-
+      final pricedPackage = await _pricePackage(package);
       emiratesController.handlePackageSelection(
         flight,
-        updatedPackage,
+        pricedPackage,
         isReturnFlight: isReturnFlight,
       );
 
-      final bookingController = Get.find<FlightBookingController>();
-      final tripType = bookingController.tripType.value;
-      final bool isRoundTrip = tripType == TripType.roundTrip;
-
-      Get.back(); // Close package selection
-
+      Get.back();
       Future.delayed(const Duration(milliseconds: 200), () {
-        if (isRoundTrip && !isReturnFlight) {
-          emiratesController.openReturnFlightsSelection();
-        } else {
-          Get.to(() => EmiratesReviewTripPage(
-                outboundFlight:
-                    emiratesController.selectedOutboundFlight ?? flight,
-                outboundPackage:
-                    emiratesController.selectedOutboundPackage ?? updatedPackage,
-                returnFlight: emiratesController.selectedReturnFlight,
-                returnPackage: emiratesController.selectedReturnPackage,
-                isRoundTrip: isRoundTrip,
-              ));
-        }
+        final outboundFlightForReview =
+            emiratesController.selectedOutboundFlight ?? flight;
+        final outboundPackageForReview =
+            emiratesController.selectedOutboundPackage ?? pricedPackage;
+        Get.to(
+          () => EmiratesReviewTripPage(
+            outboundFlight: outboundFlightForReview,
+            outboundPackage: outboundPackageForReview,
+            isRoundTrip: false,
+          ),
+        );
       });
     } catch (e, stackTrace) {
       debugPrint('❌ Error selecting package: $e');
       debugPrint('Stack trace: $stackTrace');
       Get.snackbar(
         'Error',
-        'Failed to select package. Please try again.',
+        e.toString(),
         snackPosition: SnackPosition.BOTTOM,
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -710,15 +675,310 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
     return results;
   }
 
-  Map<String, dynamic>? _extractOfferItem(Map<String, dynamic> rawData) {
+  List<Map<String, dynamic>> _extractOfferItems(Map<String, dynamic> rawData) {
     final offerItem = rawData['OfferItem'];
     if (offerItem is List) {
-      return offerItem.isNotEmpty ? Map<String, dynamic>.from(offerItem.first) : null;
+      return offerItem
+          .whereType<Map>()
+          .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item.cast<String, dynamic>()))
+          .toList();
     }
-    if (offerItem is Map<String, dynamic>) {
-      return offerItem;
+    if (offerItem is Map) {
+      return [Map<String, dynamic>.from(offerItem.cast<String, dynamic>())];
     }
-    return null;
+    return const [];
+  }
+
+  Future<EmiratesFarePackage> _pricePackage(EmiratesFarePackage package) async {
+    final results = await _pricePackages([package]);
+    if (results.isEmpty) {
+      throw Exception('Failed to price offer.');
+    }
+    return results.first;
+  }
+
+  Future<List<EmiratesFarePackage>> _pricePackages(
+    List<EmiratesFarePackage> packages,
+  ) async {
+    if (packages.isEmpty) return const [];
+
+    final passengerDetails = _extractPassengerDetails(packages.first.rawFlightData);
+    final passengerIds = passengerDetails
+        .map((p) => p['id'])
+        .whereType<String>()
+        .map((id) => id.trim())
+        .where((id) => id.isNotEmpty)
+        .toList();
+    final fallbackPassengerRefs =
+        passengerIds.isNotEmpty ? passengerIds.join(' ') : 'T1';
+    final validPassengerIds = passengerIds.isNotEmpty
+        ? passengerIds.toSet()
+        : <String>{'T1'};
+
+    final entries = packages
+        .map(
+          (pkg) => _buildOfferPricingEntry(
+            pkg,
+            fallbackPassengerRefs,
+            validPassengerIds,
+          ),
+        )
+        .toList();
+
+    final pricingResult =
+        await emirates_service.ApiServiceEmirates().priceEmiratesOffer(
+      offers: entries,
+      passengerDetails: passengerDetails,
+    );
+
+    if (pricingResult['success'] != true) {
+      final error = pricingResult['error'] ?? 'Failed to price offer';
+      throw Exception(error.toString());
+    }
+
+    final responseIdFromPricing = pricingResult['responseId']?.toString() ?? '';
+    final shoppingResponse = pricingResult['shoppingResponse'];
+
+    final List<dynamic> pricedOffersData = pricingResult['pricedOffers'] is List
+        ? pricingResult['pricedOffers'] as List<dynamic>
+        : [];
+    if (pricedOffersData.isEmpty && pricingResult['PricedOffer'] != null) {
+      pricedOffersData.add(pricingResult['PricedOffer']);
+    }
+
+    final pricedById = <String, Map<String, dynamic>>{};
+    for (final data in pricedOffersData) {
+      if (data is Map<String, dynamic>) {
+        final offerId = _toText(data['OfferID']);
+        if (offerId.isNotEmpty) {
+          pricedById[offerId] = data;
+        }
+      }
+    }
+
+    final List<EmiratesFarePackage> updated = [];
+    for (final package in packages) {
+      final pricedOffer = pricedById[package.offerId] ??
+          (pricedOffersData.length == 1 && pricedOffersData.first is Map<String, dynamic>
+              ? pricedOffersData.first as Map<String, dynamic>
+              : null);
+
+      if (pricedOffer is Map<String, dynamic>) {
+        updated.add(
+          _buildPricedPackage(
+            package,
+            Map<String, dynamic>.from(pricedOffer),
+            pricingResult['dataLists'],
+            responseIdFromPricing,
+            shoppingResponse,
+          ),
+        );
+      } else {
+        updated.add(package);
+      }
+    }
+
+    return updated;
+  }
+
+  emirates_service.OfferPricingEntry _buildOfferPricingEntry(
+    EmiratesFarePackage package,
+    String fallbackPassengerRefs,
+    Set<String> validPassengerIds,
+  ) {
+    final offerItems = _extractOfferItems(package.rawFlightData);
+    final items = <emirates_service.OfferPricingItem>[];
+
+    for (final offerItem in offerItems) {
+      final offerItemId = offerItem['OfferItemID']?.toString() ?? '';
+      if (offerItemId.isEmpty) continue;
+      final passengerRefs =
+          _extractPassengerRefsFromOfferItem(
+        offerItem,
+        fallbackPassengerRefs,
+        validPassengerIds,
+      );
+      items.add(
+        emirates_service.OfferPricingItem(
+          offerItemId: offerItemId,
+          passengerRefs: passengerRefs.isNotEmpty ? passengerRefs : fallbackPassengerRefs,
+        ),
+      );
+    }
+
+    if (items.isEmpty) {
+      throw Exception('Missing OfferItemIDs for selected offer.');
+    }
+
+    final owner = package.rawFlightData['Owner']?.toString() ?? 'EK';
+    final responseId = _deriveResponseId(package);
+    if (responseId.isEmpty) {
+      throw Exception('Missing ResponseID for selected offer.');
+    }
+
+    return emirates_service.OfferPricingEntry(
+      offerId: package.offerId,
+      owner: owner,
+      responseId: responseId,
+      items: items,
+    );
+  }
+
+  EmiratesFarePackage _buildPricedPackage(
+    EmiratesFarePackage original,
+    Map<String, dynamic> pricedOffer,
+    dynamic dataLists,
+    String responseIdFromPricing,
+    dynamic shoppingResponse,
+  ) {
+    if (dataLists != null) {
+      pricedOffer['DataLists'] ??= dataLists;
+    }
+    if (shoppingResponse != null) {
+      pricedOffer['ShoppingResponseID'] ??= shoppingResponse;
+    }
+    if (responseIdFromPricing.isNotEmpty) {
+      pricedOffer['ResponseID'] ??= responseIdFromPricing;
+    }
+    if (!pricedOffer.containsKey('Owner')) {
+      pricedOffer['Owner'] = original.rawFlightData['Owner'] ?? 'EK';
+    }
+
+    final List<Map<String, dynamic>> pricedOfferItems = _extractOfferItems(pricedOffer);
+    final Map<String, dynamic>? pricedOfferItem =
+        pricedOfferItems.isNotEmpty ? pricedOfferItems.first : null;
+    final double pricedTotal =
+        _parseAmount(((pricedOffer['TotalPrice'] ?? {})['DetailCurrencyPrice'] ?? {})['Total']);
+    final String pricedCurrency =
+        _extractCurrency(((pricedOffer['TotalPrice'] ?? {})['DetailCurrencyPrice'] ?? {})['Total']) ??
+            original.currency;
+
+    double pricedBase = _parseAmount(
+      (((pricedOfferItem?['FareDetail'] ?? {})['Price'] ?? {})['BaseAmount']),
+    );
+    double pricedTaxes = _parseAmount(
+      ((((pricedOfferItem?['FareDetail'] ?? {})['Price'] ?? {})['Taxes'] ?? {})['Total']),
+    );
+
+    if (pricedOfferItems.length > 1) {
+      pricedBase = pricedOfferItems.fold<double>(
+        0,
+        (sum, item) =>
+            sum +
+            _parseAmount(
+              (((item['FareDetail'] ?? {})['Price'] ?? {})['BaseAmount']),
+            ),
+      );
+      pricedTaxes = pricedOfferItems.fold<double>(
+        0,
+        (sum, item) =>
+            sum +
+            _parseAmount(
+              ((((item['FareDetail'] ?? {})['Price'] ?? {})['Taxes'] ?? {})['Total']),
+            ),
+      );
+    }
+
+    if (pricedBase <= 0) pricedBase = original.basePrice;
+    if (pricedTaxes < 0) pricedTaxes = original.taxAmount;
+
+    return EmiratesFarePackage(
+      name: original.name,
+      code: original.code,
+      price: pricedTotal > 0 ? pricedTotal : original.price,
+      basePrice: pricedBase > 0 ? pricedBase : original.basePrice,
+      taxAmount: pricedTaxes >= 0 ? pricedTaxes : original.taxAmount,
+      currency: pricedCurrency.isNotEmpty ? pricedCurrency : original.currency,
+      isRefundable: original.isRefundable,
+      cabinName: original.cabinName,
+      checkedWeight: original.checkedWeight,
+      checkedUnit: original.checkedUnit,
+      carryOnPieces: original.carryOnPieces,
+      amenities: original.amenities,
+      offerId: pricedOffer['OfferID']?.toString() ?? original.offerId,
+      rawFlightData: pricedOffer,
+    );
+  }
+
+  String _extractPassengerRefsFromOfferItem(
+    Map<String, dynamic> offerItem,
+    String fallback,
+    Set<String> validPassengerIds,
+  ) {
+    final directRefs = _extractPassengerIds(offerItem['PassengerRefs'], validPassengerIds);
+    if (directRefs.isNotEmpty) {
+      return directRefs.join(' ');
+    }
+
+    final serviceRefs = _extractPassengerIds(offerItem['Service'], validPassengerIds);
+    if (serviceRefs.isNotEmpty) {
+      return serviceRefs.join(' ');
+    }
+
+    return fallback;
+  }
+
+  List<String> _extractPassengerIds(
+    dynamic node,
+    Set<String> validPassengerIds,
+  ) {
+    if (node == null) return const [];
+
+    final collected = <String>[];
+
+    void collect(dynamic current) {
+      if (current == null) return;
+
+      if (current is String) {
+        for (final token in current.split(RegExp(r'\s+'))) {
+          final trimmed = token.trim();
+          if (trimmed.isEmpty) continue;
+          if (validPassengerIds.isEmpty || validPassengerIds.contains(trimmed)) {
+            collected.add(trimmed);
+          }
+        }
+        return;
+      }
+
+      if (current is Map) {
+        if (current.containsKey('\$t')) {
+          collect(current['\$t']);
+          return;
+        }
+        if (current.containsKey('value')) {
+          collect(current['value']);
+          return;
+        }
+        if (current.containsKey('PassengerRefs')) {
+          collect(current['PassengerRefs']);
+        } else {
+          for (final value in current.values) {
+            collect(value);
+          }
+        }
+        return;
+      }
+
+      if (current is Iterable) {
+        for (final value in current) {
+          collect(value);
+        }
+        return;
+      }
+
+      collect(current.toString());
+    }
+
+    collect(node);
+
+    final seen = <String>{};
+    final ordered = <String>[];
+    for (final id in collected) {
+      if (seen.add(id)) {
+        ordered.add(id);
+      }
+    }
+    return ordered;
   }
 
   double _parseAmount(dynamic node) {
