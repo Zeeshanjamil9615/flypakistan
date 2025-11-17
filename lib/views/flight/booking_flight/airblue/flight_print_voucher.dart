@@ -10,7 +10,8 @@
   import 'package:printing/printing.dart';
   
   import '../../../../../services/api_service_sabre.dart';
-  import '../../../../../utility/colors.dart';
+import '../../../../../utility/colors.dart';
+import '../../../../../utility/app_constants.dart';
   import '../../../home/home_screen.dart';
   import '../../search_flights/airblue/airblue_flight_controller.dart';
   import '../../search_flights/airblue/airblue_flight_model.dart';
@@ -77,6 +78,10 @@
       phone: '03418216319',
       designation: 'Goolaar',
     );
+
+  TextStyle get _labelStyle => AppConstants.fieldLabelStyle;
+  TextStyle get _valueStyle => AppConstants.fieldValueStyle;
+  TextStyle get _sectionTitleStyle => AppConstants.sectionTitleStyle;
   
     @override
     void initState() {
@@ -277,12 +282,10 @@
           ),
         ),
         flexibleSpace: FlexibleSpaceBar(
-          title: const Text(
+          title: Text(
             'Booking Details',
-            style: TextStyle(
+            style: _sectionTitleStyle.copyWith(
               color: Colors.white,
-              fontWeight: FontWeight.w600,
-              fontSize: 18,
             ),
           ),
           background: Container(
@@ -399,30 +402,20 @@
                 RichText(
                   textAlign: TextAlign.center,
                   text: TextSpan(
+                    style: _sectionTitleStyle.copyWith(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
                     children: [
-                      const TextSpan(
-                        text: 'Dear ',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
-                      ),
+                      const TextSpan(text: 'Dear '),
                       TextSpan(
                         text: customerName,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
+                        style: _sectionTitleStyle.copyWith(
                           color: Colors.white,
                         ),
                       ),
                       const TextSpan(
                         text: ', your booking is created successfully!',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w500,
-                          color: Colors.white,
-                        ),
                       ),
                     ],
                   ),
@@ -444,12 +437,11 @@
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text(
+                      Text(
                         'Need help? Contact us:',
-                        style: TextStyle(
-                          fontSize: 14,
+                        style: _valueStyle.copyWith(
                           color: Colors.white,
-                          fontWeight: FontWeight.w500,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(width: 10),
@@ -517,10 +509,9 @@
                 Expanded(
                   child: Text(
                     _expiryMessage,
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w500,
+                    style: _valueStyle.copyWith(
                       color: _getTimerColor(),
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
@@ -541,9 +532,8 @@
                     const SizedBox(width: 6),
                     Text(
                       'Time Left: ${_formatTimeRemaining()}',
-                      style: const TextStyle(
+                      style: _valueStyle.copyWith(
                         color: Colors.white,
-                        fontSize: 12,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
@@ -593,12 +583,10 @@
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
+                          Text(
                             'Airblue Booking',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF1E293B),
+                            style: _sectionTitleStyle.copyWith(
+                              color: const Color(0xFF1E293B),
                             ),
                           ),
                           Container(
@@ -613,12 +601,12 @@
                                 color: const Color(0xFF10B981).withOpacity(0.3),
                               ),
                             ),
-                            child: const Text(
+                            child: Text(
                               'CONFIRMED',
-                              style: TextStyle(
+                              style: _labelStyle.copyWith(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF10B981),
+                                color: const Color(0xFF10B981),
                               ),
                             ),
                           ),
@@ -670,18 +658,17 @@
         children: [
           Icon(icon, size: 18, color: const Color(0xFF64748B)),
           const SizedBox(width: 12),
-          Text(
-            '$label: ',
-            style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
-          ),
+        Text(
+          '$label: ',
+          style: _labelStyle.copyWith(fontSize: 12, color: const Color(0xFF64748B)),
+        ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF1E293B),
-              ),
+            style: _valueStyle.copyWith(
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFF1E293B),
+            ),
             ),
           ),
         ],
@@ -701,12 +688,11 @@
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Flight Details',
-              style: TextStyle(
+              style: _sectionTitleStyle.copyWith(
+                color: const Color(0xFF1E293B),
                 fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF1E293B),
               ),
             ),
             const SizedBox(height: 12),
@@ -1228,12 +1214,10 @@
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Passenger Details',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
+                        style: _sectionTitleStyle.copyWith(
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Container(
@@ -1250,7 +1234,7 @@
                         ),
                         child: Text(
                           '${bookingController.adults.length + bookingController.children.length + bookingController.infants.length} Passengers',
-                          style: const TextStyle(
+                          style: _labelStyle.copyWith(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: TColors.primary,

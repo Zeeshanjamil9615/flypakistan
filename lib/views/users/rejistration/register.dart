@@ -1,11 +1,47 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../utility/colors.dart';
+import '../../../../utility/app_constants.dart';
 import '../login/login.dart';
 import 'rejistration_controller.dart';
 
 class RegisterAccount extends StatelessWidget {
   final RegisterController controller = Get.put(RegisterController());
+
+  InputDecoration _buildInputDecoration({
+    required String label,
+    required IconData prefixIcon,
+    String? errorText,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: AppConstants.fieldLabelStyle.copyWith(
+        color: TColors.text.withOpacity(0.7),
+      ),
+      errorText: errorText,
+      prefixIcon: Icon(prefixIcon, color: TColors.primary),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: BorderSide(
+          color: TColors.grey.withOpacity(0.3),
+        ),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: TColors.primary),
+      ),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: TColors.third),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(15),
+        borderSide: const BorderSide(color: TColors.third),
+      ),
+      filled: true,
+      fillColor: Colors.grey.shade50,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -30,10 +66,8 @@ class RegisterAccount extends StatelessWidget {
                       ),
                       child: Text(
                         'Create a new account',
-                        style: TextStyle(
+                        style: AppConstants.sectionTitleStyle.copyWith(
                           color: TColors.text,
-                          fontSize: 24,
-                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -45,9 +79,8 @@ class RegisterAccount extends StatelessWidget {
                         children: [
                           Text(
                             'Already have an account? ',
-                            style: TextStyle(
+                            style: AppConstants.fieldLabelStyle.copyWith(
                               color: TColors.text.withOpacity(0.7),
-                              fontSize: 16,
                             ),
                           ),
                           GestureDetector(
@@ -56,9 +89,8 @@ class RegisterAccount extends StatelessWidget {
                             },
                             child: Text(
                               'Log in',
-                              style: TextStyle(
+                              style: AppConstants.fieldValueStyle.copyWith(
                                 color: TColors.primary,
-                                fontSize: 16,
                                 fontWeight: FontWeight.bold,
                               ),
                             ),
@@ -88,10 +120,9 @@ class RegisterAccount extends StatelessWidget {
                                   SizedBox(width: 8),
                                   Text(
                                     'Registration Error',
-                                    style: TextStyle(
+                                    style: AppConstants.fieldValueStyle.copyWith(
                                       color: TColors.third,
                                       fontWeight: FontWeight.bold,
-                                      fontSize: 16,
                                     ),
                                   ),
                                 ],
@@ -99,7 +130,9 @@ class RegisterAccount extends StatelessWidget {
                               SizedBox(height: 8),
                               Text(
                                 controller.apiErrorMessage.value,
-                                style: TextStyle(color: TColors.third),
+                                style: AppConstants.fieldLabelStyle.copyWith(
+                                  color: TColors.third,
+                                ),
                               ),
                             ],
                           ),
@@ -114,36 +147,15 @@ class RegisterAccount extends StatelessWidget {
                       ),
                       child: TextField(
                         controller: controller.agencyNameController,
-                        style: TextStyle(color: TColors.text),
-                        decoration: InputDecoration(
-                          labelText: 'Agency Name',
-                          labelStyle: TextStyle(
-                            color: TColors.text.withOpacity(0.7),
-                          ),
+                        style: AppConstants.fieldValueStyle.copyWith(
+                          color: TColors.text,
+                        ),
+                        decoration: _buildInputDecoration(
+                          label: 'Agency Name',
+                          prefixIcon: Icons.business,
                           errorText: controller.getErrorText(
                             controller.agencyNameError,
                           ),
-                          prefixIcon: Icon(Icons.business, color: TColors.primary),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: TColors.grey.withOpacity(0.3),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.primary),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
                         ),
                       ),
                     ),
@@ -156,36 +168,15 @@ class RegisterAccount extends StatelessWidget {
                       ),
                       child: TextField(
                         controller: controller.contactNameController,
-                        style: TextStyle(color: TColors.text),
-                        decoration: InputDecoration(
-                          labelText: 'Contact Name',
-                          labelStyle: TextStyle(
-                            color: TColors.text.withOpacity(0.7),
-                          ),
+                        style: AppConstants.fieldValueStyle.copyWith(
+                          color: TColors.text,
+                        ),
+                        decoration: _buildInputDecoration(
+                          label: 'Contact Name',
+                          prefixIcon: Icons.person,
                           errorText: controller.getErrorText(
                             controller.contactNameError,
                           ),
-                          prefixIcon: Icon(Icons.person, color: TColors.primary),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: TColors.grey.withOpacity(0.3),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.primary),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
                         ),
                       ),
                     ),
@@ -199,36 +190,15 @@ class RegisterAccount extends StatelessWidget {
                       child: TextField(
                         controller: controller.emailController,
                         keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(color: TColors.text),
-                        decoration: InputDecoration(
-                          labelText: 'Email',
-                          labelStyle: TextStyle(
-                            color: TColors.text.withOpacity(0.7),
-                          ),
+                        style: AppConstants.fieldValueStyle.copyWith(
+                          color: TColors.text,
+                        ),
+                        decoration: _buildInputDecoration(
+                          label: 'Email',
+                          prefixIcon: Icons.email,
                           errorText: controller.getErrorText(
                             controller.emailError,
                           ),
-                          prefixIcon: Icon(Icons.email, color: TColors.primary),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: TColors.grey.withOpacity(0.3),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.primary),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
                         ),
                       ),
                     ),
@@ -277,13 +247,15 @@ class RegisterAccount extends StatelessWidget {
                                               Icons.arrow_drop_down,
                                               color: TColors.text,
                                             ),
-                                            style: TextStyle(color: TColors.text),
+                                            style: AppConstants.fieldValueStyle.copyWith(
+                                              color: TColors.text,
+                                            ),
                                             isExpanded: true,
                                             hint: Padding(
                                               padding: const EdgeInsets.only(left: 8),
                                               child: Text(
                                                 'Code',
-                                                style: TextStyle(
+                                                style: AppConstants.fieldLabelStyle.copyWith(
                                                   color: TColors.text.withOpacity(0.7),
                                                 ),
                                               ),
@@ -312,7 +284,7 @@ class RegisterAccount extends StatelessWidget {
                                     ),
                                     child: Text(
                                       controller.countryCodeError.value,
-                                      style: TextStyle(
+                                      style: AppConstants.fieldLabelStyle.copyWith(
                                         color: TColors.third,
                                         fontSize: 12,
                                       ),
@@ -328,42 +300,15 @@ class RegisterAccount extends StatelessWidget {
                             child: TextField(
                               controller: controller.cellController,
                               keyboardType: TextInputType.phone,
-                              style: TextStyle(color: TColors.text),
-                              decoration: InputDecoration(
-                                labelText: 'Cell Number',
-                                labelStyle: TextStyle(
-                                  color: TColors.text.withOpacity(0.7),
-                                ),
+                              style: AppConstants.fieldValueStyle.copyWith(
+                                color: TColors.text,
+                              ),
+                              decoration: _buildInputDecoration(
+                                label: 'Cell Number',
+                                prefixIcon: Icons.phone,
                                 errorText: controller.getErrorText(
                                   controller.cellError,
                                 ),
-                                prefixIcon: Icon(Icons.phone, color: TColors.primary),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: TColors.grey.withOpacity(0.3),
-                                  ),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: TColors.primary,
-                                  ),
-                                ),
-                                errorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: TColors.third,
-                                  ),
-                                ),
-                                focusedErrorBorder: OutlineInputBorder(
-                                  borderRadius: BorderRadius.circular(15),
-                                  borderSide: BorderSide(
-                                    color: TColors.third,
-                                  ),
-                                ),
-                                filled: true,
-                                fillColor: Colors.grey.shade50,
                               ),
                             ),
                           ),
@@ -379,36 +324,15 @@ class RegisterAccount extends StatelessWidget {
                       ),
                       child: TextField(
                         controller: controller.addressController,
-                        style: TextStyle(color: TColors.text),
-                        decoration: InputDecoration(
-                          labelText: 'Address',
-                          labelStyle: TextStyle(
-                            color: TColors.text.withOpacity(0.7),
-                          ),
+                        style: AppConstants.fieldValueStyle.copyWith(
+                          color: TColors.text,
+                        ),
+                        decoration: _buildInputDecoration(
+                          label: 'Address',
+                          prefixIcon: Icons.location_on,
                           errorText: controller.getErrorText(
                             controller.addressError,
                           ),
-                          prefixIcon: Icon(Icons.location_on, color: TColors.primary),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: TColors.grey.withOpacity(0.3),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.primary),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
                         ),
                       ),
                     ),
@@ -421,36 +345,15 @@ class RegisterAccount extends StatelessWidget {
                       ),
                       child: TextField(
                         controller: controller.cityNameController,
-                        style: TextStyle(color: TColors.text),
-                        decoration: InputDecoration(
-                          labelText: 'City Name',
-                          labelStyle: TextStyle(
-                            color: TColors.text.withOpacity(0.7),
-                          ),
+                        style: AppConstants.fieldValueStyle.copyWith(
+                          color: TColors.text,
+                        ),
+                        decoration: _buildInputDecoration(
+                          label: 'City Name',
+                          prefixIcon: Icons.location_city,
                           errorText: controller.getErrorText(
                             controller.cityNameError,
                           ),
-                          prefixIcon: Icon(Icons.location_city, color: TColors.primary),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(
-                              color: TColors.grey.withOpacity(0.3),
-                            ),
-                          ),
-                          focusedBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.primary),
-                          ),
-                          errorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          focusedErrorBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(15),
-                            borderSide: BorderSide(color: TColors.third),
-                          ),
-                          filled: true,
-                          fillColor: Colors.grey.shade50,
                         ),
                       ),
                     ),
@@ -461,33 +364,48 @@ class RegisterAccount extends StatelessWidget {
                         horizontal: 16,
                         vertical: 16,
                       ),
-                      child: ElevatedButton(
-                        onPressed: controller.isLoading.value ? null : controller.register,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: TColors.secondary,
-                          disabledBackgroundColor: TColors.secondary.withOpacity(0.5),
-                          minimumSize: Size(double.infinity, 55),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(15),
+                      child: Column(
+                        children: [
+                          ElevatedButton(
+                            onPressed: controller.isLoading.value ? null : controller.register,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: TColors.secondary,
+                              disabledBackgroundColor: TColors.secondary.withOpacity(0.5),
+                              minimumSize: Size(double.infinity, 55),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(15),
+                              ),
+                            ),
+                            child: controller.isLoading.value
+                                ? SizedBox(
+                              height: 24,
+                              width: 24,
+                              child: CircularProgressIndicator(
+                                color: TColors.white,
+                                strokeWidth: 2,
+                              ),
+                            )
+                                : Text(
+                              'Register',
+                              style: AppConstants.fieldValueStyle.copyWith(
+                                color: TColors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
                           ),
-                        ),
-                        child: controller.isLoading.value
-                            ? SizedBox(
-                          height: 24,
-                          width: 24,
-                          child: CircularProgressIndicator(
-                            color: TColors.white,
-                            strokeWidth: 2,
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () => Get.to(() => const Login()),
+                            child: Text(
+                              'Login',
+                              style: AppConstants.fieldValueStyle.copyWith(
+                                color: TColors.primary,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
                           ),
-                        )
-                            : Text(
-                          'Register', // Changed from "Sign In" to "Register"
-                          style: TextStyle(
-                            color: TColors.white,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        ],
                       ),
                     ),
 

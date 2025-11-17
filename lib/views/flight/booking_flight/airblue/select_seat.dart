@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:ready_flights/services/api_service_airblue.dart';
 import 'package:ready_flights/utility/colors.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
+import 'package:ready_flights/utility/app_constants.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
@@ -14,6 +15,8 @@ class SeatSelectionScreen extends StatefulWidget {
   final AirBlueFareOption? outboundFareOption;
   final AirBlueFareOption? returnFareOption;
   final List<AirBlueFareOption?>? multicityFareOptions;
+  final bool showAsSheet;
+  final VoidCallback? onClose;
 
   const SeatSelectionScreen({
     super.key,
@@ -25,6 +28,8 @@ class SeatSelectionScreen extends StatefulWidget {
     this.outboundFareOption,
     this.returnFareOption,
     this.multicityFareOptions,
+    this.showAsSheet = false,
+    this.onClose,
   });
 
   @override
@@ -423,6 +428,51 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final bodyContent = isLoading
+        ? const Center(
+            child: CircularProgressIndicator(
+              valueColor: AlwaysStoppedAnimation<Color>(TColors.primary),
+            ),
+          )
+        : Column(
+            children: [
+              if (totalFlightSegments > 1) _buildFlightSelector(),
+              _buildPassengerSelector(),
+              Expanded(child: _buildSeatMap()),
+              _buildBottomBar(),
+            ],
+          );
+
+    if (widget.showAsSheet) {
+      return Material(
+        color: Colors.transparent,
+        child: SafeArea(
+          top: false,
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+            ),
+            child: Column(
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.symmetric(vertical: 12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[300],
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                _buildSheetHeader(),
+                Expanded(child: bodyContent),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: AppBar(
@@ -447,20 +497,63 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           ),
         ],
       ),
-      body: isLoading
-          ? const Center(
-              child: CircularProgressIndicator(
-                valueColor: AlwaysStoppedAnimation<Color>(TColors.primary),
+      body: bodyContent,
+    );
+  }
+
+  Widget _buildSheetHeader() {
+    final routeLabel = _getFlightTitle(selectedFlightIndex);
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: const Color(0xFFE7F0FF),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              routeLabel.replaceFirst('Flight', '').trim(),
+              style: TextStyle(
+                color: TColors.primary,
+                fontWeight: FontWeight.w600,
+                fontSize: 12,
               ),
-            )
-          : Column(
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (totalFlightSegments > 1) _buildFlightSelector(),
-                _buildPassengerSelector(),
-                Expanded(child: _buildSeatMap()),
-                _buildBottomBar(),
+                Text(
+                  'Select your seat (Optional)',
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    fontSize: 16,
+                    color: Colors.black87,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'All prices are in PKR',
+                  style: AppConstants.fieldLabelStyle.copyWith(
+                    fontSize: 12,
+                  ),
+                ),
               ],
             ),
+          ),
+          IconButton(
+            onPressed: () {
+              widget.onClose?.call();
+              Get.back();
+            },
+            icon: const Icon(Icons.close),
+          ),
+        ],
+      ),
     );
   }
 
@@ -777,45 +870,29 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
   Widget _buildSeatRow(String rowNumber) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 3),
+      padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          SizedBox(
-            width: 28,
-            child: Text(
-              rowNumber,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-                color: Colors.grey[600],
-              ),
-            ),
-          ),
-          ...seatLetters.map((letter) {
-            if (letter == 'D') {
-              return Row(
-                children: [
-                  const SizedBox(width: 16),
-                  _buildSeat(rowNumber, letter),
-                ],
-              );
-            }
+          ...seatLetters.sublist(0, 3).map((letter) {
             return _buildSeat(rowNumber, letter);
           }),
-          SizedBox(
-            width: 28,
+          Container(
+            width: 36,
+            alignment: Alignment.center,
+            margin: const EdgeInsets.symmetric(horizontal: 8),
             child: Text(
               rowNumber,
-              textAlign: TextAlign.center,
               style: TextStyle(
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-                color: Colors.grey[600],
+                fontWeight: FontWeight.w700,
+                fontSize: 12,
+                color: Colors.grey[700],
               ),
             ),
           ),
+          ...seatLetters.sublist(3).map((letter) {
+            return _buildSeat(rowNumber, letter);
+          }),
         ],
       ),
     );
@@ -847,54 +924,77 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     final isSelectedByCurrent = currentFlightSeats[selectedPassengerIndex] == seatNumber;
     final isSelectedByOther = currentFlightSeats.values.contains(seatNumber) && !isSelectedByCurrent;
 
-    return GestureDetector(
-      onTap: (isAvailable && !isOccupied && !isSelectedByOther)
-          ? () => _selectSeat(seatNumber, rowNumber, price)
-          : null,
-      child: Container(
-        width: 36,
-        height: 36,
-        margin: const EdgeInsets.symmetric(horizontal: 2),
-        decoration: BoxDecoration(
-          color: isSelectedByCurrent
-              ? TColors.primary
-              : isSelectedByOther
-                  ? TColors.primary.withOpacity(0.6)
-                  : (isAvailable && !isOccupied)
-                      ? Colors.green[400]
-                      : Colors.grey[400],
-          borderRadius: BorderRadius.circular(6),
-          boxShadow: [
-            if (isSelectedByCurrent)
-              BoxShadow(
-                color: TColors.primary.withOpacity(0.3),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
+    final String priceLabel;
+    if (isAvailable && !isOccupied) {
+      priceLabel = price > 0 ? price.toStringAsFixed(0) : 'Free';
+    } else if (seatData == null) {
+      priceLabel = '';
+    } else {
+      priceLabel = '—';
+    }
+
+    return SizedBox(
+      width: 44,
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: (isAvailable && !isOccupied && !isSelectedByOther)
+                ? () => _selectSeat(seatNumber, rowNumber, price)
+                : null,
+            child: Container(
+              width: 36,
+              height: 36,
+              margin: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                color: isSelectedByCurrent
+                    ? TColors.primary
+                    : isSelectedByOther
+                        ? TColors.primary.withOpacity(0.6)
+                        : (isAvailable && !isOccupied)
+                            ? const Color(0xFFBFA4FF)
+                            : Colors.grey[300],
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: isSelectedByCurrent
+                      ? TColors.primary
+                      : Colors.transparent,
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  if (isSelectedByCurrent)
+                    BoxShadow(
+                      color: TColors.primary.withOpacity(0.3),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                ],
               ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              seatLetter,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 11,
-                fontWeight: FontWeight.bold,
+              child: Center(
+                child: seatData == null
+                    ? const Icon(Icons.close, color: Colors.white, size: 16)
+                    : Text(
+                        seatLetter,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
             ),
-            if (price > 0 && isAvailable)
-              Text(
-                'PKR ${price.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 7,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-          ],
-        ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            priceLabel,
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+              color: isAvailable && !isOccupied
+                  ? Colors.black87
+                  : Colors.grey[500],
+            ),
+          ),
+        ],
       ),
     );
   }
