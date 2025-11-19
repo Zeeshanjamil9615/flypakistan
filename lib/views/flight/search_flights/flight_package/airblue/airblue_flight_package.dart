@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../../services/api_service_sabre.dart';
 import '../../../../../utility/colors.dart';
+import '../../../../../widgets/travelers_selection_bottom_sheet.dart';
+import '../../../booking_flight/airblue/airblue_booking_flight.dart';
 import '../../../form/flight_booking_controller.dart';
+import '../../airblue/airblue_flight_controller.dart';
 import '../../airblue/airblue_flight_model.dart';
 import '../../airblue/airblue_return_flight_page.dart';
 import '../../review_flight/airblue_review_flight.dart';
-import '../../airblue/airblue_flight_controller.dart';
 import '../../search_flight_utils/widgets/airblue_flight_card.dart';
 
 class AirBluePackageSelectionDialog extends StatelessWidget {
@@ -796,13 +798,14 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
 
     // Store the selected flight and package
     if (isReturnFlight) {
+      airBlueController.selectedReturnFlight = flight;
       airBlueController.selectedReturnFareOption = selectedFareOption;
     } else {
+      airBlueController.selectedOutboundFlight = flight;
       airBlueController.selectedOutboundFareOption = selectedFareOption;
     }
     Get.back(); // Close the package selection dialog
 
-    // Navigate to review page
     Get.snackbar(
       'Success',
       isReturnFlight
@@ -814,12 +817,20 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
       duration: const Duration(seconds: 2),
     );
 
-    // FIXED: Use a small delay to ensure the dialog is fully closed before navigation
-    Future.delayed(Duration(milliseconds: 300), () {
-      Get.to(() => AirBlueReviewTripPage(
-        flight: flight,
-        isReturn: isReturnFlight,
-      ));
+    Future.delayed(const Duration(milliseconds: 300), () {
+      final bookingDetails = _buildBookingDetails(selectedFareOption);
+      Get.to(
+        () => AirBlueBookingFlight(
+          flight: bookingDetails.outboundFlight,
+          returnFlight: bookingDetails.returnFlight,
+          multicityFlights: null,
+          totalPrice: bookingDetails.totalPrice,
+          currency: bookingDetails.currency,
+          outboundFareOption: bookingDetails.outboundFare,
+          returnFareOption: bookingDetails.returnFare,
+          multicityFareOptions: null,
+        ),
+      );
     });
   }
 
@@ -1071,4 +1082,86 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
       transition: Transition.rightToLeft,
     );
   }
+
+  _BookingNavigationData _buildBookingDetails(AirBlueFareOption selectedFareOption) {
+    final outboundFare = isReturnFlight
+        ? (airBlueController.selectedOutboundFareOption ?? selectedFareOption)
+        : selectedFareOption;
+    final returnFare = isReturnFlight ? selectedFareOption : null;
+
+    final outboundFlight = airBlueController.selectedOutboundFlight ?? flight;
+    final returnFlight = isReturnFlight ? flight : null;
+
+    final outboundTotal = _calculateBookingTotal(outboundFare);
+    final returnTotal = returnFare != null ? _calculateBookingTotal(returnFare) : 0.0;
+
+    final total = (outboundTotal + returnTotal).clamp(0.0, double.infinity);
+    final currency = selectedFareOption.currency.isNotEmpty
+        ? selectedFareOption.currency
+        : flight.currency;
+
+    return _BookingNavigationData(
+      outboundFlight: outboundFlight,
+      returnFlight: returnFlight,
+      outboundFare: outboundFare,
+      returnFare: returnFare,
+      totalPrice: total > 0 ? total : selectedFareOption.price,
+      currency: currency,
+    );
+  }
+
+  double _calculateBookingTotal(AirBlueFareOption fareOption) {
+    try {
+      final travelersController = Get.find<TravelersController>();
+      final prices = _extractPassengerPrices(fareOption);
+      double total = 0;
+      total += (prices['ADT'] ?? 0) * travelersController.adultCount.value;
+      total += (prices['CHD'] ?? 0) * travelersController.childrenCount.value;
+      total += (prices['INF'] ?? 0) * travelersController.infantCount.value;
+      return total;
+    } catch (_) {
+      return fareOption.price;
+    }
+  }
+
+  Map<String, double> _extractPassengerPrices(AirBlueFareOption fareOption) {
+    final Map<String, double> prices = {};
+    try {
+      final breakdowns =
+          fareOption.pricingInfo['PTC_FareBreakdowns']?['PTC_FareBreakdown'];
+      final List<dynamic> ptcList = breakdowns is List ? breakdowns : [breakdowns];
+      for (final breakdown in ptcList) {
+        if (breakdown == null) continue;
+        final code = breakdown['PassengerTypeQuantity']?['Code']?.toString();
+        final amount = double.tryParse(
+              breakdown['PassengerFare']?['TotalFare']?['Amount']?.toString() ?? '',
+            ) ??
+            0;
+        if (code != null) {
+          prices[code] = amount;
+        }
+      }
+    } catch (_) {
+      // ignore parsing issues, fallback handled by caller
+    }
+    return prices;
+  }
+}
+
+class _BookingNavigationData {
+  final AirBlueFlight outboundFlight;
+  final AirBlueFlight? returnFlight;
+  final AirBlueFareOption outboundFare;
+  final AirBlueFareOption? returnFare;
+  final double totalPrice;
+  final String currency;
+
+  _BookingNavigationData({
+    required this.outboundFlight,
+    required this.returnFlight,
+    required this.outboundFare,
+    required this.returnFare,
+    required this.totalPrice,
+    required this.currency,
+  });
 }

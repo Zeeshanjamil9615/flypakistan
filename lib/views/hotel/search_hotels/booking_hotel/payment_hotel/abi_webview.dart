@@ -138,13 +138,18 @@ class _AbhipayWebViewState extends State<AbhipayWebView> {
     final sessionId = params['s_id'] ?? params['session_id'] ?? params['sessionId'];
     final transactionId = params['transaction_id'] ?? params['transactionId'] ?? widget.transactionId;
     
+    final isFlightPayment = transactionId.startsWith('FK_');
+    
     if (isSuccess) {
       debugPrint('✅ PAYMENT SUCCESS: Transaction ID: $transactionId, Session ID: ${sessionId ?? 'N/A'}');
       
-      // FIX: Update payment controller status immediately
+      if (isFlightPayment) {
+        widget.onPaymentComplete?.call(true);
+        return;
+      }
+
       try {
         final BookingController bookingController = Get.put(BookingController());
-
         final PaymentController paymentController = Get.put(PaymentController());
         paymentController.updatePaymentStatus("APPROVED");
       } catch (e) {
@@ -163,7 +168,11 @@ class _AbhipayWebViewState extends State<AbhipayWebView> {
     } else {
       debugPrint('❌ PAYMENT FAILED: Transaction ID: $transactionId');
       
-      // FIX: Update payment controller status for failure too
+      if (isFlightPayment) {
+        widget.onPaymentComplete?.call(false);
+        return;
+      }
+      
       try {
         final PaymentController paymentController = Get.find<PaymentController>();
         paymentController.updatePaymentStatus("FAILED");

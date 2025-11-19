@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/booking_controller.dart';
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/booking_voucher/booking_voucher.dart';
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/payment_hotel/abi_webview.dart';
+import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
+import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -35,6 +37,82 @@ class PaymentController extends GetxController {
   
   Timer? _paymentPollingTimer;
 
+  // Flight payment with Abhipay - navigates to FlightBookingDetailsScreen
+  Future<bool> processAbhipayPaymentForFlight({
+    required double amount,
+    required String description,
+    required String clientTransactionId,
+    required String callbackUrl,
+    String currency = 'PKR',
+    String language = 'EN',
+  }) async {
+    try {
+      isProcessingPayment.value = true;
+
+      final requestData = {
+        "amount": "5",
+        // "amount": amount.toStringAsFixed(2),
+        "language": language,
+        "currency": currency,
+        "description": description,
+        "clientTransactionId": clientTransactionId,
+        "callbackUrl": callbackUrl,
+        "cardSave": false,
+        "operation": "PURCHASE"
+      };
+
+      print('Abhipay Flight Request: ${json.encode(requestData)}');
+
+      final response = await http.post(
+        Uri.parse('$abhipayBaseUrl/orders'),
+        headers: {
+          'Authorization': authToken,
+          'Content-Type': 'application/json',
+        },
+        body: json.encode(requestData),
+      );
+
+      print('Abhipay Flight Response Status: ${response.statusCode}');
+      print('Abhipay Flight Response Body: ${response.body}');
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        final responseData = json.decode(response.body);
+        if (responseData['code'] == '00000') {
+          final paymentUrl = responseData['payload']?['paymentUrl'];
+          final orderId = responseData['payload']?['orderId'];
+
+          if (paymentUrl != null && paymentUrl.toString().isNotEmpty) {
+            _startPaymentPollingForFlight(orderId);
+            Get.to(
+              () => AbhipayWebView(
+                paymentUrl: paymentUrl,
+                transactionId: clientTransactionId,
+                onPaymentComplete: _stopPollingAndNavigateForFlight,
+              ),
+            );
+            return true;
+          } else {
+            print('Flight Payment Error: Missing payment URL');
+            return false;
+          }
+        } else {
+          print(
+            'Flight Payment API error: ${responseData['code']} - ${responseData['message']}',
+          );
+          return false;
+        }
+      } else {
+        print('Flight Payment HTTP error: ${response.statusCode}');
+        return false;
+      }
+    } catch (e) {
+      print('Flight Payment Exception: $e');
+      return false;
+    } finally {
+      isProcessingPayment.value = false;
+    }
+  }
+
   // Process Abhipay Payment - Fixed version
   Future<bool> processAbhipayPayment({
     required double amount,
@@ -48,7 +126,8 @@ class PaymentController extends GetxController {
       isProcessingPayment.value = true;
       
       final requestData = {
-        "amount": "5", // Use actual amount, not hardcoded "5"
+        "amount": "5",
+        // "amount": amount.toStringAsFixed(2),
         "language": language,
         "currency": currency,
         "description": description,
@@ -238,6 +317,88 @@ class PaymentController extends GetxController {
     }
   }
 
+  // Flight payment helpers ---------------------------------------------------
+  void _startPaymentPollingForFlight(String orderId) {
+    print('Starting flight payment polling for $orderId');
+
+    _paymentPollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+      try {
+        final status = await _getPaymentStatus(orderId);
+        print('Flight payment status ($orderId): $status');
+
+        if (status != null) {
+          if (status == 'APPROVED' || status == 'COMPLETED') {
+            timer.cancel();
+            _navigateToFlightSuccess(orderId);
+          } else if (status == 'DECLINED' || status == 'FAILED' || status == 'CANCELLED') {
+            timer.cancel();
+            _navigateToFlightFailure();
+          }
+        }
+      } catch (e) {
+        print('Flight polling error: $e');
+      }
+    });
+
+    Timer(const Duration(minutes: 10), () {
+      if (_paymentPollingTimer?.isActive == true) {
+        print('Flight payment polling timeout for $orderId');
+        _paymentPollingTimer?.cancel();
+      }
+    });
+  }
+
+  void _navigateToFlightSuccess(String orderId) {
+    try {
+      final flightData = Get.find<FlightPaymentData>();
+
+      List<AirBlueFareOption>? cleanedMulticity;
+      if (flightData.multicityFareOptions != null) {
+        cleanedMulticity =
+            flightData.multicityFareOptions!.whereType<AirBlueFareOption>().toList();
+      }
+
+      Get.offAll(
+        () => FlightBookingDetailsScreen(
+          outboundFlight: flightData.outboundFlight,
+          returnFlight: flightData.returnFlight,
+          multicityFlights: flightData.multicityFlights,
+          outboundFareOption: flightData.outboundFareOption,
+          returnFareOption: flightData.returnFareOption,
+          multicityFareOptions: cleanedMulticity,
+          pnrResponse: flightData.pnrResponse,
+          selectedSeats: flightData.selectedSeats,
+        ),
+      );
+    } catch (e) {
+      print('Error navigating to flight success: $e');
+    }
+  }
+
+  void _navigateToFlightFailure() {
+    if (Get.currentRoute.contains('AbhipayWebView')) {
+      Get.back();
+      Get.snackbar(
+        'Payment Failed',
+        'Payment was not successful. Please try again.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void _stopPollingAndNavigateForFlight(bool success) {
+    print('Flight payment completion callback. success=$success');
+    _paymentPollingTimer?.cancel();
+
+    if (success) {
+      _navigateToFlightSuccess('');
+    } else {
+      _navigateToFlightFailure();
+    }
+  }
+
   // Verify payment status (manual check) - use orderId
   Future<Map<String, dynamic>?> verifyPaymentStatus(String orderId) async {
     try {
@@ -309,4 +470,26 @@ class PaymentController extends GetxController {
       );
     }
   }
+}
+
+class FlightPaymentData {
+  final AirBlueFlight outboundFlight;
+  final AirBlueFlight? returnFlight;
+  final List<AirBlueFlight>? multicityFlights;
+  final AirBlueFareOption? outboundFareOption;
+  final AirBlueFareOption? returnFareOption;
+  final List<AirBlueFareOption?>? multicityFareOptions;
+  final Map<String, dynamic> pnrResponse;
+  final Map<int, String>? selectedSeats;
+
+  FlightPaymentData({
+    required this.outboundFlight,
+    this.returnFlight,
+    this.multicityFlights,
+    this.outboundFareOption,
+    this.returnFareOption,
+    this.multicityFareOptions,
+    required this.pnrResponse,
+    this.selectedSeats,
+  });
 }

@@ -11,6 +11,7 @@ import '../../search_flights/airblue/airblue_flight_model.dart';
 import '../booking_flight_controller.dart';
 import 'flight_print_voucher.dart';
 import 'select_seat.dart';
+import 'airblue_payment_screen.dart';
 
 class AirBlueAddOnsScreen extends StatefulWidget {
   final Map<String, dynamic> pnrResponse;
@@ -99,7 +100,7 @@ class _AirBlueAddOnsScreenState extends State<AirBlueAddOnsScreen> {
               activeStep: 2,
               secondsLeft: _secondsLeft,
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             Text(
               'Enhance your trip with add-ons',
               style: AppConstants.sectionTitleStyle.copyWith(
@@ -271,15 +272,21 @@ class _AirBlueAddOnsScreenState extends State<AirBlueAddOnsScreen> {
           .toList();
     }
 
-    Get.offAll(
-      () => FlightBookingDetailsScreen(
+    Get.to(
+      () => AirBluePaymentScreen(
+        pnrResponse: widget.pnrResponse,
+        totalPassengers: widget.totalPassengers,
         outboundFlight: widget.outboundFlight,
         returnFlight: widget.returnFlight,
         multicityFlights: widget.multicityFlights,
         outboundFareOption: widget.outboundFareOption,
         returnFareOption: widget.returnFareOption,
-        multicityFareOptions: cleanedMulticityFareOptions,
-        pnrResponse: widget.pnrResponse,
+        multicityFareOptions: widget.multicityFareOptions,
+        bookingController: widget.bookingController,
+        travelersController: widget.travelersController,
+        totalPrice: widget.totalPrice,
+        currency: widget.currency,
+        initialSecondsLeft: _secondsLeft.value,
         selectedSeats: null,
       ),
     );

@@ -1,6 +1,7 @@
 // ignore_for_file: unused_local_variable
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
@@ -75,63 +76,77 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     });
   }
 
-  // Auto-fill function for testing
   void _fillDummyData() {
-    // Fill booker information
-    bookingController.firstNameController.text = "John";
-    bookingController.lastNameController.text = "Doe";
-    bookingController.emailController.text = "ahmadtechdev@gmail.com";
-    bookingController.phoneController.text = "1234567890";
-    bookingController.remarksController.text = "Test booking";
+    final bookerFirstName = TestDataPool.randomFirstName();
+    final bookerLastName = TestDataPool.randomLastName();
+
+    // Fill booker information with random data
+    bookingController.firstNameController.text = bookerFirstName;
+    bookingController.lastNameController.text = bookerLastName;
+    bookingController.emailController.text = TestDataPool.randomEmail(bookerFirstName, bookerLastName);
+    bookingController.phoneController.text = TestDataPool.randomPhone();
+    bookingController.remarksController.text = "Test booking ${DateTime.now().millisecondsSinceEpoch}";
     bookingController.bookerPhoneCountry.value = Country.parse('PK');
 
-    // Fill adult travelers
+    // Fill adult travelers with random data
     for (int i = 0; i < bookingController.adults.length; i++) {
       final adult = bookingController.adults[i];
-      adult.titleController.text = i % 2 == 0 ? "Mr" : "Mrs";
-      adult.firstNameController.text = "ahmad${i + 1}";
-      adult.lastNameController.text = "Traveler";
+      final gender = TestDataPool.randomGender();
+      final firstName = TestDataPool.randomFirstName();
+      final lastName = TestDataPool.randomLastName();
+
+      adult.titleController.text = TestDataPool.randomTitle(gender);
+      adult.firstNameController.text = firstName;
+      adult.lastNameController.text = lastName;
       adult.passportCnicController.text = bookingController.isDomesticFlight
-          ? "1234567890123"
-          : "AB123456${i + 1}";
+          ? TestDataPool.randomCNIC()
+          : TestDataPool.randomPassport();
       adult.nationalityController.text = "Pakistan";
       adult.nationalityCountry.value = Country.parse('PK');
-      adult.dateOfBirthController.text = "1990-0${(i % 9) + 1}-15";
-      adult.passportExpiryController.text = "2030-12-31";
-      adult.genderController.text = i % 2 == 0 ? "Male" : "Female";
-      adult.phoneController.text = "300123456${i + 1}";
+      adult.dateOfBirthController.text = TestDataPool.randomDate(18, 65);
+      adult.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
+      adult.genderController.text = gender;
+      adult.phoneController.text = TestDataPool.randomPhone();
       adult.phoneCountry.value = Country.parse('PK');
-      adult.emailController.text = "adult${i + 1}@example.com";
+      adult.emailController.text = TestDataPool.randomEmail(firstName, lastName);
     }
 
-    // Fill child travelers
+    // Fill child travelers with random data
     for (int i = 0; i < bookingController.children.length; i++) {
       final child = bookingController.children[i];
-      child.titleController.text = i % 2 == 0 ? "Mstr" : "Miss";
-      child.firstNameController.text = "Child${i + 1}";
-      child.lastNameController.text = "Traveler";
+      final gender = TestDataPool.randomGender();
+      final firstName = TestDataPool.randomFirstName();
+      final lastName = TestDataPool.randomLastName();
+
+      child.titleController.text = TestDataPool.randomChildTitle(gender);
+      child.firstNameController.text = firstName;
+      child.lastNameController.text = lastName;
       child.passportCnicController.text = bookingController.isDomesticFlight
-          ? "1234567890${100 + i}"
-          : "CD123456${i + 1}";
+          ? TestDataPool.randomCNIC()
+          : TestDataPool.randomPassport();
       child.nationalityController.text = "Pakistan";
       child.nationalityCountry.value = Country.parse('PK');
-      child.dateOfBirthController.text = "2015-0${(i % 9) + 1}-15";
-      child.passportExpiryController.text = "2030-12-31";
-      child.genderController.text = i % 2 == 0 ? "Male" : "Female";
+      child.dateOfBirthController.text = TestDataPool.randomDate(2, 12);
+      child.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
+      child.genderController.text = gender;
       child.phoneController.text = "";
       child.emailController.text = "";
     }
 
-    // Fill infant travelers
+    // Fill infant travelers with random data
     for (int i = 0; i < bookingController.infants.length; i++) {
       final infant = bookingController.infants[i];
+      final gender = TestDataPool.randomGender();
+      final firstName = TestDataPool.randomFirstName();
+      final lastName = TestDataPool.randomLastName();
+
       infant.titleController.text = "Inf";
-      infant.firstNameController.text = "Infant${i + 1}";
-      infant.lastNameController.text = "Traveler";
+      infant.firstNameController.text = firstName;
+      infant.lastNameController.text = lastName;
       infant.nationalityController.text = "Pakistan";
       infant.nationalityCountry.value = Country.parse('PK');
-      infant.dateOfBirthController.text = "2023-0${(i % 9) + 1}-15";
-      infant.genderController.text = i % 2 == 0 ? "Male" : "Female";
+      infant.dateOfBirthController.text = TestDataPool.randomDate(0, 2);
+      infant.genderController.text = gender;
     }
 
     // Accept terms and conditions
@@ -142,7 +157,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     // Show success message
     Get.snackbar(
       'Success',
-      'Form filled with dummy data for testing',
+      'Form filled with randomized test data',
       backgroundColor: Colors.green,
       colorText: Colors.white,
       snackPosition: SnackPosition.TOP,
@@ -153,7 +168,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[50],
+      backgroundColor: Colors.grey[100],
       appBar: AppBar(
         title: GestureDetector(
           onTap: () {
@@ -230,7 +245,18 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         ),
       );
 
-      return Column(children: [...adults, ...children, ...infants]);
+      return Container(
+          margin: EdgeInsets.all(4),
+          padding: EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            border: Border.all(
+              color: Colors.grey.shade300,
+              width: 1,
+            ),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Column(children: [...adults, ...children, ...infants]));
     });
   }
   Widget _buildTravelerSection({
@@ -348,58 +374,70 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     );
   }
   Widget _buildBookerDetails() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Icon(Icons.badge, color: TColors.primary, size: AppConstants.iconSize),
-            const SizedBox(width: 8),
-            Text(
-              'Booker Information',
-              style: AppConstants.sectionTitleStyle.copyWith(
-                fontSize: 18,
-                color: Colors.black87,
+    return Container(
+      margin: EdgeInsets.all(4),
+      padding: EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.badge, color: TColors.primary, size: AppConstants.iconSize),
+              const SizedBox(width: 8),
+              Text(
+                'Booker Information',
+                style: AppConstants.sectionTitleStyle.copyWith(
+                  fontSize: 18,
+                  color: Colors.black87,
+                ),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 20),
-        _buildTextField(
-          label: 'Given Name*',
-          controller: bookingController.firstNameController,
-          isRequired: true,
-          helperText:
-          'Please ensure your name is as it appears on your Passport.',
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: 'Surname*',
-          controller: bookingController.lastNameController,
-          isRequired: true,
-          helperText:
-          'Please ensure your name is as it appears on your Passport.',
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: 'Email*',
-          controller: bookingController.emailController,
-          keyboardType: TextInputType.emailAddress,
-          isRequired: true,
-        ),
-        const SizedBox(height: 16),
-        _buildBookerPhoneFieldWithCountryPicker(
-          label: 'Phone*',
-          phoneController: bookingController.phoneController,
-        ),
-        const SizedBox(height: 16),
-        _buildTextField(
-          label: 'Remarks',
-          controller: bookingController.remarksController,
-          maxLines: 3,
-          helperText: 'Optional',
-        ),
-      ],
+            ],
+          ),
+          const SizedBox(height: 20),
+          _buildTextField(
+            label: 'Given Name*',
+            controller: bookingController.firstNameController,
+            isRequired: true,
+            helperText:
+            'Please ensure your name is as it appears on your Passport.',
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            label: 'Surname*',
+            controller: bookingController.lastNameController,
+            isRequired: true,
+            helperText:
+            'Please ensure your name is as it appears on your Passport.',
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            label: 'Email*',
+            controller: bookingController.emailController,
+            keyboardType: TextInputType.emailAddress,
+            isRequired: true,
+          ),
+          const SizedBox(height: 16),
+          _buildBookerPhoneFieldWithCountryPicker(
+            label: 'Phone*',
+            phoneController: bookingController.phoneController,
+          ),
+          const SizedBox(height: 16),
+          _buildTextField(
+            label: 'Remarks',
+            controller: bookingController.remarksController,
+            maxLines: 3,
+            helperText: 'Optional',
+          ),
+        ],
+      ),
     );
   }
 
@@ -536,7 +574,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppConstants.fieldLabelStyle),
+        Text(label, style: AppConstants.fieldValueStyle),
         const SizedBox(height: 6),
         FormField<String>(
           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -647,7 +685,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppConstants.fieldLabelStyle),
+        Text(label, style: AppConstants.fieldValueStyle),
         const SizedBox(height: 6),
         FormField<String>(
           autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -757,7 +795,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppConstants.fieldLabelStyle),
+        Text(label, style: AppConstants.fieldValueStyle),
         const SizedBox(height: 6),
         Obx(() {
           final country = travelerInfo.nationalityCountry.value;
@@ -871,7 +909,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppConstants.fieldLabelStyle),
+        Text(label, style: AppConstants.fieldValueStyle),
         const SizedBox(height: 6),
         TextFormField(
           controller: controller,
@@ -948,7 +986,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppConstants.fieldLabelStyle),
+        Text(label, style: AppConstants.fieldValueStyle),
         const SizedBox(height: 6),
         FormField<String>(
           validator: (_) {
@@ -1295,7 +1333,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: AppConstants.fieldLabelStyle),
+            Text(label, style: AppConstants.fieldValueStyle),
             const SizedBox(height: 6),
             Container(
               decoration: BoxDecoration(
@@ -1331,7 +1369,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                           ),
                         ),
                         child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.start,
                           children: [
                             Icon(
                               isSelected
@@ -1507,46 +1545,68 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     Get.dialog(
       Dialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+          padding: const EdgeInsets.all(16),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Align(
-              //   alignment: Alignment.topRight,
-              //   child: IconButton(
-              //     icon: const Icon(Icons.close, color: Color(0xFF1C1C1C)),
-              //     onPressed: () => Get.back(),
-              //   ),
-              // ),
-              Container(
-                padding: const EdgeInsets.all(18),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFE8F0FF),
-                  shape: BoxShape.circle,
-                ),
-                child: Image.asset(
-                  'assets/images/logo1.png',
-                  height: 48,
-                  width: 48,
-                ),
+              // Header row with logo centered and close button on right
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left spacer
+                  const Expanded(child: SizedBox()),
+                  // Centered Logo
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: const BoxDecoration(
+                      // color: Color(0xFF0B5ED7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Image.asset(
+                      'assets/images/logo1.png',
+                      height: 80,
+                      width: 100,
+                    ),
+                  ),
+                  // Right spacer with close button
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: GestureDetector(
+                        onTap: () => Get.back(),
+                        child: const Icon(
+                          Icons.close,
+                          color: TColors.black,
+                          size: 20,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 18),
+
+              // const SizedBox(height: 20),
+
+              // Title with promo code
               Text.rich(
                 TextSpan(
-                  style: AppConstants.sectionTitleStyle.copyWith(
-                    fontSize: 18,
-                    color: const Color(0xFF212121),
+                  style: const TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1A1A1A),
+                    height: 1.4,
                   ),
                   children: [
                     const TextSpan(text: 'Promo code '),
                     TextSpan(
                       text: 'WELCOME',
-                      style: AppConstants.sectionTitleStyle.copyWith(
-                        fontSize: 18,
-                        color: const Color(0xFF0051C9),
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF0B5ED7),
                       ),
                     ),
                     const TextSpan(text: ', Get PKR 500 off'),
@@ -1554,29 +1614,47 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                 ),
                 textAlign: TextAlign.center,
               ),
+
               const SizedBox(height: 12),
-              Text(
+
+              // Description text
+              const Text(
                 'Create an account and use promo code WELCOME and enjoy PKR 500 off on your first booking.',
                 textAlign: TextAlign.center,
-                style: AppConstants.fieldLabelStyle.copyWith(
-                  fontSize: 13,
-                  color: const Color(0xFF5F6470),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Color(0xFF666666),
+                  height: 1.5,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
+
               const SizedBox(height: 24),
+
+              // Buttons
               Row(
                 children: [
                   Expanded(
-                    child: TextButton(
-                      onPressed: () => _navigateToLogin(),
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        foregroundColor: const Color(0xFF0B5ED7),
-                        textStyle: AppConstants.fieldValueStyle.copyWith(
-                          fontWeight: FontWeight.w600,
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        side: BorderSide(
+                          color: TColors.primary.withAlpha(50),
+                          width: 1,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Login'),
+                      child: const Text(
+                        'Close',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF333333),
+                        ),
+                      ),
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -1586,15 +1664,19 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF0B5ED7),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        textStyle: AppConstants.fieldValueStyle.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        elevation: 0,
                         shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
+                          borderRadius: BorderRadius.circular(8),
                         ),
                       ),
-                      child: const Text('Sign up & continue'),
+                      child: const Text(
+                        'Sign up & conti...',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                     ),
                   ),
                 ],
@@ -1622,11 +1704,11 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   }
 
   Future<void> _handleContinuePressed() async {
-    final isLoggedIn = await authController.isLoggedIn();
-    if (!isLoggedIn) {
-      _showLoginRequiredDialog();
-      return;
-    }
+    // final isLoggedIn = await authController.isLoggedIn();
+    // if (!isLoggedIn) {
+    //   _showLoginRequiredDialog();
+    //   return;
+    // }
     if (!(_formKey.currentState?.validate() ?? false)) {
       Get.snackbar(
         'Error',
@@ -1816,4 +1898,81 @@ class _DateSelectionState {
   int? year;
 
   bool get isComplete => day != null && month != null && year != null;
+}
+
+// Data pools for randomization
+class TestDataPool {
+  static final Random _random = Random();
+
+  static final List<String> firstNames = [
+    'Ahmad', 'Ali', 'Hassan', 'Usman', 'Bilal', 'Farhan', 'Imran', 'Kashif',
+    'Sara', 'Ayesha', 'Fatima', 'Zainab', 'Mariam', 'Hira', 'Nida', 'Sana',
+    'Omar', 'Hamza', 'Yousaf', 'Tariq', 'Nasir', 'Raza', 'Kamran', 'Salman'
+  ];
+
+  static final List<String> lastNames = [
+    'Khan', 'Ahmed', 'Ali', 'Hussain', 'Shah', 'Malik', 'Iqbal', 'Raza',
+    'Butt', 'Chaudhry', 'Siddiqui', 'Qureshi', 'Mirza', 'Bhatti', 'Javed',
+    'Saeed', 'Nawaz', 'Ashraf', 'Aslam', 'Zaman'
+  ];
+
+  static final List<String> emailDomains = [
+    'gmail.com', 'yahoo.com', 'outlook.com', 'hotmail.com'
+  ];
+
+  static final List<String> phonePrefixes = [
+    '300', '301', '302', '303', '304', '305', '321', '322', '323', '333'
+  ];
+
+  static String randomFirstName() => firstNames[_random.nextInt(firstNames.length)];
+  static String randomLastName() => lastNames[_random.nextInt(lastNames.length)];
+  static String randomEmail(String firstName, String lastName) {
+    final domain = emailDomains[_random.nextInt(emailDomains.length)];
+    final suffix = _random.nextInt(999);
+    return '${firstName.toLowerCase()}${lastName.toLowerCase()}$suffix@$domain';
+  }
+
+  static String randomPhone() {
+    final prefix = phonePrefixes[_random.nextInt(phonePrefixes.length)];
+    final number = _random.nextInt(9000000) + 1000000; // 7 digit number
+    return '$prefix$number';
+  }
+
+  static String randomCNIC() {
+    final part1 = _random.nextInt(90000) + 10000; // 5 digits
+    final part2 = _random.nextInt(9000000) + 1000000; // 7 digits
+    final part3 = _random.nextInt(9) + 1; // 1 digit
+    return '$part1$part2$part3';
+  }
+
+  static String randomPassport() {
+    final letters = String.fromCharCodes([
+      65 + _random.nextInt(26), // A-Z
+      65 + _random.nextInt(26)
+    ]);
+    final numbers = _random.nextInt(9000000) + 1000000;
+    return '$letters$numbers';
+  }
+
+  static String randomDate(int minAge, int maxAge) {
+    final now = DateTime.now();
+    final year = now.year - (minAge + _random.nextInt(maxAge - minAge));
+    final month = _random.nextInt(12) + 1;
+    final day = _random.nextInt(28) + 1;
+    return '$year-${month.toString().padLeft(2, '0')}-${day.toString().padLeft(2, '0')}';
+  }
+
+  static String randomGender() => _random.nextBool() ? 'Male' : 'Female';
+
+  static String randomTitle(String gender) {
+    if (gender == 'Male') {
+      return 'Mr';
+    } else {
+      return 'Mrs';
+    }
+  }
+
+  static String randomChildTitle(String gender) {
+    return gender == 'Male' ? 'Mstr' : 'Miss';
+  }
 }
