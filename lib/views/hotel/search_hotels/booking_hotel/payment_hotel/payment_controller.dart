@@ -7,6 +7,7 @@ import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/booking_vo
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/payment_hotel/abi_webview.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
+import 'package:ready_flights/views/flight/booking_flight/booking_flight_controller.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -358,6 +359,15 @@ class PaymentController extends GetxController {
             flightData.multicityFareOptions!.whereType<AirBlueFareOption>().toList();
       }
 
+      // Try to get existing booking controller to preserve passenger data
+      BookingFlightController? bookingController;
+      try {
+        bookingController = Get.find<BookingFlightController>();
+      } catch (e) {
+        // Controller not found, will create new one in FlightBookingDetailsScreen
+        bookingController = null;
+      }
+
       Get.offAll(
         () => FlightBookingDetailsScreen(
           outboundFlight: flightData.outboundFlight,
@@ -368,6 +378,7 @@ class PaymentController extends GetxController {
           multicityFareOptions: cleanedMulticity,
           pnrResponse: flightData.pnrResponse,
           selectedSeats: flightData.selectedSeats,
+          bookingController: bookingController, // Pass controller if found
         ),
       );
     } catch (e) {

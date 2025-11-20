@@ -459,7 +459,7 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
-                      'Terminal ${schedule['departure']['terminal'] ?? "Main"}',
+                      'Terminal ${schedule['departure']['terminal'] ?? "1"}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                     Text(
@@ -520,7 +520,7 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
-                      'Terminal ${schedule['arrival']['terminal'] ?? "Main"}',
+                      'Terminal ${schedule['arrival']['terminal'] ?? "1"}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                     Text(
@@ -985,7 +985,7 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
-                      'Terminal ${schedule['departure']['terminal'] ?? "Main"}',
+                      'Terminal ${schedule['departure']['terminal'] ?? "1"}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                     Text(
@@ -1047,7 +1047,7 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
-                      'Terminal ${schedule['arrival']['terminal'] ?? "Main"}',
+                      'Terminal ${schedule['arrival']['terminal'] ?? "1"}',
                       style: const TextStyle(color: Colors.grey, fontSize: 12),
                     ),
                     Text(

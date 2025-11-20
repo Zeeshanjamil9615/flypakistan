@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/services/api_service_airblue.dart';
-import 'package:ready_flights/utility/colors.dart';
-import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
 import 'package:ready_flights/utility/app_constants.dart';
+import 'package:ready_flights/utility/colors.dart';
+import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_payment_screen.dart';
+import 'package:ready_flights/views/flight/booking_flight/booking_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
+import 'package:ready_flights/widgets/travelers_selection_bottom_sheet.dart';
 
 class SeatSelectionScreen extends StatefulWidget {
   final Map<String, dynamic> pnrResponse;
@@ -17,6 +19,11 @@ class SeatSelectionScreen extends StatefulWidget {
   final List<AirBlueFareOption?>? multicityFareOptions;
   final bool showAsSheet;
   final VoidCallback? onClose;
+  final BookingFlightController bookingController;
+  final TravelersController travelersController;
+  final double totalPrice;
+  final String currency;
+  final int initialSecondsLeft;
 
   const SeatSelectionScreen({
     super.key,
@@ -30,6 +37,11 @@ class SeatSelectionScreen extends StatefulWidget {
     this.multicityFareOptions,
     this.showAsSheet = false,
     this.onClose,
+    required this.bookingController,
+    required this.travelersController,
+    required this.totalPrice,
+    required this.currency,
+    required this.initialSecondsLeft,
   });
 
   @override
@@ -214,6 +226,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           pnr: pnr,
           instance: instance,
           seatRequests: seatRequests,
+          pnrResponse: widget.pnrResponse, // Pass PNR response to extract RPH tokens
         );
       }
 
@@ -231,6 +244,9 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
 
       // Combine all selected seats from ALL flights into a single map for display
       final Map<int, String> allSelectedSeats = {};
+      // Calculate total seat price from all flights
+      double totalSeatPrice = 0.0;
+      final Map<int, double> seatPricesByPassenger = {};
       
       // For round trip or multi-city, combine seats from all flight segments
       for (int flightIndex = 0; flightIndex < totalFlightSegments; flightIndex++) {
@@ -248,10 +264,25 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               allSelectedSeats[passengerIndex] = seat;
             }
           }
+          
+          // Sum up seat prices
+          final seatPrice = selectedSeatPricesPerFlight[flightIndex]?[passengerIndex] ?? 0.0;
+          if (seatPrice > 0) {
+            if (seatPricesByPassenger.containsKey(passengerIndex)) {
+              seatPricesByPassenger[passengerIndex] = seatPricesByPassenger[passengerIndex]! + seatPrice;
+            } else {
+              seatPricesByPassenger[passengerIndex] = seatPrice;
+            }
+          }
         });
       }
+      
+      // Calculate total seat price
+      totalSeatPrice = seatPricesByPassenger.values.fold<double>(0.0, (sum, price) => sum + price);
+      
+      print('📋 Total seat price: $totalSeatPrice');
+      print('📋 Seat prices by passenger: $seatPricesByPassenger');
 
-      // Filter out null values from multicityFareOptions if it exists
       List<AirBlueFareOption>? cleanedMulticityFareOptions;
       if (widget.multicityFareOptions != null) {
         cleanedMulticityFareOptions = widget.multicityFareOptions!
@@ -260,15 +291,23 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
       }
 
       Get.offAll(
-        () => FlightBookingDetailsScreen(
+        () => AirBluePaymentScreen(
+          pnrResponse: widget.pnrResponse,
+          totalPassengers: widget.totalPassengers,
           outboundFlight: widget.outboundFlight,
           returnFlight: widget.returnFlight,
           multicityFlights: widget.multicityFlights,
           outboundFareOption: widget.outboundFareOption,
           returnFareOption: widget.returnFareOption,
           multicityFareOptions: cleanedMulticityFareOptions,
-          pnrResponse: widget.pnrResponse,
+          bookingController: widget.bookingController,
+          travelersController: widget.travelersController,
+          totalPrice: widget.totalPrice + totalSeatPrice, // Add seat prices to total
+          currency: widget.currency,
+          initialSecondsLeft: widget.initialSecondsLeft,
           selectedSeats: allSelectedSeats,
+          seatPrices: seatPricesByPassenger, // Pass seat prices
+          totalSeatPrice: totalSeatPrice, // Pass total seat price
         ),
       );
     } catch (e) {
@@ -309,14 +348,20 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               }
               
               Get.offAll(
-                () => FlightBookingDetailsScreen(
+                () => AirBluePaymentScreen(
+                  pnrResponse: widget.pnrResponse,
+                  totalPassengers: widget.totalPassengers,
                   outboundFlight: widget.outboundFlight,
                   returnFlight: widget.returnFlight,
                   multicityFlights: widget.multicityFlights,
                   outboundFareOption: widget.outboundFareOption,
                   returnFareOption: widget.returnFareOption,
                   multicityFareOptions: cleanedMulticityFareOptions,
-                  pnrResponse: widget.pnrResponse,
+                  bookingController: widget.bookingController,
+                  travelersController: widget.travelersController,
+                  totalPrice: widget.totalPrice,
+                  currency: widget.currency,
+                  initialSecondsLeft: widget.initialSecondsLeft,
                   selectedSeats: null,
                 ),
               );

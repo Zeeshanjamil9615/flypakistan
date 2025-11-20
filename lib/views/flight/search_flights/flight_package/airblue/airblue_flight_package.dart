@@ -258,13 +258,13 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
                     _buildCompactPackageDetail(
                       Icons.work_outline_rounded,
                       'Carry-on Baggage',
-                      '6kg 1 Piece',
+                      '7kg 1 Piece',
                     ),
                     const SizedBox(height: 12),
                     _buildCompactPackageDetail(
                       Icons.luggage,
                       'Check-in Baggage',
-                      package.baggageAllowance,
+                      package.baggageAllowance.toString().replaceAll(RegExp(r'\.0+$'), ''),
                     ),
                     const SizedBox(height: 12),
                     _buildCompactPackageDetail(

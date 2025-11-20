@@ -27,6 +27,8 @@ class AirBluePaymentScreen extends StatefulWidget {
   final String currency;
   final int initialSecondsLeft;
   final Map<int, String>? selectedSeats;
+  final Map<int, double>? seatPrices; // Seat prices by passenger
+  final double totalSeatPrice; // Total seat price
 
   const AirBluePaymentScreen({
     super.key,
@@ -44,6 +46,8 @@ class AirBluePaymentScreen extends StatefulWidget {
     required this.currency,
     required this.initialSecondsLeft,
     this.selectedSeats,
+    this.seatPrices,
+    this.totalSeatPrice = 0.0,
   });
 
   @override
@@ -557,6 +561,9 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
         multicityFareOptions: cleanedMulticityFareOptions,
         pnrResponse: widget.pnrResponse,
         selectedSeats: widget.selectedSeats,
+        seatPrices: widget.seatPrices,
+        totalSeatPrice: widget.totalSeatPrice,
+        bookingController: widget.bookingController, // Pass controller to preserve passenger data
       ),
     );
   }
@@ -868,6 +875,18 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
           value: '${widget.currency} ${NumberFormat('#,##0.##').format(total)}',
           unitPrice: price['total'] ?? 0,
           count: infantCount,
+        ),
+      );
+    }
+
+    // Add seat prices if they exist
+    if (widget.totalSeatPrice > 0) {
+      rows.add(
+        _PriceRow(
+          label: 'Seat Selection',
+          value: '${widget.currency} ${NumberFormat('#,##0.##').format(widget.totalSeatPrice)}',
+          unitPrice: widget.totalSeatPrice,
+          count: 1,
         ),
       );
     }

@@ -28,6 +28,9 @@ import '../../../../../utility/app_constants.dart';
     final List<AirBlueFareOption>? multicityFareOptions;
     final Map<String, dynamic>? pnrResponse;
      final Map<int, String>? selectedSeats;
+     final Map<int, double>? seatPrices; // Seat prices by passenger
+     final double totalSeatPrice; // Total seat price
+     final BookingFlightController? bookingController; // Pass controller to preserve passenger data
     
   
     const FlightBookingDetailsScreen({
@@ -38,7 +41,11 @@ import '../../../../../utility/app_constants.dart';
       this.outboundFareOption,
       this.returnFareOption,
       this.multicityFareOptions,
-      this.pnrResponse, this.selectedSeats,
+      this.pnrResponse, 
+      this.selectedSeats,
+      this.seatPrices,
+      this.totalSeatPrice = 0.0,
+      this.bookingController,
     });
   
     @override
@@ -48,8 +55,7 @@ import '../../../../../utility/app_constants.dart';
   
   class _FlightBookingDetailsScreenState extends State<FlightBookingDetailsScreen>
       with TickerProviderStateMixin {
-    final BookingFlightController bookingController =
-        Get.find<BookingFlightController>();
+    late final BookingFlightController bookingController;
     final AirBlueFlightController flightController =
         Get.find<AirBlueFlightController>();
     final apiService = Get.find<ApiServiceSabre>();
@@ -86,6 +92,17 @@ import '../../../../../utility/app_constants.dart';
     @override
     void initState() {
       super.initState();
+      // Use passed controller if available, otherwise try to find existing, or create new
+      if (widget.bookingController != null) {
+        bookingController = widget.bookingController!;
+      } else {
+        try {
+          bookingController = Get.find<BookingFlightController>();
+        } catch (e) {
+          // Controller not found, create a new instance
+          bookingController = Get.put(BookingFlightController());
+        }
+      }
       _initializeAnimations();
       _initializeTimer();
     }
@@ -259,75 +276,32 @@ import '../../../../../utility/app_constants.dart';
       );
     }
   
-    Widget _buildSliverAppBar() {
-      return SliverAppBar(
-        expandedHeight: 120,
-        floating: false,
-        pinned: true,
-        backgroundColor: const Color(0xFF1E293B),
-        foregroundColor: Colors.white,
-        elevation: 0,
-        systemOverlayStyle: SystemUiOverlayStyle.light,
-        leading: Container(
-          margin: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: Colors.white.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-            onPressed: () {
-              Get.offAll(() => HomeScreen()); // Replace with the page you want
-            },
-          ),
+  Widget _buildSliverAppBar() {
+    return SliverAppBar(
+      expandedHeight: 56,
+      collapsedHeight: 56,
+      floating: false,
+      pinned: true,
+      backgroundColor: TColors.primary,
+      foregroundColor: Colors.white,
+      elevation: 0,
+      systemOverlayStyle: SystemUiOverlayStyle.light,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+        onPressed: () {
+          Get.offAll(() => HomeScreen());
+        },
+      ),
+      title: Text(
+        'Booking Details',
+        style: AppConstants.sectionTitleStyle.copyWith(
+          color: Colors.white,
+          fontSize: 18,
         ),
-        flexibleSpace: FlexibleSpaceBar(
-          title: Text(
-            'Booking Details',
-            style: _sectionTitleStyle.copyWith(
-              color: Colors.white,
-            ),
-          ),
-          background: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF1E293B), Color(0xFF334155)],
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: 20,
-                  right: 20,
-                  child: Container(
-                    width: 100,
-                    height: 100,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.05),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-                Positioned(
-                  top: 60,
-                  right: 80,
-                  child: Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.03),
-                      shape: BoxShape.circle,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    }
+      ),
+      centerTitle: false,
+    );
+  }
   
   
   // Function to launch phone dialer
@@ -799,7 +773,7 @@ import '../../../../../utility/app_constants.dart';
                             : isReturn
                             ? 'Return • ${flight.airlineName}'
                             : 'Outbound • ${flight.airlineName}',
-                        style: const TextStyle(
+                        style: AppConstants.fieldValueStyle.copyWith(
                           color: Colors.white,
                           fontSize: 16,
                           fontWeight: FontWeight.w600,
@@ -842,26 +816,23 @@ import '../../../../../utility/app_constants.dart';
                             children: [
                               Text(
                                 DateFormat('HH:mm').format(departureDateTime),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
-                                ),
+                            style: AppConstants.sectionTitleStyle.copyWith(
+                              fontSize: 22,
+                              color: const Color(0xFF1E293B),
+                            ),
                               ),
                               Text(
                                 firstLeg['departure']['airport'],
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
-                                ),
+                            style: AppConstants.fieldValueStyle.copyWith(
+                              fontSize: 14,
+                              color: const Color(0xFF64748B),
+                            ),
                               ),
                               Text(
                                 DateFormat('MMM dd').format(departureDateTime),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF94A3B8),
-                                ),
+                            style: AppConstants.fieldLabelStyle.copyWith(
+                              color: const Color(0xFF94A3B8),
+                            ),
                               ),
                             ],
                           ),
@@ -880,11 +851,11 @@ import '../../../../../utility/app_constants.dart';
                               ),
                               child: Text(
                                 '${hours}h ${minutes}m',
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: TColors.primary,
-                                ),
+                              style: AppConstants.fieldValueStyle.copyWith(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: TColors.primary,
+                              ),
                               ),
                             ),
                             const SizedBox(height: 8),
@@ -913,25 +884,22 @@ import '../../../../../utility/app_constants.dart';
                             children: [
                               Text(
                                 DateFormat('HH:mm').format(arrivalDateTime),
-                                style: const TextStyle(
-                                  fontSize: 24,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF1E293B),
+                                style: AppConstants.sectionTitleStyle.copyWith(
+                                  fontSize: 22,
+                                  color: const Color(0xFF1E293B),
                                 ),
                               ),
                               Text(
                                 lastLeg['arrival']['airport'],
-                                style: const TextStyle(
+                                style: AppConstants.fieldValueStyle.copyWith(
                                   fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF64748B),
+                                  color: const Color(0xFF64748B),
                                 ),
                               ),
                               Text(
                                 DateFormat('MMM dd').format(arrivalDateTime),
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF94A3B8),
+                                style: AppConstants.fieldLabelStyle.copyWith(
+                                  color: const Color(0xFF94A3B8),
                                 ),
                               ),
                             ],
@@ -1065,18 +1033,18 @@ import '../../../../../utility/app_constants.dart';
                   children: [
                     Text(
                       label,
-                      style: const TextStyle(
-                        fontSize: 10,
-                        color: Color(0xFF94A3B8),
-                      ),
+                        style: AppConstants.fieldLabelStyle.copyWith(
+                          fontSize: 10,
+                          color: const Color(0xFF94A3B8),
+                        ),
                     ),
                     Text(
                       value,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1E293B),
-                      ),
+                        style: AppConstants.fieldValueStyle.copyWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: const Color(0xFF1E293B),
+                        ),
                     ),
                   ],
                 ),
@@ -1091,12 +1059,12 @@ import '../../../../../utility/app_constants.dart';
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Flight Segments',
-            style: TextStyle(
+            style: AppConstants.sectionTitleStyle.copyWith(
               fontWeight: FontWeight.w600,
               fontSize: 14,
-              color: Color(0xFF374151),
+              color: const Color(0xFF374151),
             ),
           ),
           const SizedBox(height: 12),
@@ -1134,30 +1102,30 @@ import '../../../../../utility/app_constants.dart';
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          flightNumber,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 12,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
-                        Text(
-                          '${formatTime(departure['dateTime'])} - ${formatTime(arrival['dateTime'])}',
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF64748B),
-                          ),
-                        ),
+                    Text(
+                      flightNumber,
+                      style: AppConstants.fieldValueStyle.copyWith(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                        color: const Color(0xFF1E293B),
+                      ),
+                    ),
+                    Text(
+                      '${formatTime(departure['dateTime'])} - ${formatTime(arrival['dateTime'])}',
+                      style: AppConstants.fieldLabelStyle.copyWith(
+                        fontSize: 11,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
                       ],
                     ),
                   ),
                   Text(
                     '${departure['airport']} → ${arrival['airport']}',
-                    style: const TextStyle(
+                    style: AppConstants.fieldLabelStyle.copyWith(
                       fontSize: 11,
                       fontWeight: FontWeight.w500,
-                      color: Color(0xFF64748B),
+                      color: const Color(0xFF64748B),
                     ),
                   ),
                 ],
@@ -1612,21 +1580,19 @@ import '../../../../../utility/app_constants.dart';
                         ),
                         borderRadius: BorderRadius.circular(10),
                       ),
-                      child: const Icon(
+                    child: const Icon(
                         Icons.receipt_long,
                         color: Colors.white,
                         size: 20,
                       ),
                     ),
-                    const SizedBox(width: 12),
-                    const Text(
-                      'Price Breakdown',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 18,
-                        color: Color(0xFF1E293B),
-                      ),
+                  const SizedBox(width: 12),
+                  Text(
+                    'Price Breakdown',
+                    style: AppConstants.sectionTitleStyle.copyWith(
+                      color: const Color(0xFF1E293B),
                     ),
+                  ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -1648,9 +1614,50 @@ import '../../../../../utility/app_constants.dart';
                   _buildPassengerPriceSection('Infant', infantPrice, currency),
                   const SizedBox(height: 16),
                 ],
-  
+
+                // Seat prices section
+                if (widget.totalSeatPrice > 0) ...[
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(
+                              Icons.airline_seat_recline_normal,
+                              size: 16,
+                              color: Color(0xFF10B981),
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Seat Selection',
+                          style: AppConstants.fieldValueStyle.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                            color: const Color(0xFF374151),
+                          ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _buildPriceRow(
+                          'Seat Selection Charges',
+                          '$currency ${widget.totalSeatPrice.toStringAsFixed(2)}',
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
+
                 Container(
-                  padding: const EdgeInsets.all(8),
+                  padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       colors: [
@@ -1665,24 +1672,22 @@ import '../../../../../utility/app_constants.dart';
                   ),
                   child: SizedBox(
                     width: double.infinity,
-                    child: Column(
+                    child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text(
-                          'Total Amount',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
-                          ),
-                        ),
+                Text(
+                  'Total Amount',
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    fontSize: 16,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
                         Text(
-                          '${outboundFlight.currency} ${totalPrice.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
-                          ),
+                          '$currency ${(totalPrice + widget.totalSeatPrice).toStringAsFixed(2)}',
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    fontSize: 16,
+                    color: const Color(0xFF1E293B),
+                  ),
                         ),
                       ],
                     ),
@@ -1746,10 +1751,9 @@ import '../../../../../utility/app_constants.dart';
           children: [
             Text(
               '$label Price',
-              style: const TextStyle(
-                fontWeight: FontWeight.w600,
+              style: AppConstants.sectionTitleStyle.copyWith(
                 fontSize: 14,
-                color: Color(0xFF374151),
+                color: const Color(0xFF374151),
               ),
             ),
             const SizedBox(height: 8),
@@ -2134,10 +2138,16 @@ import '../../../../../utility/app_constants.dart';
                   'Return Fees',
                   '${returnFlight?.currency} ${returnFareOption.feeAmount.toStringAsFixed(2)}',
                 ),
+              // Seat prices
+              if (widget.totalSeatPrice > 0)
+                _buildPdfPriceRow(
+                  'Seat Selection Charges',
+                  '${outboundFlight.currency} ${widget.totalSeatPrice.toStringAsFixed(2)}',
+                ),
               pw.Divider(),
               _buildPdfPriceRow(
                 'Total Amount',
-                '${outboundFlight.currency} ${((outboundFareOption?.price ?? 0) + (returnFareOption?.price ?? 0)).toStringAsFixed(2)}',
+                '${outboundFlight.currency} ${((outboundFareOption?.price ?? 0) + (returnFareOption?.price ?? 0) + widget.totalSeatPrice).toStringAsFixed(2)}',
                 isTotal: true,
               ),
               pw.SizedBox(height: 20),

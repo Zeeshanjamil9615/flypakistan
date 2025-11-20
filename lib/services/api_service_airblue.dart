@@ -1283,27 +1283,83 @@ Future<Map<String, dynamic>> getAirBlueSeatMap({
       errors: {},
     );
   }
-}Future<Map<String, dynamic>> updateAirBlueSeats({
+}
+
+Future<Map<String, dynamic>> updateAirBlueSeats({
   required String pnr,
   required String instance,
   required List<Map<String, dynamic>> seatRequests,
+  Map<String, dynamic>? pnrResponse, // PNR response to extract TravelerRefNumber RPH tokens
 }) async {
   try {
     final randomString = _generateRandomString(32);
 
+    // Extract TravelerRefNumber RPH tokens from PNR response
+    Map<int, String> travelerRPHTokens = {};
+    if (pnrResponse != null) {
+      try {
+        final airReservation = pnrResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']?['AirBookResult']?['AirReservation'] ??
+                               pnrResponse['AirReservation'] ??
+                               pnrResponse;
+        
+        final travelerInfo = airReservation['TravelerInfo'];
+        if (travelerInfo != null) {
+          final airTravelers = travelerInfo['AirTraveler'];
+          if (airTravelers != null) {
+            // Handle both single traveler and multiple travelers
+            final travelersList = airTravelers is List ? airTravelers : [airTravelers];
+            
+            for (int i = 0; i < travelersList.length; i++) {
+              final traveler = travelersList[i];
+              final travelerRefNumber = traveler['TravelerRefNumber'];
+              
+              if (travelerRefNumber != null) {
+                // Handle both single TravelerRefNumber and array
+                final refNumberList = travelerRefNumber is List ? travelerRefNumber : [travelerRefNumber];
+                
+                for (var refNum in refNumberList) {
+                  // Extract RPH value (it's in the RPH attribute)
+                  final rph = refNum['RPH']?.toString();
+                  if (rph != null && rph.isNotEmpty) {
+                    // Map traveler index (0-based) to RPH token
+                    travelerRPHTokens[i] = rph;
+                    print('📋 Extracted RPH token for traveler ${i + 1} (index $i): $rph');
+                    break; // Use first RPH found for this traveler
+                  }
+                }
+              }
+            }
+            
+            print('📋 Total RPH tokens extracted: ${travelerRPHTokens.length}');
+          }
+        }
+      } catch (e, stackTrace) {
+        print('⚠️ Warning: Could not extract TravelerRefNumber RPH tokens from PNR: $e');
+        print('Stack trace: $stackTrace');
+      }
+    }
+
     String seatRequestsXml = '';
     for (var seatRequest in seatRequests) {
+      // Get traveler index (convert from 1-based to 0-based)
+      final travelerIndex = (int.tryParse(seatRequest['travelerRefNumber'].toString()) ?? 1) - 1;
+      
+      // Use RPH token from PNR response if available, otherwise fallback to number
+      final travelerRPH = seatRequest['travelerRefNumberRPH'] ?? 
+                          travelerRPHTokens[travelerIndex] ?? 
+                          seatRequest['travelerRefNumber'].toString();
+      
+      // Extract only the letter from seat number (e.g., "1F" -> "F", "12A" -> "A")
+      final fullSeatNumber = seatRequest['seatNumber'].toString();
+      final seatLetter = fullSeatNumber.replaceAll(RegExp(r'[0-9]'), ''); // Remove all digits, keep only letters
+      
+      print('📋 Using RPH for seat request: $travelerRPH (traveler index: $travelerIndex)');
+      print('📋 Seat: $fullSeatNumber -> Row: ${seatRequest['rowNumber']}, Letter: $seatLetter');
+      
+      // Use web format: self-closing tag with all attributes
+      // SeatNumber should only contain the letter (e.g., "F"), not "1F"
       seatRequestsXml += '''
-            <SeatRequest>
-              <FlightRefNumber>${seatRequest['flightRefNumber']}</FlightRefNumber>
-
-
-
-              <TravelerRefNumber RPH="${seatRequest['travelerRefNumber']}"/>
-              <Seat SeatNumber="${seatRequest['seatNumber']}" 
-                    RowNumber="${seatRequest['rowNumber']}" 
-                    Status="NS"/>
-            </SeatRequest>''';
+                <SeatRequest SeatNumber="$seatLetter" RowNumber="${seatRequest['rowNumber']}" TravelerRefNumberRPHList="$travelerRPH" FlightRefNumberRPHList="${seatRequest['flightRefNumber']}"/>''';
     }
 
     final request = '''<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
@@ -1385,6 +1441,7 @@ Future<Map<String, dynamic>> getAirBlueSeatMap({
 
 
   /// Prints JSON nicely with chunking
+
   void printJsonPretty(dynamic jsonData) {
     const int chunkSize = 1000;
     final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
