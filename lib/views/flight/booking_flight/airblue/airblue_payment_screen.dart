@@ -108,7 +108,7 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -116,13 +116,13 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
               activeStep: 2,
               secondsLeft: _secondsLeft,
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildFlightDetailsSection(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
             _buildTravellerDetailsButton(),
-            const SizedBox(height: 24),
+            const SizedBox(height: 12),
             _buildPaymentMethodsSection(),
-            const SizedBox(height: 20),
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -137,92 +137,67 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
     final arrivalAirport = lastLeg['arrival']['airport'];
     final departureAirport = firstLeg['departure']['airport'];
 
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade300),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(
-                '$departureAirport → $arrivalAirport',
-                style: AppConstants.sectionTitleStyle.copyWith(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '$departureAirport → $arrivalAirport',
+          style: AppConstants.sectionTitleStyle.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Colors.grey[700],
           ),
-          const SizedBox(height: 12),
-          Row(
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'Depart: ${DateFormat('EEE, MMM dd, hh:mm a').format(departureDateTime)}',
+          style: AppConstants.fieldValueStyle.copyWith(
+            fontSize: 14,
+            fontWeight: FontWeight.w400,
+            color: Colors.grey[700],
+          ),
+        ),
+        const SizedBox(height: 4),
+        GestureDetector(
+          onTap: _showReviewDetailsBottomSheet,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(Icons.flight_takeoff, size: 16, color: Colors.grey),
-              const SizedBox(width: 6),
+
               Text(
-                'Depart: ${DateFormat('EEE, MMM dd, hh:mm a').format(departureDateTime)}',
+                'Details',
                 style: AppConstants.fieldValueStyle.copyWith(
                   fontSize: 14,
-                  color: Colors.grey[700],
+                  color: TColors.primary,
                 ),
               ),
+              const Icon(Icons.arrow_drop_down, size: 16, color: TColors.primary),
             ],
           ),
-          const SizedBox(height: 8),
-          GestureDetector(
-            onTap: _showReviewDetailsBottomSheet,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.info_outline, size: 16, color: TColors.primary),
-                const SizedBox(width: 6),
-                Text(
-                  'Details',
-                  style: AppConstants.fieldValueStyle.copyWith(
-                    fontSize: 14,
-                    color: TColors.primary,
-                    decoration: TextDecoration.underline,
-                  ),
-                ),
-                const Icon(Icons.arrow_drop_down, size: 16, color: TColors.primary),
-              ],
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
   Widget _buildTravellerDetailsButton() {
     return SizedBox(
       width: double.infinity,
-      child: ElevatedButton(
-        onPressed: () {
-          Get.snackbar(
-            'Traveller Details',
-            'View traveller details functionality will be implemented',
-            backgroundColor: Colors.blue,
-            colorText: Colors.white,
-            snackPosition: SnackPosition.TOP,
-          );
-        },
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF0B5ED7),
-          padding: const EdgeInsets.symmetric(vertical: 14),
+      child: OutlinedButton(
+        onPressed: _showTravellerDetailsBottomSheet,
+        style: OutlinedButton.styleFrom(
+          backgroundColor: TColors.primary.withOpacity(0.05),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          side: const BorderSide(color: TColors.primary, width: 1.4),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(10),
           ),
         ),
         child: Text(
           'View Traveller Details (${widget.totalPassengers})',
           style: const TextStyle(
-            fontSize: 15,
+            fontSize: 14,
             fontWeight: FontWeight.w600,
-            color: Colors.white,
+            color: TColors.primary,
           ),
         ),
       ),
@@ -238,6 +213,7 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
           style: AppConstants.sectionTitleStyle.copyWith(
             fontSize: 18,
             fontWeight: FontWeight.w600,
+            color: TColors.text
           ),
         ),
         const SizedBox(height: 16),
@@ -246,44 +222,12 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: _selectedPaymentMethod != null
-                  ? TColors.primary
-                  : Colors.grey.shade300,
+              color: Colors.grey.shade300,
               width: _selectedPaymentMethod != null ? 2 : 1,
             ),
           ),
           child: Column(
             children: [
-              _buildPaymentMethodItem(
-                title: 'Pay at Office',
-                icon: Icons.business,
-                onTap: () {
-                  setState(() {
-                    _selectedPaymentMethod = 'Pay at Office';
-                  });
-                  _showPayAtOfficeBottomSheet();
-                },
-                isSelected: _selectedPaymentMethod == 'Pay at Office',
-                showDivider: true,
-              ),
-              _buildPaymentMethodItem(
-                title: 'Bank Transfer',
-                icon: Icons.account_balance,
-                onTap: () {
-                  setState(() {
-                    _selectedPaymentMethod = 'Bank Transfer';
-                  });
-                  Get.snackbar(
-                    'Payment Method',
-                    'Bank Transfer selected',
-                    backgroundColor: Colors.blue,
-                    colorText: Colors.white,
-                    snackPosition: SnackPosition.TOP,
-                  );
-                },
-                isSelected: _selectedPaymentMethod == 'Bank Transfer',
-                showDivider: true,
-              ),
               _buildPaymentMethodItem(
                 title: 'Pay with Card',
                 icon: Icons.credit_card,
@@ -308,6 +252,37 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
                   );
                 },
                 isSelected: _selectedPaymentMethod == 'Pay with Card',
+                showDivider: true,
+                trailing: _CardBrandRow(),
+              ),
+              _buildPaymentMethodItem(
+                title: 'Bank Transfer',
+                icon: Icons.account_balance,
+                onTap: () {
+                  setState(() {
+                    _selectedPaymentMethod = 'Bank Transfer';
+                  });
+                  Get.snackbar(
+                    'Payment Method',
+                    'Bank Transfer selected',
+                    backgroundColor: Colors.blue,
+                    colorText: Colors.white,
+                    snackPosition: SnackPosition.TOP,
+                  );
+                },
+                isSelected: _selectedPaymentMethod == 'Bank Transfer',
+                showDivider: true,
+              ),
+              _buildPaymentMethodItem(
+                title: 'Pay at Office',
+                icon: Icons.business,
+                onTap: () {
+                  setState(() {
+                    _selectedPaymentMethod = 'Pay at Office';
+                  });
+                  _showPayAtOfficeBottomSheet();
+                },
+                isSelected: _selectedPaymentMethod == 'Pay at Office',
                 showDivider: false,
               ),
             ],
@@ -323,6 +298,7 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
     required VoidCallback onTap,
     required bool isSelected,
     required bool showDivider,
+    Widget? trailing,
   }) {
     return Column(
       children: [
@@ -335,14 +311,12 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? TColors.primary.withOpacity(0.1)
-                        : Colors.grey.shade100,
+                    color:  TColors.primary.withOpacity(0.1)                     ,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Icon(
                     icon,
-                    color: isSelected ? TColors.primary : Colors.grey[600],
+                    color: TColors.primary ,
                     size: 24,
                   ),
                 ),
@@ -357,10 +331,14 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
                     ),
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  color: isSelected ? TColors.primary : Colors.grey[400],
-                ),
+                if (trailing != null) ...[
+                  const SizedBox(width: 8),
+                  trailing,
+                ] else
+                  Icon(
+                    Icons.chevron_right,
+                    color: TColors.primary,
+                  ),
               ],
             ),
           ),
@@ -537,6 +515,102 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
             SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
         ),
+      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+    );
+  }
+
+  void _showTravellerDetailsBottomSheet() {
+    final travelers = <_TravelerDisplayItem>[];
+
+    void addTravelers(List<TravelerInfo> list, String type) {
+      for (var i = 0; i < list.length; i++) {
+        travelers.add(
+          _TravelerDisplayItem(
+            traveler: list[i],
+            passengerType: type,
+            index: i + 1,
+          ),
+        );
+      }
+    }
+
+    addTravelers(widget.bookingController.adults, 'Adult');
+    addTravelers(widget.bookingController.children, 'Child');
+    addTravelers(widget.bookingController.infants, 'Infant');
+
+    if (travelers.isEmpty) {
+      Get.snackbar(
+        'No travellers',
+        'Traveller details are not available.',
+        backgroundColor: Colors.blue,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    final isDomestic = widget.bookingController.isDomesticFlight;
+
+    Get.bottomSheet(
+      DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.9,
+        builder: (context, controller) {
+          return Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(24),
+                topRight: Radius.circular(24),
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Traveller Details',
+                            style: AppConstants.sectionTitleStyle.copyWith(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Get.back(),
+                          icon: const Icon(Icons.close, color: Colors.grey),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const Divider(height: 1),
+                  Expanded(
+                    child: ListView.separated(
+                      controller: controller,
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      itemCount: travelers.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final item = travelers[index];
+                        return _TravellerDetailCard(
+                          item: item,
+                          isDomestic: isDomestic,
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       ),
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
@@ -892,6 +966,204 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
     }
 
     return rows;
+  }
+}
+
+class _CardBrandRow extends StatelessWidget {
+  final List<String> _logos = const [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Visa_Logo.png/240px-Visa_Logo.png',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/320px-Mastercard-logo.svg.png',
+    'https://cdn-icons-png.flaticon.com/128/349/349228.png',
+  ];
+
+  const _CardBrandRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: _logos
+          .map(
+            (url) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: SizedBox(
+                width: 28,
+                height: 20,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/images/payment/placeholder_card.png',
+                      fit: BoxFit.contain,
+                    );
+                  },
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class _TravelerDisplayItem {
+  final TravelerInfo traveler;
+  final String passengerType;
+  final int index;
+
+  _TravelerDisplayItem({
+    required this.traveler,
+    required this.passengerType,
+    required this.index,
+  });
+}
+
+class _TravellerDetailCard extends StatelessWidget {
+  final _TravelerDisplayItem item;
+  final bool isDomestic;
+
+  const _TravellerDetailCard({
+    required this.item,
+    required this.isDomestic,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final traveler = item.traveler;
+    final title = traveler.titleController.text.trim();
+    final first = traveler.firstNameController.text.trim();
+    final last = traveler.lastNameController.text.trim();
+    final fullName =
+        [title, first, last].where((element) => element.isNotEmpty).join(' ');
+    final documentLabel = isDomestic ? 'CNIC Number' : 'Passport Number';
+    final documentExpiryLabel =
+        isDomestic ? 'CNIC Expiry' : 'Passport Expiry';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  fullName.isEmpty ? 'Traveller ${item.index}' : fullName,
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: TColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  item.passengerType,
+                  style: AppConstants.fieldValueStyle.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: TColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _TravellerInfoRow(
+            label: 'Date of Birth',
+            value: _formatTravellerDate(traveler.dateOfBirthController.text),
+          ),
+          const SizedBox(height: 8),
+          _TravellerInfoRow(
+            label: documentLabel,
+            value: traveler.passportCnicController.text.trim().isEmpty
+                ? '--'
+                : traveler.passportCnicController.text.trim(),
+          ),
+          const SizedBox(height: 8),
+          _TravellerInfoRow(
+            label: documentExpiryLabel,
+            value: _formatTravellerDate(
+              traveler.passportExpiryController.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatTravellerDate(String raw) {
+    if (raw.trim().isEmpty) return '--';
+    try {
+      final parsed = DateTime.parse(raw);
+      return DateFormat('dd.MM.yyyy').format(parsed);
+    } catch (_) {
+      final normalized = raw.replaceAll('/', '-');
+      try {
+        final parsed = DateFormat('dd-MM-yyyy').parse(normalized);
+        return DateFormat('dd.MM.yyyy').format(parsed);
+      } catch (_) {
+        return raw;
+      }
+    }
+  }
+}
+
+class _TravellerInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TravellerInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            '$label:',
+            style: AppConstants.fieldValueStyle.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: TColors.primary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: AppConstants.fieldValueStyle.copyWith(
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.left,
+          ),
+        ),
+      ],
+    );
   }
 }
 
