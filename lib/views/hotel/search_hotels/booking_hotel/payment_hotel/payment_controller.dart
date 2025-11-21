@@ -8,6 +8,9 @@ import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/payment_ho
 import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
 import 'package:ready_flights/views/flight/booking_flight/booking_flight_controller.dart';
+import 'package:ready_flights/views/flight/booking_flight/sabre/sabre_card_payment_details_screen.dart';
+import 'package:ready_flights/views/flight/booking_flight/sabre/sabre_flight_voucher.dart';
+import 'package:ready_flights/views/flight/search_flights/sabre/sabre_flight_models.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -351,6 +354,21 @@ class PaymentController extends GetxController {
 
   void _navigateToFlightSuccess(String orderId) {
     try {
+      // Check if it's a Sabre flight payment
+      try {
+        final sabreFlightData = Get.find<SabreFlightPaymentData>();
+        Get.offAll(
+          () => SabreFlightBookingDetailsScreen(
+            flight: sabreFlightData.flight,
+            pnrResponse: sabreFlightData.pnrResponse,
+          ),
+        );
+        return;
+      } catch (e) {
+        // Not a Sabre payment, continue with AirBlue
+      }
+
+      // Handle AirBlue flight payment
       final flightData = Get.find<FlightPaymentData>();
 
       List<AirBlueFareOption>? cleanedMulticity;

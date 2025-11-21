@@ -10,29 +10,44 @@ import 'package:country_picker/country_picker.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/select_seat.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_addons_screen.dart';
 import '../../../../../services/api_service_airblue.dart';
+import '../../../../../services/api_service_sabre.dart';
 import '../../../../../utility/colors.dart';
 import '../../../../../utility/app_constants.dart';
 import '../../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/airblue/airblue_flight_controller.dart';
 import '../../search_flights/airblue/airblue_flight_model.dart';
 import '../../search_flights/airblue/airblue_pnr_pricing.dart';
+import '../../search_flights/sabre/sabre_flight_models.dart';
 import '../booking_flight_controller.dart';
+import '../sabre/sabre_payment_screen.dart';
 import 'flight_print_voucher.dart';
 import '../../../users/login/login.dart';
 import '../../../users/rejistration/register.dart';
 import '../../../users/login/login_api_service/login_api.dart';
 
+enum FlightProvider { airblue, sabre }
+
 class AirBlueBookingFlight extends StatefulWidget {
-  final AirBlueFlight flight;
+  // Provider type - defaults to AirBlue for backward compatibility
+  final FlightProvider provider;
+  
+  // AirBlue specific fields
+  final AirBlueFlight? flight;
   final AirBlueFlight? returnFlight;
   final List<AirBlueFlight>? multicityFlights;
-  final double totalPrice;
-  final String currency;
   final AirBlueFareOption? outboundFareOption;
   final AirBlueFareOption? returnFareOption;
   final List<AirBlueFareOption?>? multicityFareOptions;
+  
+  // Sabre specific fields
+  final SabreFlight? sabreFlight;
+  final Map<String, dynamic>? sabreRevalidatePricing;
+  
+  // Common fields
+  final double totalPrice;
+  final String currency;
 
-
+  // AirBlue constructor (default)
   const AirBlueBookingFlight({
     super.key,
     required this.flight,
@@ -43,7 +58,27 @@ class AirBlueBookingFlight extends StatefulWidget {
     this.outboundFareOption,
     this.returnFareOption,
     this.multicityFareOptions,
+    this.provider = FlightProvider.airblue,
+    this.sabreFlight,
+    this.sabreRevalidatePricing,
   });
+
+  // Sabre factory constructor
+  factory AirBlueBookingFlight.forSabre({
+    required SabreFlight sabreFlight,
+    required double totalPrice,
+    required String currency,
+    Map<String, dynamic>? revalidatePricing,
+  }) {
+    return AirBlueBookingFlight(
+      provider: FlightProvider.sabre,
+      sabreFlight: sabreFlight,
+      sabreRevalidatePricing: revalidatePricing,
+      totalPrice: totalPrice,
+      currency: currency,
+      flight: null,
+    );
+  }
 
   @override
   State<AirBlueBookingFlight> createState() => _AirBlueBookingFlightState();
@@ -57,10 +92,11 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   final TravelersController travelersController = Get.put(
     TravelersController(),
   );
-  final AirBlueFlightController flightController =
-  Get.find<AirBlueFlightController>();
-  final AuthController authController = Get.find<AuthController>();
-
+  AirBlueFlightController? _airblueFlightController;
+  final AuthController? _authController = Get.isRegistered<AuthController>() 
+      ? Get.find<AuthController>() 
+      : null;
+  
   bool termsAccepted = false;
   final Map<TextEditingController, _DateSelectionState> _dateSelections = {};
   final RxInt _secondsLeft = (4 * 60 * 60).obs;
@@ -70,9 +106,15 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   @override
   void initState() {
     super.initState();
+    // Only get AirBlue controller if provider is AirBlue
+    if (widget.provider == FlightProvider.airblue && Get.isRegistered<AirBlueFlightController>()) {
+      _airblueFlightController = Get.find<AirBlueFlightController>();
+    }
     _startCountdown();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _checkLoginStatus();
+      if (_authController != null) {
+        _checkLoginStatus();
+      }
     });
   }
 
@@ -1533,7 +1575,8 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   }
 
   Future<void> _checkLoginStatus() async {
-    final isLoggedIn = await authController.isLoggedIn();
+    if (_authController == null) return;
+    final isLoggedIn = await _authController!.isLoggedIn();
     if (!isLoggedIn) {
       _showLoginRequiredDialog();
     }
@@ -1704,11 +1747,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   }
 
   Future<void> _handleContinuePressed() async {
-    // final isLoggedIn = await authController.isLoggedIn();
-    // if (!isLoggedIn) {
-    //   _showLoginRequiredDialog();
-    //   return;
-    // }
+    // Validate form
     if (!(_formKey.currentState?.validate() ?? false)) {
       Get.snackbar(
         'Error',
@@ -1723,6 +1762,156 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
       Get.snackbar(
         'Error',
         'Please accept terms and conditions',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    // Route based on provider
+    if (widget.provider == FlightProvider.sabre) {
+      await _handleSabreContinue();
+    } else {
+      await _handleAirBlueContinue();
+    }
+  }
+
+  Future<void> _handleSabreContinue() async {
+    if (widget.sabreFlight == null) {
+      Get.snackbar(
+        'Error',
+        'Sabre flight data is missing',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    try {
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(TColors.primary),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      Map<String, dynamic>? pnrResponse;
+      bool pnrSuccess = false;
+      
+      try {
+        final apiService = ApiServiceSabre();
+        pnrResponse = await apiService.createPNRRequest(
+          flight: widget.sabreFlight!,
+          adults: bookingController.adults.toList(),
+          children: bookingController.children.toList(),
+          infants: bookingController.infants.toList(),
+          bookerEmail: bookingController.emailController.text,
+          bookerPhone: bookingController.getFormattedBookerPhoneNumber(),
+          revalidatePricing: widget.sabreRevalidatePricing,
+        );
+
+        // Check if PNR creation was successful
+        if (pnrResponse != null) {
+          final pnrData = pnrResponse['CreatePassengerNameRecordRS'];
+          if (pnrData != null) {
+            final appResults = pnrData['ApplicationResults'];
+            if (appResults != null && appResults['status'] == 'Complete') {
+              pnrSuccess = true;
+            }
+          } else if (pnrResponse['order'] != null && pnrResponse['order']['id'] != null) {
+            // NDC PNR success
+            pnrSuccess = true;
+          }
+        }
+
+        Get.back();
+
+        // Navigate to Sabre Payment Screen (skip add-ons) - even if PNR failed
+        final totalPassengers = travelersController.adultCount.value +
+            travelersController.childrenCount.value +
+            travelersController.infantCount.value;
+
+        Get.to(
+          () => SabrePaymentScreen(
+            pnrResponse: pnrResponse!,
+            totalPassengers: totalPassengers,
+            flight: widget.sabreFlight!,
+            bookingController: bookingController,
+            travelersController: travelersController,
+            totalPrice: widget.totalPrice,
+            currency: widget.currency,
+            initialSecondsLeft: _secondsLeft.value,
+          ),
+        );
+
+        if (pnrSuccess) {
+          Get.snackbar(
+            'Success',
+            'PNR created successfully',
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+          );
+        } else {
+          Get.snackbar(
+            'Warning',
+            'PNR creation is pending. Booking will be processed.',
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+            snackPosition: SnackPosition.TOP,
+          );
+        }
+      } catch (e) {
+        Get.back();
+        
+        // Still navigate to payment screen even if PNR creation failed
+        final totalPassengers = travelersController.adultCount.value +
+            travelersController.childrenCount.value +
+            travelersController.infantCount.value;
+
+        Get.to(
+          () => SabrePaymentScreen(
+            pnrResponse: pnrResponse!, // May be null
+            totalPassengers: totalPassengers,
+            flight: widget.sabreFlight!,
+            bookingController: bookingController,
+            travelersController: travelersController,
+            totalPrice: widget.totalPrice,
+            currency: widget.currency,
+            initialSecondsLeft: _secondsLeft.value,
+          ),
+        );
+
+        Get.snackbar(
+          'Warning',
+          'PNR creation encountered issues, but booking will be processed.',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+      }
+    } catch (e) {
+      Get.back();
+      Get.snackbar(
+        'Error',
+        'An unexpected error occurred: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 5),
+        snackPosition: SnackPosition.TOP,
+      );
+    }
+  }
+
+  Future<void> _handleAirBlueContinue() async {
+    if (widget.flight == null) {
+      Get.snackbar(
+        'Error',
+        'AirBlue flight data is missing',
         backgroundColor: Colors.red,
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
@@ -1746,7 +1935,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
 
       try {
         pnrResponse = await AirBlueFlightApiService().createAirBluePNR(
-          flight: widget.flight,
+          flight: widget.flight!,
           returnFlight: widget.returnFlight,
           multicityFlights: widget.multicityFlights,
           bookingController: bookingController,
@@ -1759,7 +1948,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         );
 
         if (pnrResponse != null) {
-          updatedOutboundFlight = widget.flight.copyWithPNRPricing(
+          updatedOutboundFlight = widget.flight!.copyWithPNRPricing(
             pnrResponse['rawPricingObjects'] ?? [],
           );
 
@@ -1792,7 +1981,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
       try {
         final response = await AirBlueFlightApiService().saveAirBlueBooking(
           bookingController: bookingController,
-          flight: widget.flight,
+          flight: widget.flight!,
           returnFlight: widget.returnFlight,
           multicityFlights: widget.multicityFlights,
           token: 'your_auth_token_here',
@@ -1812,7 +2001,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
             () => AirBlueAddOnsScreen(
               pnrResponse: pnrResponse!,
               totalPassengers: totalPassengers,
-              outboundFlight: updatedOutboundFlight ?? widget.flight,
+              outboundFlight: updatedOutboundFlight ?? widget.flight!,
               returnFlight: updatedReturnFlight ?? widget.returnFlight,
               multicityFlights: widget.multicityFlights,
               outboundFareOption: widget.outboundFareOption,
@@ -1885,8 +2074,9 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
 
   @override
   void dispose() {
-    bookingController.dispose();
-    travelersController.dispose();
+    // Don't dispose GetX-managed controllers - they're singletons and reused
+    // bookingController and travelersController are managed by GetX
+    // Only dispose local resources like timers
     _countdownTimer?.cancel();
     super.dispose();
   }

@@ -7,54 +7,38 @@ import 'package:intl/intl.dart';
 import '../../../../../utility/app_constants.dart';
 import '../../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
-import '../../search_flights/airblue/airblue_flight_model.dart';
+import '../../search_flights/sabre/sabre_flight_models.dart';
 import '../booking_flight_controller.dart';
-import 'flight_print_voucher.dart';
-import 'card_payment_details_screen.dart';
+import 'sabre_flight_voucher.dart';
+import 'sabre_card_payment_details_screen.dart';
 
-class AirBluePaymentScreen extends StatefulWidget {
+class SabrePaymentScreen extends StatefulWidget {
   final Map<String, dynamic> pnrResponse;
   final int totalPassengers;
-  final AirBlueFlight outboundFlight;
-  final AirBlueFlight? returnFlight;
-  final List<AirBlueFlight>? multicityFlights;
-  final AirBlueFareOption? outboundFareOption;
-  final AirBlueFareOption? returnFareOption;
-  final List<AirBlueFareOption?>? multicityFareOptions;
+  final SabreFlight flight;
   final BookingFlightController bookingController;
   final TravelersController travelersController;
   final double totalPrice;
   final String currency;
   final int initialSecondsLeft;
-  final Map<int, String>? selectedSeats;
-  final Map<int, double>? seatPrices; // Seat prices by passenger
-  final double totalSeatPrice; // Total seat price
 
-  const AirBluePaymentScreen({
+  const SabrePaymentScreen({
     super.key,
     required this.pnrResponse,
     required this.totalPassengers,
-    required this.outboundFlight,
-    this.returnFlight,
-    this.multicityFlights,
-    this.outboundFareOption,
-    this.returnFareOption,
-    this.multicityFareOptions,
+    required this.flight,
     required this.bookingController,
     required this.travelersController,
     required this.totalPrice,
     required this.currency,
     required this.initialSecondsLeft,
-    this.selectedSeats,
-    this.seatPrices,
-    this.totalSeatPrice = 0.0,
   });
 
   @override
-  State<AirBluePaymentScreen> createState() => _AirBluePaymentScreenState();
+  State<SabrePaymentScreen> createState() => _SabrePaymentScreenState();
 }
 
-class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
+class _SabrePaymentScreenState extends State<SabrePaymentScreen> {
   late final RxInt _secondsLeft = widget.initialSecondsLeft.obs;
   Timer? _countdownTimer;
   String? _selectedPaymentMethod;
@@ -131,8 +115,8 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
   }
 
   Widget _buildFlightDetailsSection() {
-    final firstLeg = widget.outboundFlight.legSchedules.first;
-    final lastLeg = widget.outboundFlight.legSchedules.last;
+    final firstLeg = widget.flight.legSchedules.first;
+    final lastLeg = widget.flight.legSchedules.last;
     final departureDateTime = DateTime.parse(firstLeg['departure']['dateTime']);
     final arrivalAirport = lastLeg['arrival']['airport'];
     final departureAirport = firstLeg['departure']['airport'];
@@ -163,7 +147,6 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-
               Text(
                 'Details',
                 style: AppConstants.fieldValueStyle.copyWith(
@@ -171,7 +154,11 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
                   color: TColors.primary,
                 ),
               ),
-              const Icon(Icons.arrow_drop_down, size: 16, color: TColors.primary),
+              const Icon(
+                Icons.arrow_drop_down,
+                size: 16,
+                color: TColors.primary,
+              ),
             ],
           ),
         ),
@@ -236,18 +223,14 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
                     _selectedPaymentMethod = 'Pay with Card';
                   });
                   Get.to(
-                    () => CardPaymentDetailsScreen(
-                      outboundFlight: widget.outboundFlight,
-                      returnFlight: widget.returnFlight,
-                      multicityFlights: widget.multicityFlights,
-                      outboundFareOption: widget.outboundFareOption,
-                      returnFareOption: widget.returnFareOption,
-                      multicityFareOptions: widget.multicityFareOptions,
+                    () => SabreCardPaymentDetailsScreen(
+                      flight: widget.flight,
                       pnrResponse: widget.pnrResponse,
                       totalPassengers: widget.totalPassengers,
                       totalPrice: widget.totalPrice,
                       currency: widget.currency,
-                      selectedSeats: widget.selectedSeats,
+                      bookingController: widget.bookingController,
+                      travelersController: widget.travelersController,
                     ),
                   );
                 },
@@ -390,15 +373,6 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
             const SizedBox(height: 12),
             Text(
               'In this payment option you may lose the selected price during the process of payment.',
-              style: AppConstants.fieldValueStyle.copyWith(
-                fontSize: 14,
-                color: Colors.grey[700],
-                height: 1.5,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'If You wish to lock the price now, Select payment by credit card.',
               style: AppConstants.fieldValueStyle.copyWith(
                 fontSize: 14,
                 color: Colors.grey[700],
@@ -618,125 +592,27 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
   }
 
   void _handleBookNow() {
-    List<AirBlueFareOption>? cleanedMulticityFareOptions;
-    if (widget.multicityFareOptions != null) {
-      cleanedMulticityFareOptions = widget.multicityFareOptions!
-          .whereType<AirBlueFareOption>()
-          .toList();
-    }
-
+    // Navigate to Sabre voucher
     Get.offAll(
-      () => FlightBookingDetailsScreen(
-        outboundFlight: widget.outboundFlight,
-        returnFlight: widget.returnFlight,
-        multicityFlights: widget.multicityFlights,
-        outboundFareOption: widget.outboundFareOption,
-        returnFareOption: widget.returnFareOption,
-        multicityFareOptions: cleanedMulticityFareOptions,
+      () => SabreFlightBookingDetailsScreen(
+        flight: widget.flight,
         pnrResponse: widget.pnrResponse,
-        selectedSeats: widget.selectedSeats,
-        seatPrices: widget.seatPrices,
-        totalSeatPrice: widget.totalSeatPrice,
-        bookingController: widget.bookingController, // Pass controller to preserve passenger data
-      ),
-    );
-  }
-
-  Widget _buildBottomBar(String formattedPrice) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.grey.withOpacity(0.2),
-            spreadRadius: 1,
-            blurRadius: 8,
-            offset: const Offset(0, -2),
-          ),
-        ],
-      ),
-      child: SafeArea(
-        child: Row(
-          children: [
-            Expanded(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Total price',
-                    style: AppConstants.fieldLabelStyle.copyWith(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Row(
-                    children: [
-                      Text(
-                        '${widget.currency} $formattedPrice',
-                        style: AppConstants.sectionTitleStyle.copyWith(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      const SizedBox(width: 6),
-                      Container(
-                        width: 20,
-                        height: 20,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          border: Border.all(color: Colors.grey.shade400),
-                        ),
-                        child: const Icon(
-                          Icons.info_outline,
-                          size: 12,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }
 
   void _showReviewDetailsBottomSheet() {
     final flights = <_FlightReviewItem>[];
-
-    flights.add(
-      _FlightReviewItem(
-        title: 'Departure',
-        flight: widget.outboundFlight,
-      ),
-    );
-
-    if (widget.returnFlight != null) {
+    final segments = widget.flight.legSchedules;
+    for (var i = 0; i < segments.length; i++) {
       flights.add(
         _FlightReviewItem(
-          title: 'Return',
-          flight: widget.returnFlight!,
+          title: segments.length > 1 ? 'Flight ${i + 1}' : 'Flight Details',
+          legSchedule: segments[i],
+          flight: widget.flight,
         ),
       );
     }
-
-    if (widget.multicityFlights != null && widget.multicityFlights!.isNotEmpty) {
-      for (var i = 0; i < widget.multicityFlights!.length; i++) {
-        flights.add(
-          _FlightReviewItem(
-            title: 'Flight ${i + 1}',
-            flight: widget.multicityFlights![i],
-          ),
-        );
-      }
-    }
-
     final priceRows = _buildPriceRows();
 
     Get.bottomSheet(
@@ -787,7 +663,7 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
                           child: _FlightReviewCard(item: item),
                         );
                       },
-                      childCount: flights.length,
+                      childCount: segments.length,
                     ),
                   ),
                   if (priceRows.isNotEmpty) ...[
@@ -881,288 +757,102 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
     );
   }
 
-
-
   List<_PriceRow> _buildPriceRows() {
     final rows = <_PriceRow>[];
     final adultCount = widget.bookingController.adults.length;
     final childCount = widget.bookingController.children.length;
     final infantCount = widget.bookingController.infants.length;
+    final totalPassengers = adultCount + childCount + infantCount;
 
-    if (adultCount > 0) {
-      final price = _calculatePassengerPrice(
-        'ADT',
-        widget.outboundFlight,
-        widget.outboundFareOption,
-        widget.returnFlight,
-        widget.returnFareOption,
-        widget.multicityFlights,
-        widget.multicityFareOptions,
-      );
-      final total = (price['total'] ?? 0) * adultCount;
+    if (totalPassengers == 0 || widget.totalPrice <= 0) {
+      return rows;
+    }
+
+    final pricePerPassenger = widget.totalPrice / totalPassengers;
+    final format = NumberFormat('#,##0.##');
+
+    void addRow(String label, int count) {
+      if (count <= 0) return;
+      final total = pricePerPassenger * count;
       rows.add(
         _PriceRow(
-          label: 'Adult (x$adultCount)',
-          value:
-              '${widget.currency} ${NumberFormat('#,##0.##').format(total)}',
-          unitPrice: price['total'] ?? 0,
-          count: adultCount,
+          label: '$label (x$count)',
+          value: '${widget.currency} ${format.format(total)}',
+          unitPrice: pricePerPassenger,
+          count: count,
         ),
       );
     }
 
-    if (childCount > 0) {
-      final price = _calculatePassengerPrice(
-        'CHD',
-        widget.outboundFlight,
-        widget.outboundFareOption,
-        widget.returnFlight,
-        widget.returnFareOption,
-        widget.multicityFlights,
-        widget.multicityFareOptions,
-      );
-      final total = (price['total'] ?? 0) * childCount;
-      rows.add(
-        _PriceRow(
-          label: 'Child (x$childCount)',
-          value: '${widget.currency} ${NumberFormat('#,##0.##').format(total)}',
-          unitPrice: price['total'] ?? 0,
-          count: childCount,
-        ),
-      );
-    }
-
-    if (infantCount > 0) {
-      final price = _calculatePassengerPrice(
-        'INF',
-        widget.outboundFlight,
-        widget.outboundFareOption,
-        widget.returnFlight,
-        widget.returnFareOption,
-        widget.multicityFlights,
-        widget.multicityFareOptions,
-      );
-      final total = (price['total'] ?? 0) * infantCount;
-      rows.add(
-        _PriceRow(
-          label: 'Infant (x$infantCount)',
-          value: '${widget.currency} ${NumberFormat('#,##0.##').format(total)}',
-          unitPrice: price['total'] ?? 0,
-          count: infantCount,
-        ),
-      );
-    }
-
-    // Add seat prices if they exist
-    if (widget.totalSeatPrice > 0) {
-      rows.add(
-        _PriceRow(
-          label: 'Seat Selection',
-          value: '${widget.currency} ${NumberFormat('#,##0.##').format(widget.totalSeatPrice)}',
-          unitPrice: widget.totalSeatPrice,
-          count: 1,
-        ),
-      );
-    }
+    addRow('Adult', adultCount);
+    addRow('Child', childCount);
+    addRow('Infant', infantCount);
 
     return rows;
   }
-}
 
-class _CardBrandRow extends StatelessWidget {
-  final List<String> _logos = const [
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Visa_Logo.png/240px-Visa_Logo.png',
-    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/320px-Mastercard-logo.svg.png',
-    'https://cdn-icons-png.flaticon.com/128/349/349228.png',
-  ];
-
-  const _CardBrandRow();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: _logos
-          .map(
-            (url) => Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: SizedBox(
-                width: 28,
-                height: 20,
-                child: Image.network(
-                  url,
-                  fit: BoxFit.contain,
-                  errorBuilder: (context, error, stackTrace) {
-                    return Image.asset(
-                      'assets/images/payment/placeholder_card.png',
-                      fit: BoxFit.contain,
-                    );
-                  },
-                ),
-              ),
-            ),
-          )
-          .toList(),
-    );
-  }
-}
-
-class _TravelerDisplayItem {
-  final TravelerInfo traveler;
-  final String passengerType;
-  final int index;
-
-  _TravelerDisplayItem({
-    required this.traveler,
-    required this.passengerType,
-    required this.index,
-  });
-}
-
-class _TravellerDetailCard extends StatelessWidget {
-  final _TravelerDisplayItem item;
-  final bool isDomestic;
-
-  const _TravellerDetailCard({
-    required this.item,
-    required this.isDomestic,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final traveler = item.traveler;
-    final title = traveler.titleController.text.trim();
-    final first = traveler.firstNameController.text.trim();
-    final last = traveler.lastNameController.text.trim();
-    final fullName =
-        [title, first, last].where((element) => element.isNotEmpty).join(' ');
-    final documentLabel = isDomestic ? 'CNIC Number' : 'Passport Number';
-    final documentExpiryLabel =
-        isDomestic ? 'CNIC Expiry' : 'Passport Expiry';
-
+  Widget _buildBottomBar(String formattedPrice) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade200),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.02),
+            color: Colors.grey.withOpacity(0.2),
+            spreadRadius: 1,
             blurRadius: 8,
-            offset: const Offset(0, 4),
+            offset: const Offset(0, -2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  fullName.isEmpty ? 'Traveller ${item.index}' : fullName,
-                  style: AppConstants.sectionTitleStyle.copyWith(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+      child: SafeArea(
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Total price',
+                    style: AppConstants.fieldLabelStyle.copyWith(
+                      fontSize: 12,
+                      color: Colors.grey[600],
+                    ),
                   ),
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: TColors.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  item.passengerType,
-                  style: AppConstants.fieldValueStyle.copyWith(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: TColors.primary,
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Text(
+                        '${widget.currency} $formattedPrice',
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      Container(
+                        width: 20,
+                        height: 20,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(color: Colors.grey.shade400),
+                        ),
+                        child: const Icon(
+                          Icons.info_outline,
+                          size: 12,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
+                ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _TravellerInfoRow(
-            label: 'Date of Birth',
-            value: _formatTravellerDate(traveler.dateOfBirthController.text),
-          ),
-          const SizedBox(height: 8),
-          _TravellerInfoRow(
-            label: documentLabel,
-            value: traveler.passportCnicController.text.trim().isEmpty
-                ? '--'
-                : traveler.passportCnicController.text.trim(),
-          ),
-          const SizedBox(height: 8),
-          _TravellerInfoRow(
-            label: documentExpiryLabel,
-            value: _formatTravellerDate(
-              traveler.passportExpiryController.text,
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    );
-  }
-
-  static String _formatTravellerDate(String raw) {
-    if (raw.trim().isEmpty) return '--';
-    try {
-      final parsed = DateTime.parse(raw);
-      return DateFormat('dd.MM.yyyy').format(parsed);
-    } catch (_) {
-      final normalized = raw.replaceAll('/', '-');
-      try {
-        final parsed = DateFormat('dd-MM-yyyy').parse(normalized);
-        return DateFormat('dd.MM.yyyy').format(parsed);
-      } catch (_) {
-        return raw;
-      }
-    }
-  }
-}
-
-class _TravellerInfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _TravellerInfoRow({
-    required this.label,
-    required this.value,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          child: Text(
-            '$label:',
-            style: AppConstants.fieldValueStyle.copyWith(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: TColors.primary,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-            value,
-            style: AppConstants.fieldValueStyle.copyWith(
-              fontSize: 14,
-              color: Colors.black87,
-            ),
-            textAlign: TextAlign.left,
-          ),
-        ),
-      ],
     );
   }
 }
@@ -1334,67 +1024,217 @@ class _StepChip extends StatelessWidget {
   }
 }
 
-class _FlightReviewItem {
-  final String title;
-  final AirBlueFlight flight;
+class _TravelerDisplayItem {
+  final TravelerInfo traveler;
+  final String passengerType;
+  final int index;
 
-  _FlightReviewItem({
-    required this.title,
-    required this.flight,
+  _TravelerDisplayItem({
+    required this.traveler,
+    required this.passengerType,
+    required this.index,
   });
 }
 
-Map<String, double> _calculatePassengerPrice(
-  String passengerType,
-  AirBlueFlight outboundFlight,
-  AirBlueFareOption? outboundFareOption,
-  AirBlueFlight? returnFlight,
-  AirBlueFareOption? returnFareOption,
-  List<AirBlueFlight>? multicityFlights,
-  List<AirBlueFareOption?>? multicityFareOptions,
-) {
-  double base = 0;
-  double tax = 0;
-  double fee = 0;
+class _TravellerDetailCard extends StatelessWidget {
+  final _TravelerDisplayItem item;
+  final bool isDomestic;
 
-  void accumulate(AirBlueFlight? flight) {
-    if (flight?.pnrPricing == null) return;
-    for (final pricing in flight!.pnrPricing!) {
-      if (pricing.passengerType == passengerType) {
-        base += pricing.baseFare;
-        tax += pricing.totalTax;
-        fee += pricing.totalFees;
-        break;
+  const _TravellerDetailCard({
+    required this.item,
+    required this.isDomestic,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final traveler = item.traveler;
+    final title = traveler.titleController.text.trim();
+    final first = traveler.firstNameController.text.trim();
+    final last = traveler.lastNameController.text.trim();
+    final fullName =
+        [title, first, last].where((element) => element.isNotEmpty).join(' ');
+    final documentLabel = isDomestic ? 'CNIC Number' : 'Passport Number';
+    final documentExpiryLabel =
+        isDomestic ? 'CNIC Expiry' : 'Passport Expiry';
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.02),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  fullName.isEmpty ? 'Traveller ${item.index}' : fullName,
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: Colors.black87,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: TColors.primary.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  item.passengerType,
+                  style: AppConstants.fieldValueStyle.copyWith(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: TColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _TravellerInfoRow(
+            label: 'Date of Birth',
+            value: _formatTravellerDate(traveler.dateOfBirthController.text),
+          ),
+          const SizedBox(height: 8),
+          _TravellerInfoRow(
+            label: documentLabel,
+            value: traveler.passportCnicController.text.trim().isEmpty
+                ? '--'
+                : traveler.passportCnicController.text.trim(),
+          ),
+          const SizedBox(height: 8),
+          _TravellerInfoRow(
+            label: documentExpiryLabel,
+            value: _formatTravellerDate(
+              traveler.passportExpiryController.text,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _formatTravellerDate(String raw) {
+    if (raw.trim().isEmpty) return '--';
+    try {
+      final parsed = DateTime.parse(raw);
+      return DateFormat('dd.MM.yyyy').format(parsed);
+    } catch (_) {
+      final normalized = raw.replaceAll('/', '-');
+      try {
+        final parsed = DateFormat('dd-MM-yyyy').parse(normalized);
+        return DateFormat('dd.MM.yyyy').format(parsed);
+      } catch (_) {
+        return raw;
       }
     }
   }
+}
 
-  accumulate(outboundFlight);
-  accumulate(returnFlight);
-  if (multicityFlights != null) {
-    for (final flight in multicityFlights) {
-      accumulate(flight);
-    }
+class _TravellerInfoRow extends StatelessWidget {
+  final String label;
+  final String value;
+
+  const _TravellerInfoRow({
+    required this.label,
+    required this.value,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(
+          child: Text(
+            '$label:',
+            style: AppConstants.fieldValueStyle.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: TColors.primary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            value,
+            style: AppConstants.fieldValueStyle.copyWith(
+              fontSize: 14,
+              color: Colors.black87,
+            ),
+            textAlign: TextAlign.left,
+          ),
+        ),
+      ],
+    );
   }
+}
 
-  if (base == 0 && tax == 0 && fee == 0) {
-    void accumulateFare(AirBlueFareOption? fare) {
-      if (fare == null) return;
-      base += fare.basePrice;
-      tax += fare.taxAmount;
-      fee += fare.feeAmount;
-    }
+class _CardBrandRow extends StatelessWidget {
+  final List<String> _logos = const [
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Visa_Logo.png/240px-Visa_Logo.png',
+    'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/Mastercard-logo.svg/320px-Mastercard-logo.svg.png',
+    'https://cdn-icons-png.flaticon.com/128/349/349228.png',
+  ];
 
-    accumulateFare(outboundFareOption);
-    accumulateFare(returnFareOption);
-    if (multicityFareOptions != null) {
-      for (final fare in multicityFareOptions) {
-        accumulateFare(fare);
-      }
-    }
+  const _CardBrandRow();
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: _logos
+          .map(
+            (url) => Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              child: SizedBox(
+                width: 28,
+                height: 20,
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Image.asset(
+                      'assets/images/payment/placeholder_card.png',
+                      fit: BoxFit.contain,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const SizedBox.shrink();
+                      },
+                    );
+                  },
+                ),
+              ),
+            ),
+          )
+          .toList(),
+    );
   }
+}
 
-  return {'base': base, 'tax': tax, 'fee': fee, 'total': base + tax + fee};
+class _FlightReviewItem {
+  final String title;
+  final Map<String, dynamic> legSchedule;
+  final SabreFlight flight;
+
+  _FlightReviewItem({
+    required this.title,
+    required this.legSchedule,
+    required this.flight,
+  });
 }
 
 class _FlightReviewCard extends StatelessWidget {
@@ -1404,23 +1244,27 @@ class _FlightReviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final firstLeg = item.flight.legSchedules.first;
-    final lastLeg = item.flight.legSchedules.last;
-    final departureDateTime = DateTime.parse(firstLeg['departure']['dateTime']);
-    final arrivalDateTime = DateTime.parse(lastLeg['arrival']['dateTime']);
-    final duration = arrivalDateTime.difference(departureDateTime);
+    final departure = item.legSchedule['departure'] as Map<String, dynamic>;
+    final arrival = item.legSchedule['arrival'] as Map<String, dynamic>;
+    final schedules =
+        (item.legSchedule['schedules'] as List<dynamic>? ?? <dynamic>[]);
+    final carrier = schedules.isNotEmpty
+        ? schedules.first['carrier'] as Map<String, dynamic>? ?? {}
+        : <String, dynamic>{};
+
+    final departureTime = DateTime.parse(departure['dateTime']);
+    final arrivalTime = DateTime.parse(arrival['dateTime']);
+    final duration = arrivalTime.difference(departureTime);
     final durationText =
         '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
-    final airlineName = item.flight.airlineName;
+    final airlineName = item.flight.airline;
     String flightNumber = '';
-    final schedules = firstLeg['schedules'] as List<dynamic>?;
-    if (schedules != null &&
-        schedules.isNotEmpty &&
-        schedules.first['carrier'] != null) {
-      final carrier = schedules.first['carrier'] as Map<String, dynamic>;
+    if (carrier.isNotEmpty) {
       final marketing = carrier['marketing']?.toString() ?? '';
       final marketingNumber = carrier['marketingFlightNumber']?.toString() ?? '';
       flightNumber = '$marketing$marketingNumber'.trim();
+    } else {
+      flightNumber = item.flight.flightNumber;
     }
 
     return Container(
@@ -1451,10 +1295,8 @@ class _FlightReviewCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left side - Timeline
               Column(
                 children: [
-                  // Top circle
                   Container(
                     width: 10,
                     height: 10,
@@ -1464,13 +1306,11 @@ class _FlightReviewCard extends StatelessWidget {
                       border: Border.all(color: TColors.primary, width: 2),
                     ),
                   ),
-                  // Vertical line
                   Container(
                     width: 2,
                     height: 40,
                     color: Colors.grey.shade300,
                   ),
-                  // Airplane icon in circle
                   Container(
                     width: 32,
                     height: 32,
@@ -1478,19 +1318,17 @@ class _FlightReviewCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       color: TColors.primary.withOpacity(0.1),
                     ),
-                    child: Icon(
+                    child: const Icon(
                       Icons.flight,
                       size: 18,
                       color: TColors.primary,
                     ),
                   ),
-                  // Vertical line
                   Container(
                     width: 2,
                     height: 40,
                     color: Colors.grey.shade300,
                   ),
-                  // Bottom circle
                   Container(
                     width: 10,
                     height: 10,
@@ -1503,12 +1341,10 @@ class _FlightReviewCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(width: 16),
-              // Right side - Flight details
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Departure info
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -1516,7 +1352,7 @@ class _FlightReviewCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              DateFormat('hh:mm a').format(departureDateTime),
+                              DateFormat('hh:mm a').format(departureTime),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -1525,7 +1361,7 @@ class _FlightReviewCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              DateFormat('EEE, dd MMM').format(departureDateTime),
+                              DateFormat('EEE, dd MMM').format(departureTime),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
@@ -1534,7 +1370,7 @@ class _FlightReviewCard extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          firstLeg['departure']['airport'],
+                          departure['airport'],
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -1544,7 +1380,6 @@ class _FlightReviewCard extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Duration and airline info
                     Row(
                       children: [
                         Text(
@@ -1556,40 +1391,29 @@ class _FlightReviewCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 16),
                         Container(
-                          width: 24,
-                          height: 24,
+                          width: 32,
+                          height: 32,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: Colors.grey.shade100,
                           ),
                           child: ClipOval(
-                            child: Image.network(
-                              'https://images.kiwi.com/airlines/64/PA.png',
-                              width: 24,
-                              height: 24,
-                              fit: BoxFit.cover,
-                              errorBuilder: (context, error, stackTrace) {
-                                return Icon(
-                                  Icons.airplanemode_active,
-                                  size: 14,
-                                  color: TColors.primary,
-                                );
-                              },
-                            ),
+                            child: _buildAirlineLogo(item.flight.imgPath),
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          '$airlineName $flightNumber',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey[700],
+                        Expanded(
+                          child: Text(
+                            '$airlineName $flightNumber',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[700],
+                            ),
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
-                    // Arrival info
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
@@ -1597,7 +1421,7 @@ class _FlightReviewCard extends StatelessWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              DateFormat('hh:mm a').format(arrivalDateTime),
+                              DateFormat('hh:mm a').format(arrivalTime),
                               style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w600,
@@ -1606,7 +1430,7 @@ class _FlightReviewCard extends StatelessWidget {
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              DateFormat('EEE, dd MMM').format(arrivalDateTime),
+                              DateFormat('EEE, dd MMM').format(arrivalTime),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey[600],
@@ -1615,7 +1439,7 @@ class _FlightReviewCard extends StatelessWidget {
                           ],
                         ),
                         Text(
-                          lastLeg['arrival']['airport'],
+                          arrival['airport'],
                           style: TextStyle(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
@@ -1630,6 +1454,40 @@ class _FlightReviewCard extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildAirlineLogo(String path) {
+    if (path.isEmpty) {
+      return const Icon(
+        Icons.airplanemode_active,
+        size: 18,
+        color: TColors.primary,
+      );
+    }
+    if (path.startsWith('http')) {
+      return Image.network(
+        path,
+        width: 32,
+        height: 32,
+        fit: BoxFit.cover,
+        errorBuilder: (_, __, ___) => const Icon(
+          Icons.airplanemode_active,
+          size: 18,
+          color: TColors.primary,
+        ),
+      );
+    }
+    return Image.asset(
+      path,
+      width: 32,
+      height: 32,
+      fit: BoxFit.cover,
+      errorBuilder: (_, __, ___) => const Icon(
+        Icons.airplanemode_active,
+        size: 18,
+        color: TColors.primary,
       ),
     );
   }
@@ -1657,7 +1515,7 @@ class _LocationColumn extends StatelessWidget {
         Text(
           time,
           style: const TextStyle(
-            fontSize: 18,
+            fontSize: 16,
             fontWeight: FontWeight.w700,
             color: Colors.black87,
           ),

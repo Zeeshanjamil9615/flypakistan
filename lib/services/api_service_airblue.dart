@@ -216,12 +216,12 @@ class AirBlueFlightApiService {
       );
 
       // Convert XML to JSON using xml2json package
-      // final xmlResponse = response.data.toString();
-      // final jsonResponse = _convertXmlToJson(xmlResponse);
+      final xmlResponse = response.data.toString();
+      final jsonResponse = _convertXmlToJson(xmlResponse);
 
-      // printDebugData('Air Blue Response', xmlResponse);
+      printDebugData('Air Blue Response', xmlResponse);
 
-      // printJsonPretty(jsonResponse);
+      printJsonPretty(jsonResponse);
 
       // // Log the response (matching PHP format)
       // await _logResponse(response.data.toString(), 'Shopping_response');

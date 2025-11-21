@@ -625,7 +625,7 @@ class _SabreFlightBookingDetailsScreenState
                   children: [
                     _buildInfoRow(
                       'PNR',
-                      widget.pnrResponse?['CreatePassengerNameRecordRS']?['ItineraryRef']?['ID'] ?? widget.pnrResponse?['order']['pnrLocator'] ?? "",
+                      _getPnrNumber(),
                       Icons.airplane_ticket_outlined,
                     ),
                     const SizedBox(height: 12),
@@ -642,6 +642,41 @@ class _SabreFlightBookingDetailsScreenState
         ),
       ),
     );
+  }
+
+  String _getPnrNumber() {
+    if (widget.pnrResponse == null) {
+      return 'Pending';
+    }
+    
+    try {
+      // Try to get PNR from standard response structure
+      final pnrData = widget.pnrResponse!['CreatePassengerNameRecordRS'];
+      if (pnrData != null) {
+        final itineraryRef = pnrData['ItineraryRef'];
+        if (itineraryRef != null && itineraryRef['ID'] != null) {
+          return itineraryRef['ID'].toString();
+        }
+      }
+      
+      // Try to get PNR from NDC response structure
+      final order = widget.pnrResponse!['order'];
+      if (order != null && order['pnrLocator'] != null) {
+        return order['pnrLocator'].toString();
+      }
+      
+      // If PNR creation failed but response exists, check status
+      if (pnrData != null) {
+        final appResults = pnrData['ApplicationResults'];
+        if (appResults != null && appResults['status'] == 'Incomplete') {
+          return 'Pending - PNR creation in progress';
+        }
+      }
+      
+      return 'Pending';
+    } catch (e) {
+      return 'Pending';
+    }
   }
 
   Widget _buildInfoRow(String label, String value, IconData icon) {
@@ -1773,7 +1808,7 @@ class _SabreFlightBookingDetailsScreenState
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'PNR: ${widget.pnrResponse?['CreatePassengerNameRecordRS']?['ItineraryRef']?['ID'] ?? widget.pnrResponse?['order']?['pnrLocator'] ?? 'N/A'}',
+                      'PNR: ${_getPnrNumber()}',
                       style: pw.TextStyle(
                         fontWeight: pw.FontWeight.bold,
                         fontSize: 10,

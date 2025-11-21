@@ -6,6 +6,7 @@ import '../../../../../utility/colors.dart';
 import '../../../../../widgets/snackbar.dart';
 import '../../../../../widgets/travelers_selection_bottom_sheet.dart';
 
+import '../../../booking_flight/airblue/airblue_booking_flight.dart';
 import '../../../form/controllers/flight_date_controller.dart';
 import '../../review_flight/sabre_review_flight.dart';
 import '../../sabre/sabre_flight_controller.dart';
@@ -672,13 +673,17 @@ class SabrePackageSelectionDialog extends StatelessWidget {
             'offerId': offerId,
             'offerItemId': offerItemID
           };
-          // Handle NDC response
-          Get.to(() => ReviewTripPage(
-            isMulti: false,
-            flight: flight,
-            pricingInformation: pricingInformation,
-            isNDC: true,
-          ));
+          final ndcTotalPrice =
+              double.tryParse(totalAmount) ?? flight.packages[selectedPackageIndex].totalPrice;
+          final ndcCurrency =
+              totalCurrency.isNotEmpty ? totalCurrency : flight.packages[selectedPackageIndex].currency;
+
+          Get.to(() => AirBlueBookingFlight.forSabre(
+                sabreFlight: flight,
+                totalPrice: ndcTotalPrice,
+                currency: ndcCurrency,
+                revalidatePricing: pricingInformation,
+              ));
         } else {
           // Handle standard response
           final validateBasicCode = flightController
@@ -686,15 +691,26 @@ class SabrePackageSelectionDialog extends StatelessWidget {
           final basicCode = flight.legSchedules.first['fareBasisCode'];
 
           if (validateBasicCode == basicCode) {
-            Get.to(() => ReviewTripPage(
-              isMulti: false,
-              flight: flight,
-              pricingInformation: flightController
-                  .availabilityFlights
-                  .first
-                  .pricingInforArray[selectedPackageIndex],
-              isNDC: false,
-            ));
+            final pricingInformation = flightController
+                .availabilityFlights
+                .first
+                .pricingInforArray[selectedPackageIndex];
+
+            final derivedTotalPrice = _extractTotalPriceFromPricing(
+              pricingInformation,
+              flight.packages[selectedPackageIndex].totalPrice,
+            );
+            final derivedCurrency = _extractCurrencyFromPricing(
+              pricingInformation,
+              flight.packages[selectedPackageIndex].currency,
+            );
+
+            Get.to(() => AirBlueBookingFlight.forSabre(
+                  sabreFlight: flight,
+                  totalPrice: derivedTotalPrice,
+                  currency: derivedCurrency,
+                  revalidatePricing: pricingInformation,
+                ));
           } else {
             CustomSnackBar(
               message: 'Basic Flight Code Not Matched',
@@ -718,5 +734,97 @@ class SabrePackageSelectionDialog extends StatelessWidget {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  double _extractTotalPriceFromPricing(
+      dynamic pricingInformation, double fallbackPrice) {
+    if (pricingInformation is! Map<String, dynamic>) return fallbackPrice;
+
+    try {
+      final fare = pricingInformation['fare'];
+      if (fare is Map<String, dynamic>) {
+        final totalFare = fare['totalFare'];
+        if (totalFare is Map<String, dynamic>) {
+          final priceValue =
+              totalFare['totalPrice'] ?? totalFare['amount'] ?? totalFare['value'];
+          final parsedPrice = double.tryParse(priceValue?.toString() ?? '');
+          if (parsedPrice != null && parsedPrice > 0) {
+            return parsedPrice;
+          }
+        }
+
+        final passengerInfoList = fare['passengerInfoList'];
+        if (passengerInfoList is List) {
+          double sum = 0;
+          for (final passengerInfo in passengerInfoList) {
+            final passenger =
+                (passengerInfo as Map<String, dynamic>)['passengerInfo'];
+            final passengerTotalFare =
+                (passenger ?? const {})['passengerTotalFare'];
+            final totalFareValue =
+                (passengerTotalFare ?? const {})['totalFare'] ?? passengerTotalFare?['fareTotal'];
+            final parsed = double.tryParse(totalFareValue?.toString() ?? '');
+            if (parsed != null) {
+              sum += parsed;
+            }
+          }
+          if (sum > 0) {
+            return sum;
+          }
+        }
+      }
+
+      final totalAmount = pricingInformation['totalAmount'];
+      final parsedTotalAmount = double.tryParse(totalAmount?.toString() ?? '');
+      if (parsedTotalAmount != null && parsedTotalAmount > 0) {
+        return parsedTotalAmount;
+      }
+    } catch (_) {
+      // Ignore parsing errors and use fallback
+    }
+
+    return fallbackPrice;
+  }
+
+  String _extractCurrencyFromPricing(
+      dynamic pricingInformation, String fallbackCurrency) {
+    if (pricingInformation is! Map<String, dynamic>) return fallbackCurrency;
+
+    try {
+      final fare = pricingInformation['fare'];
+      if (fare is Map<String, dynamic>) {
+        final totalFare = fare['totalFare'];
+        if (totalFare is Map<String, dynamic>) {
+          final currency =
+              totalFare['currency'] ?? totalFare['curCode'] ?? totalFare['code'];
+          if (currency is String && currency.isNotEmpty) {
+            return currency;
+          }
+        }
+
+        final passengerInfoList = fare['passengerInfoList'];
+        if (passengerInfoList is List && passengerInfoList.isNotEmpty) {
+          final passenger =
+              (passengerInfoList.first as Map<String, dynamic>)['passengerInfo'];
+          final passengerTotalFare =
+              (passenger ?? const {})['passengerTotalFare'];
+          final currency = passengerTotalFare?['currency'] ??
+              passengerTotalFare?['curCode'] ??
+              passengerTotalFare?['code'];
+          if (currency is String && currency.isNotEmpty) {
+            return currency;
+          }
+        }
+      }
+
+      final totalCurrency = pricingInformation['totalCurrency'];
+      if (totalCurrency is String && totalCurrency.isNotEmpty) {
+        return totalCurrency;
+      }
+    } catch (_) {
+      // Ignore parsing errors and use fallback
+    }
+
+    return fallbackCurrency;
   }
 }

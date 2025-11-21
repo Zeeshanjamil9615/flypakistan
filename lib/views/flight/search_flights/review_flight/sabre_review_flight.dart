@@ -4,7 +4,7 @@ import 'dart:async';
 
 import '../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
-import '../../booking_flight/sabre/sabre_booking_flight.dart';
+import '../../booking_flight/airblue/airblue_booking_flight.dart';
 import '../sabre/sabre_flight_models.dart';
 import '../search_flight_utils/widgets/sabre_flight_card.dart';
 
@@ -331,7 +331,12 @@ class ReviewTripPageState extends State<ReviewTripPage> {
                     width: 200,
                     child: ElevatedButton(
                       onPressed: () {
-                        Get.to(() => SabreBookingForm(flight: widget.flight, revalidatePricing:widget.pricingInformation));
+                        Get.to(() => AirBlueBookingFlight.forSabre(
+                          sabreFlight: widget.flight,
+                          totalPrice: widget.flight.price,
+                          currency: 'PKR',
+                          revalidatePricing: widget.pricingInformation,
+                        ));
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: TColors.primary,

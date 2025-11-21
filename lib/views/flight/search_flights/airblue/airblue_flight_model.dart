@@ -430,14 +430,14 @@ class AirBlueFlight {
           'departure': {
             'airport': departure['LocationCode'] ?? '',
             'city': _getCityName(departure['LocationCode']?.toString() ?? ''),
-            'terminal': 'Main', // Default terminal
+            'terminal': '1', // Default terminal
             'time': departureDateTime,
             'dateTime': departureDateTime,
           },
           'arrival': {
             'airport': arrival['LocationCode'] ?? '',
             'city': _getCityName(arrival['LocationCode']?.toString() ?? ''),
-            'terminal': 'Main', // Default terminal
+            'terminal': '1', // Default terminal
             'time': arrivalDateTime,
             'dateTime': arrivalDateTime,
           },
@@ -452,13 +452,13 @@ class AirBlueFlight {
               },
               'departure': {
                 'airport': departure['LocationCode'] ?? '',
-                'terminal': 'Main',
+                'terminal': '1',
                 'time': departureDateTime,
                 'dateTime': departureDateTime,
               },
               'arrival': {
                 'airport': arrival['LocationCode'] ?? '',
-                'terminal': 'Main',
+                'terminal': '1',
                 'time': arrivalDateTime,
                 'dateTime': arrivalDateTime,
               },
@@ -493,13 +493,13 @@ class AirBlueFlight {
           },
           'departure': {
             'airport': departure['LocationCode'] ?? '',
-            'terminal': 'Main',
+            'terminal': '1',
             'time': flightSegment['DepartureDateTime'] ?? '',
             'dateTime': flightSegment['DepartureDateTime'] ?? '',
           },
           'arrival': {
             'airport': arrival['LocationCode'] ?? '',
-            'terminal': 'Main',
+            'terminal': '1',
             'time': flightSegment['ArrivalDateTime'] ?? '',
             'dateTime': flightSegment['ArrivalDateTime'] ?? '',
           },
