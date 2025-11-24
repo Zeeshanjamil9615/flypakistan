@@ -1,10 +1,15 @@
 // air_arabia_revalidation_controller.dart
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/services/api_service_airarabia.dart';
 import 'package:ready_flights/views/flight/search_flights/airarabia/validation_data/validation_model.dart';
 
 class AirArabiaRevalidationController extends GetxController {
   final ApiServiceAirArabia _apiService = Get.find<ApiServiceAirArabia>();
+  
+  // Conversion rate from AED to PKR (can be updated later)
+  static const double conversionRate = 76.0;
+  
   final RxInt adultPassengers = 1.obs;
   final RxInt childPassengers = 0.obs;
   final RxInt infantPassengers = 0.obs;
@@ -37,6 +42,7 @@ final RxDouble flightPrice = 0.0.obs;
   final RxDouble basePrice = 0.0.obs;
   final RxDouble totalExtrasPrice = 0.0.obs;
   final RxString currency = 'PKR'.obs;
+  Map<String, dynamic>? lastRevalidationArgs;
 
   @override
   void onInit() {
@@ -51,6 +57,7 @@ final RxDouble flightPrice = 0.0.obs;
   }
 
   Future<void> _autoRevalidate(Map<String, dynamic> args) async {
+    lastRevalidationArgs = Map<String, dynamic>.from(args);
     // Set passenger count from arguments
    final adults = args['adult'] ?? 1;
   final children = args['child'] ?? 0;
@@ -107,6 +114,25 @@ final RxDouble flightPrice = 0.0.obs;
     required int csId,
   }) async {
     try {
+      lastRevalidationArgs = {
+        'type': type,
+        'adult': adult,
+        'child': child,
+        'infant': infant,
+        'sector': sector,
+        'fare': fare,
+        'csId': csId,
+      };
+      
+      // Set passenger counts before making the API call
+      adultPassengers.value = adult;
+      childPassengers.value = child;
+      infantPassengers.value = infant;
+      totalPassengers.value = adult + child + infant;
+      
+      // Initialize passenger IDs for add-ons selection
+      _initializePassengerIds();
+      
       isLoading.value = true;
       errorMessage.value = '';
 
@@ -160,7 +186,13 @@ final RxDouble flightPrice = 0.0.obs;
     // Process extras as before...
     _processBaggageOptions(data.extras.baggage);
     _processMealOptions(data.extras.meal);
-    _processSeatOptions(data.extras.seat);
+    if (data.extras.seat != null) {
+      _processSeatOptions(data.extras.seat!);
+    } else {
+      debugPrint('⚠️ WARNING: Seat data is null in revalidation response');
+      availableSeats.clear();
+      seatsBySegment.clear();
+    }
     
   } catch (e) {
     print('Error processing response data: $e');
@@ -179,7 +211,22 @@ void _processBaggageOptions(BaggageInfo baggageInfo) {
     baggageBySegment.clear();
     
     for (final response in onDBaggageResponses) {
-      final baggageOptions = response.baggage;
+      final rawBaggageOptions = response.baggage;
+      
+      // Convert baggage prices from AED to PKR
+      final baggageOptions = rawBaggageOptions.map((bag) {
+        if (bag.currencyCode == 'AED') {
+          final chargeInAED = double.tryParse(bag.baggageCharge) ?? 0.0;
+          final chargeInPKR = chargeInAED;
+          return BaggageOption(
+            baggageCode: bag.baggageCode,
+            baggageDescription: bag.baggageDescription,
+            baggageCharge: chargeInPKR.toStringAsFixed(2),
+            currencyCode: 'PKR',
+          );
+        }
+        return bag;
+      }).toList();
       
       // Use the helper method to get segments
       final segments = response.getSegments();
@@ -288,7 +335,30 @@ List<FlightSegmentInfo> getFlightSegments() {
             response.flightSegmentInfo.attributes['RPH']?.toString() ??
             'segment_${mealResponses.indexOf(response)}';
 
-        final meals = response.meals;
+        final rawMeals = response.meals;
+        
+        // Convert meal prices from AED to PKR
+        final meals = rawMeals.map((meal) {
+          if (meal.currencyCode == 'AED') {
+            final chargeInAED = double.tryParse(meal.mealCharge) ?? 0.0;
+            final chargeInPKR = chargeInAED * conversionRate;
+            return MealOption(
+              mealCode: meal.mealCode,
+              mealDescription: meal.mealDescription,
+              mealCharge: chargeInPKR.toStringAsFixed(2),
+              mealName: meal.mealName,
+              defaultMeal: meal.defaultMeal,
+              availableMeals: meal.availableMeals,
+              soldMeals: meal.soldMeals,
+              allocatedMeals: meal.allocatedMeals,
+              mealImageLink: meal.mealImageLink,
+              mealCategoryCode: meal.mealCategoryCode,
+              currencyCode: 'PKR',
+            );
+          }
+          return meal;
+        }).toList();
+        
         mealsBySegment[segmentCode] = meals;
         availableMeals.addAll(meals);
       }
@@ -302,6 +372,8 @@ List<FlightSegmentInfo> getFlightSegments() {
   void _processSeatOptions(SeatInfo seatInfo) {
     try {
       final seatResponses = seatInfo.body.otaAirSeatMapRS.seatMapResponses.seatMapResponse;
+      
+      debugPrint('🔍 Processing seat options - Responses count: ${seatResponses.length}');
 
       availableSeats.clear();
       seatsBySegment.clear();
@@ -312,11 +384,15 @@ List<FlightSegmentInfo> getFlightSegments() {
             'segment_${seatResponses.indexOf(response)}';
 
         final seats = _extractSeatsFromResponse(response);
+        debugPrint('🔍 Segment $segmentCode - Extracted ${seats.length} available seats');
         seatsBySegment[segmentCode] = seats;
         availableSeats.addAll(seats);
       }
+      
+      debugPrint('🔍 Total available seats across all segments: ${availableSeats.length}');
     } catch (e) {
       print('Error processing seat options: $e');
+      print('Stack trace: ${StackTrace.current}');
       availableSeats.clear();
       seatsBySegment.clear();
     }
@@ -327,28 +403,45 @@ List<FlightSegmentInfo> getFlightSegments() {
 
     try {
       final airRows = response.seatMapDetails.cabinClass.airRows.airRow;
+      debugPrint('🔍 Extracting seats - Total rows: ${airRows.length}');
+
+      int totalSeatsProcessed = 0;
+      int availableSeatsCount = 0;
 
       for (final row in airRows) {
         final rowNumber = row.attributes['RowNumber']?.toString() ?? '';
         final airSeats = row.airSeats.airSeat;
 
         for (final airSeat in airSeats) {
+          totalSeatsProcessed++;
           final seatAvailability = airSeat.attributes['SeatAvailability']?.toString() ?? '';
           final seatLetter = airSeat.attributes['SeatNumber']?.toString() ?? '';
           final seatNumber = '$rowNumber$seatLetter';
 
           if (seatAvailability == 'VAC' || seatAvailability == 'Available') {
+            availableSeatsCount++;
+            final rawCharge = double.tryParse(airSeat.attributes['SeatCharacteristics']?.toString() ?? '0') ?? 0.0;
+            final currencyCode = airSeat.attributes['CurrencyCode']?.toString() ?? 'AED';
+            // Convert AED to PKR using conversion rate
+            final seatChargeInPKR = currencyCode == 'AED' ? rawCharge * conversionRate : rawCharge;
+            
             seats.add(SeatOption(
               seatNumber: seatNumber,
-              seatCharge: double.tryParse(airSeat.attributes['SeatCharacteristics']?.toString() ?? '0') ?? 0.0,
-              currencyCode: airSeat.attributes['CurrencyCode']?.toString() ?? 'PKR',
+              seatCharge: seatChargeInPKR,
+              currencyCode: 'PKR',
               seatAvailability: seatAvailability,
             ));
           }
         }
       }
+      
+      debugPrint('🔍 Seat extraction - Total processed: $totalSeatsProcessed, Available: $availableSeatsCount');
+      if (totalSeatsProcessed > 0 && availableSeatsCount == 0) {
+        debugPrint('⚠️ WARNING: Seats found but none are available. Check seatAvailability values.');
+      }
     } catch (e) {
       print('Error extracting seats: $e');
+      print('Stack trace: ${StackTrace.current}');
     }
 
     return seats;
@@ -477,6 +570,7 @@ List<FlightSegmentInfo> getFlightSegments() {
     revalidationResponse.value = null;
     availableBaggage.clear();
     baggageBySegment.clear();
+    lastRevalidationArgs = null;
     availableMeals.clear();
     mealsBySegment.clear();
     availableSeats.clear();
@@ -490,6 +584,27 @@ List<FlightSegmentInfo> getFlightSegments() {
     totalExtrasPrice.value = 0.0;
     currency.value = 'PKR';
     errorMessage.value = '';
+  }
+
+  void configurePassengers({
+    required int adults,
+    required int children,
+    required int infants,
+  }) {
+    adultPassengers.value = adults;
+    childPassengers.value = children;
+    infantPassengers.value = infants;
+    totalPassengers.value = adults + children + infants;
+    _initializePassengerIds();
+  }
+
+  void setPricing({
+    required double flightPriceValue,
+    required double packagePriceValue,
+  }) {
+    flightPrice.value = flightPriceValue;
+    packagePrice.value = packagePriceValue;
+    basePrice.value = flightPriceValue + packagePriceValue;
   }
 
   Map<String, dynamic> getBookingSummary() {

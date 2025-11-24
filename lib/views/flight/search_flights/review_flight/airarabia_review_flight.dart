@@ -4,7 +4,7 @@ import 'dart:async';
 
 import '../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
-import '../../booking_flight/airarabia/airarabia_booking_flight.dart';
+import '../../booking_flight/airblue/airblue_booking_flight.dart';
 import '../airarabia/airarabia_flight_model.dart';
 import '../airarabia/airarabia_flight_controller.dart';
 import '../airarabia/validation_data/validation_controller.dart';
@@ -308,15 +308,27 @@ class AirArabiaReviewTripPageState extends State<AirArabiaReviewTripPage> {
                           flightPrice +
                           packagePrice +
                           revalidationController.totalExtrasPrice.value;
+                      final revalidationArgs =
+                          revalidationController.lastRevalidationArgs;
+                      if (revalidationArgs == null) {
+                        Get.snackbar(
+                          'Error',
+                          'Unable to continue: revalidation data missing.',
+                          backgroundColor: Colors.red,
+                          colorText: Colors.white,
+                          snackPosition: SnackPosition.TOP,
+                        );
+                        return;
+                      }
                       Get.to(
-                        () => AirArabiaBookingFlight(
+                        () => AirBlueBookingFlight.forAirArabia(
                           flight: widget.flight,
                           selectedPackage: widget.selectedPackage,
                           totalPrice: totalAmount,
                           currency: currency,
-                          // Pass the booking summary with all selected extras
                           extrasData:
                               revalidationController.getBookingSummary(),
+                          revalidationArgs: revalidationArgs,
                         ),
                       );
                     },

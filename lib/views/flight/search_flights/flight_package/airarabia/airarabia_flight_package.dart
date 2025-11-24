@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/views/flight/booking_flight/booking_flight_controller.dart';
 import 'package:ready_flights/views/flight/form/flight_booking_controller.dart';
+import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_booking_flight.dart';
 import 'package:ready_flights/views/flight/search_flights/airarabia/validation_data/validation.dart';
 
 import '../../../../../services/api_service_airarabia.dart';
@@ -840,7 +841,7 @@ class _AirArabiaPackageSelectionDialogState extends State<AirArabiaPackageSelect
           ? 0.0
           : apiService.calculatePriceWithMargin(selectedPackage.basePrice, marginData.value);
 
-      Get.to(() => AirArabiaRevalidationScreen(), arguments: {
+      final revalidationArgs = {
         'type': tripType,
         'adult': bookingController.adults.length,
         'child': bookingController.children.length,
@@ -848,11 +849,22 @@ class _AirArabiaPackageSelectionDialogState extends State<AirArabiaPackageSelect
         'sector': sector,
         'fare': fare,
         'csId': 15,
-        'selectedPackage': selectedPackage,
-        'selectedFlight': widget.flight,
         'packagePrice': marginedPackagePrice,
         'flightPrice': widget.flight.price,
-      });
+      };
+
+      final totalPrice = widget.flight.price + marginedPackagePrice;
+
+      Get.to(
+        () => AirBlueBookingFlight.forAirArabia(
+          flight: widget.flight,
+          selectedPackage: selectedPackage,
+          totalPrice: totalPrice,
+          currency: widget.flight.currency,
+          extrasData: null,
+          revalidationArgs: revalidationArgs,
+        ),
+      );
 
     } catch (e) {
       Get.snackbar(

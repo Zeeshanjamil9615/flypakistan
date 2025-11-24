@@ -145,7 +145,7 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
   }
 
   void initializeTripType() {
-    setTripType(TripType.roundTrip);
+    setTripType(TripType.oneWay);
   }
 
   void initializeCityPairs() {
