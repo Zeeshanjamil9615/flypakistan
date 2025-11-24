@@ -1091,8 +1091,7 @@ class _SabreBookingFormState extends State<SabreBookingForm> {
 
   @override
   void dispose() {
-    bookingController.dispose();
-    travelersController.dispose();
+    bookingController.resetForm();
     super.dispose();
   }
 }

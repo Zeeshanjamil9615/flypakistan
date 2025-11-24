@@ -196,6 +196,8 @@ class FlydubaiExtrasController extends GetxController {
 
           // Filter for baggage-related offers
           if (offerCode.contains('BAG') || offerCode.contains('BUP')) {
+            final quantityAvailable = (offer['quantityAvailable'] as num?)?.toInt() ?? 0;
+            
             baggageOptions.add({
               'id': offerCode,
               'description': description,
@@ -203,6 +205,8 @@ class FlydubaiExtrasController extends GetxController {
               'charge': amount,
               'currency': currency,
               'offerID': offer['offerID']?.toString() ?? '',
+              'quantityAvailable': quantityAvailable,
+              'hashCode': offer['hashCode']?.toString() ?? '',
             });
           }
         }
@@ -454,6 +458,98 @@ class FlydubaiExtrasController extends GetxController {
     final flight = selectedFlight.value;
     if (flight == null) return ['0'];
     return [flight.flightSegment.lfid.toString()];
+  }
+
+  /// Gets the fare baggage code based on fare type name
+  /// Returns: 'BAGB' (20kg), 'BAGL' (30kg), 'BAGX' (40kg), or null (no baggage/LITE)
+  String? getFareBaggageCode() {
+    final fare = selectedFare.value;
+    if (fare == null) return null;
+    
+    final fareTypeName = fare.fareTypeName.toUpperCase();
+    
+    // Map fare types to baggage codes
+    switch (fareTypeName) {
+      case 'VALUE':
+        return 'BAGB'; // 20kg
+      case 'FLEX':
+        return 'BAGL'; // 30kg
+      case 'BUSINESS':
+        return 'BAGX'; // 40kg
+      case 'LITE':
+      default:
+        return null; // No baggage included
+    }
+  }
+
+  /// Filters baggage options based on fare baggage code
+  /// Logic matches web implementation:
+  /// - If fare has BAGL (30kg): show only BUPZ (10kg upgrade)
+  /// - If fare has BAGB (20kg): show only BUPL or BUPX (10kg or 20kg upgrade)
+  /// - Otherwise (no baggage): show BAGB, BAGL, or BAGX (20kg, 30kg, 40kg allowance)
+  List<dynamic> getFilteredBaggageOptions() {
+    final fareBagCode = getFareBaggageCode();
+    final allBaggage = availableBaggage;
+    
+    if (fareBagCode == 'BAGL') {
+      // Show only BUPZ (10kg upgrade)
+      return allBaggage.where((bag) {
+        final code = bag['id']?.toString() ?? '';
+        return code == 'BUPZ';
+      }).toList();
+    } else if (fareBagCode == 'BAGB') {
+      // Show only BUPL or BUPX (10kg or 20kg upgrade)
+      return allBaggage.where((bag) {
+        final code = bag['id']?.toString() ?? '';
+        return code == 'BUPL' || code == 'BUPX';
+      }).toList();
+    } else {
+      // Show BAGB, BAGL, or BAGX (20kg, 30kg, 40kg allowance)
+      return allBaggage.where((bag) {
+        final code = bag['id']?.toString() ?? '';
+        return code == 'BAGB' || code == 'BAGL' || code == 'BAGX';
+      }).toList();
+    }
+  }
+
+  /// Extracts weight from baggage description
+  /// Returns weight in kg as int, or 999 if not found (for sorting)
+  int _extractWeightFromDescription(String description) {
+    final match = RegExp(r'(\d+)\s*kg', caseSensitive: false).firstMatch(description);
+    if (match != null) {
+      return int.tryParse(match.group(1) ?? '0') ?? 999;
+    }
+    return 999; // Sort items without weight to the end
+  }
+
+  /// Gets filtered and sorted baggage options
+  List<dynamic> getFilteredAndSortedBaggageOptions() {
+    final filtered = getFilteredBaggageOptions();
+    
+    // Filter out items with quantity 0 or invalid (matching web logic)
+    final validBaggage = filtered.where((bag) {
+      // Check quantity available (web checks quantity != '0')
+      final quantity = bag['quantityAvailable'] as int? ?? 0;
+      if (quantity == 0) return false;
+      
+      // Check if charge is valid
+      final charge = double.tryParse(bag['charge']?.toString() ?? '0') ?? 0.0;
+      final description = (bag['description'] ?? '').toString().toLowerCase();
+      
+      // Filter out "No Bag" options
+      if (description.contains('no bag')) return false;
+      
+      return true;
+    }).toList();
+    
+    // Sort by weight extracted from description (20kg, 30kg, 40kg order)
+    validBaggage.sort((a, b) {
+      final weightA = _extractWeightFromDescription(a['description']?.toString() ?? '');
+      final weightB = _extractWeightFromDescription(b['description']?.toString() ?? '');
+      return weightA.compareTo(weightB);
+    });
+    
+    return validBaggage;
   }
 
   /// Prints JSON nicely with chunking

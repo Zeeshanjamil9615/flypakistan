@@ -760,29 +760,40 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
             ),
           ),
           const SizedBox(height: 16),
-          // Baggage options
-          Obx(() => Column(
-            children: widget.controller.availableBaggage.where((bag) {
-              // Filter out "No Bag" or free options
-              final charge = double.tryParse(bag['charge']?.toString() ?? '0') ?? 0.0;
-              final description = (bag['description'] ?? '').toString().toLowerCase();
-              return charge > 0 && !description.contains('no bag');
-            }).map((baggage) {
-              final isSelected = selectedBaggage?['id'] == baggage['id'];
-              return Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: _buildBaggageOptionCard(
-                  baggage: baggage,
-                  isSelected: isSelected,
-                  onTap: () {
-                    final key = 'seg$_segmentCode|$passengerId';
-                    widget.controller.selectBaggage(key, baggage);
-                    setState(() {});
-                  },
+          // Baggage options - filtered and sorted
+          Obx(() {
+            final filteredBaggage = widget.controller.getFilteredAndSortedBaggageOptions();
+            
+            if (filteredBaggage.isEmpty) {
+              return const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32.0),
+                  child: Text(
+                    'No baggage options available',
+                    style: TextStyle(color: Colors.grey),
+                  ),
                 ),
               );
-            }).toList(),
-          )),
+            }
+            
+            return Column(
+              children: filteredBaggage.map((baggage) {
+                final isSelected = selectedBaggage?['id'] == baggage['id'];
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: _buildBaggageOptionCard(
+                    baggage: baggage,
+                    isSelected: isSelected,
+                    onTap: () {
+                      final key = 'seg$_segmentCode|$passengerId';
+                      widget.controller.selectBaggage(key, baggage);
+                      setState(() {});
+                    },
+                  ),
+                );
+              }).toList(),
+            );
+          }),
         ],
       ),
     );

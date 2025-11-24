@@ -240,6 +240,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   @override
   void initState() {
     super.initState();
+    bookingController.initializeTravelers();
     // Only get AirBlue controller if provider is AirBlue
     if (widget.provider == FlightProvider.airblue && Get.isRegistered<AirBlueFlightController>()) {
       _airblueFlightController = Get.find<AirBlueFlightController>();

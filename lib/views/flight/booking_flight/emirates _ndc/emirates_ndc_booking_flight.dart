@@ -1158,8 +1158,7 @@ ElevatedButton(
 
   @override
   void dispose() {
-    bookingController.dispose();
-    travelersController.dispose();
+    bookingController.resetForm();
     super.dispose();
   }
 }

@@ -77,7 +77,7 @@ class _PIAFlightBookingFormState extends State<PIAFlightBookingForm> {
 
   @override
   void dispose() {
-    bookingController.dispose();
+    bookingController.resetForm();
     super.dispose();
   }
 

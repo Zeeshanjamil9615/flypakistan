@@ -518,26 +518,26 @@ class BookingFlightController extends GetxController {
     phoneController.clear();
     remarksController.clear();
     bookerPhoneCountry.value = Country.parse('PK');
-
-    adults.clear();
-    children.clear();
-    infants.clear();
+    _disposeTravelers(adults);
+    _disposeTravelers(children);
+    _disposeTravelers(infants);
 
     initializeTravelers();
   }
 
   @override
   void onClose() {
-    for (var adult in adults) {
-      adult.dispose();
-    }
-    for (var child in children) {
-      child.dispose();
-    }
-    for (var infant in infants) {
-      infant.dispose();
-    }
+    _disposeTravelers(adults);
+    _disposeTravelers(children);
+    _disposeTravelers(infants);
 
     super.onClose();
+  }
+
+  void _disposeTravelers(List<TravelerInfo> travelers) {
+    for (final traveler in travelers) {
+      traveler.dispose();
+    }
+    travelers.clear();
   }
 }
