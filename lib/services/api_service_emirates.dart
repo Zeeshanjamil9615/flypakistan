@@ -1077,6 +1077,14 @@ $passengerListXml
 
     debugPrint('Response received with status code: ${response.statusCode}');
 
+    debugPrint("===============================================");
+    debugPrint("EMIRATES ORDER CREATE RESPONSE");
+    debugPrint("===============================================");
+    debugPrint("Status Code: ${response.statusCode}");
+    debugPrint("Response Length: ${response.data.toString().length} characters");
+    _printLargeText(response.data.toString(), "ORDER CREATE RAW XML");
+    debugPrint("===============================================\n");
+
     if (response.statusCode == 200) {
       final parsedResponse = _parsePnrResponse(response.data.toString());
 
@@ -1687,13 +1695,18 @@ Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
     String pnr = '';
     final bookingReferences = order.findElements('BookingReferences').firstOrNull;
     if (bookingReferences != null) {
-      for (var bookingRef in bookingReferences.findElements('BookingReference')) {
-        final airlineId = bookingRef.findElements('AirlineID').firstOrNull;
-        if (airlineId != null) {
-          final id = bookingRef.findElements('ID').firstOrNull;
-          if (id != null) {
-            pnr = id.text;
-            break;
+      final bookingRefElements = bookingReferences.findElements('BookingReference').toList();
+      if (bookingRefElements.isNotEmpty) {
+        final firstId = bookingRefElements.first.findElements('ID').firstOrNull;
+        if (firstId != null && firstId.text.trim().isNotEmpty) {
+          pnr = firstId.text.trim();
+        } else {
+          for (var bookingRef in bookingRefElements) {
+            final fallbackId = bookingRef.findElements('ID').firstOrNull;
+            if (fallbackId != null && fallbackId.text.trim().isNotEmpty) {
+              pnr = fallbackId.text.trim();
+              break;
+            }
           }
         }
       }
