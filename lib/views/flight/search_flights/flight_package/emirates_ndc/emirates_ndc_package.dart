@@ -10,7 +10,8 @@ import 'package:ready_flights/services/api_service_emirates.dart'
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
 import 'package:ready_flights/views/flight/form/flight_booking_controller.dart';
-import 'package:ready_flights/views/flight/search_flights/review_flight/emirates_ndc_review.dart';
+import 'package:ready_flights/widgets/travelers_selection_bottom_sheet.dart';
+import '../../../booking_flight/airblue/airblue_booking_flight.dart';
 
 class EmiratesPackageSelectionDialog extends StatelessWidget {
   final EmiratesFlight flight;
@@ -489,6 +490,21 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
     );
   }
 
+  int _calculatePassengerCount(FlightBookingController bookingController) {
+    try {
+      final travelersController = Get.find<TravelersController>();
+      final count = travelersController.adultCount.value +
+          travelersController.childrenCount.value +
+          travelersController.infantCount.value;
+      if (count > 0) return count;
+    } catch (_) {}
+
+    final fallback = bookingController.adultCount.value +
+        bookingController.childrenCount.value +
+        bookingController.infantCount.value;
+    return fallback > 0 ? fallback : 1;
+  }
+
   Widget _buildPackageDetail(IconData icon, String title, String value) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
@@ -578,15 +594,21 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
           pricedReturn,
           isReturnFlight: true,
         );
+
+        final passengerCount = _calculatePassengerCount(bookingController);
+        final perPassengerTotal = pricedOutbound.price + pricedReturn.price;
+        final totalPrice = perPassengerTotal * passengerCount;
+
         Get.back();
         Future.delayed(const Duration(milliseconds: 200), () {
           Get.to(
-            () => EmiratesReviewTripPage(
-              outboundFlight: outboundFlight,
-              outboundPackage: pricedOutbound,
+            () => AirBlueBookingFlight.forEmirates(
+              flight: outboundFlight,
               returnFlight: flight,
+              selectedPackage: pricedOutbound,
               returnPackage: pricedReturn,
-              isRoundTrip: true,
+              totalPrice: totalPrice,
+              currency: pricedOutbound.currency,
             ),
           );
         });
@@ -600,17 +622,17 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
         isReturnFlight: isReturnFlight,
       );
 
+      final passengerCount = _calculatePassengerCount(bookingController);
+      final totalPrice = pricedPackage.price * passengerCount;
+
       Get.back();
       Future.delayed(const Duration(milliseconds: 200), () {
-        final outboundFlightForReview =
-            emiratesController.selectedOutboundFlight ?? flight;
-        final outboundPackageForReview =
-            emiratesController.selectedOutboundPackage ?? pricedPackage;
         Get.to(
-          () => EmiratesReviewTripPage(
-            outboundFlight: outboundFlightForReview,
-            outboundPackage: outboundPackageForReview,
-            isRoundTrip: false,
+          () => AirBlueBookingFlight.forEmirates(
+            flight: flight,
+            selectedPackage: pricedPackage,
+            totalPrice: totalPrice,
+            currency: pricedPackage.currency,
           ),
         );
       });

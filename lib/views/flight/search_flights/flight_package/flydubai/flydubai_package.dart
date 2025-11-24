@@ -12,6 +12,7 @@ import '../../flydubai/flydubai_extras.dart';
 import '../../flydubai/flydubai_extras_controller.dart';
 import '../../flydubai/flydubai_return_flight.dart';
 import '../../search_flight_utils/widgets/flydubai_flight_card.dart';
+import '../../../booking_flight/airblue/airblue_booking_flight.dart';
 class FlyDubaiPackageSelectionDialog extends StatelessWidget {
   final FlydubaiFlight flight;
   final bool isReturnFlight;
@@ -583,10 +584,8 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
           duration: const Duration(seconds: 2),
         );
 
-        Get.lazyPut<FlydubaiExtrasController>(() => FlydubaiExtrasController());
-        
         // For round trips, we need to add BOTH flights to cart together
-        // before navigating to extras (so the server has both in the session)
+        // before navigating to booking form (so the server has both in the session)
         if (isReturnFlight && flyDubaiController.selectedOutboundFlight != null) {
           print('🛒 Adding both flights to cart for round trip...');
           
@@ -608,22 +607,35 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
           print('✅ Both flights added to cart successfully');
         }
         
-        // For round trips, pass combined flight data from BOTH outbound and return
-        final flightToPass = isReturnFlight && flyDubaiController.selectedOutboundFlight != null
-            ? _createCombinedFlight(flyDubaiController.selectedOutboundFlight!, flight)
-            : flight;
+        // Calculate total price
+        final outboundPrice = finalPrices['${selectedFareOption.cabin}-${selectedFareOption.fareTypeName}']?.value ??
+            selectedFareOption.baseFareAmountIncludingTax;
+        double totalPrice = outboundPrice;
+        FlydubaiFlightFare? returnFare;
         
+        if (isReturnFlight && flyDubaiController.selectedReturnFareOption != null) {
+          returnFare = flyDubaiController.selectedReturnFareOption;
+          final returnPriceKey = '${returnFare!.cabin}-${returnFare.fareTypeName}';
+          final returnPrice = finalPrices[returnPriceKey]?.value ??
+              returnFare.baseFareAmountIncludingTax;
+          totalPrice += returnPrice;
+        }
+        
+        // Navigate directly to unified booking form (skip review screen)
         Get.to(
-          () => FlydubaiExtrasScreen(),
-          arguments: {
-            'flight': flightToPass,  // Pass combined flight for round trips
-            'fare': selectedFareOption,
-            'isReturn': isReturnFlight,
-            'adult': bookingController.adultCount.value,
-            'child': bookingController.childrenCount.value,
-            'infant': bookingController.infantCount.value,
-            'cartData': flyDubaiController.cartData,  // Pass cart data for seat API
-          },
+          () => AirBlueBookingFlight.forFlyDubai(
+            flight: isReturnFlight && flyDubaiController.selectedOutboundFlight != null
+                ? flyDubaiController.selectedOutboundFlight!
+                : flight,
+            returnFlight: isReturnFlight ? flight : null,
+            outboundFare: isReturnFlight && flyDubaiController.selectedOutboundFareOption != null
+                ? flyDubaiController.selectedOutboundFareOption!
+                : selectedFareOption,
+            returnFare: returnFare,
+            totalPrice: totalPrice,
+            currency: flight.currency,
+            cartData: flyDubaiController.cartData,
+          ),
         );
       } else {
         // For round trip, show return flights after selecting outbound package

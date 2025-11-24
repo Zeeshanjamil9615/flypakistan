@@ -12,6 +12,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../services/api_service_sabre.dart';
 import '../../../../../utility/colors.dart';
+import '../../../../../utility/app_constants.dart';
 import '../../../home/home_screen.dart';
 import '../../search_flights/sabre/sabre_flight_controller.dart';
 import '../../search_flights/sabre/sabre_flight_models.dart';
@@ -244,71 +245,26 @@ class _SabreFlightBookingDetailsScreenState
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 56,
+      collapsedHeight: 56,
       floating: false,
       pinned: true,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: TColors.primary,
       foregroundColor: Colors.white,
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+        onPressed: () => Get.offAll(() => HomeScreen()),
+      ),
+      title: Text(
+        'Booking Details',
+        style: AppConstants.sectionTitleStyle.copyWith(
+          color: Colors.white,
+          fontSize: 18,
         ),
       ),
-      flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
-          'Booking Details',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-        ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E293B), Color(0xFF334155)],
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 20,
-                right: 20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 60,
-                right: 80,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.03),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      centerTitle: false,
     );
   }
 
@@ -384,30 +340,20 @@ class _SabreFlightBookingDetailsScreenState
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
                   children: [
-                    const TextSpan(
-                      text: 'Dear ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
+                    const TextSpan(text: 'Dear '),
                     TextSpan(
                       text: customerName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      style: AppConstants.sectionTitleStyle.copyWith(
                         color: Colors.white,
                       ),
                     ),
                     const TextSpan(
                       text: ', your booking is created successfully!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
                     ),
                   ],
                 ),
@@ -429,12 +375,11 @@ class _SabreFlightBookingDetailsScreenState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Need help? Contact us:',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppConstants.fieldValueStyle.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -502,10 +447,9 @@ class _SabreFlightBookingDetailsScreenState
               Expanded(
                 child: Text(
                   _expiryMessage,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppConstants.fieldValueStyle.copyWith(
                     color: _getTimerColor(),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -526,9 +470,8 @@ class _SabreFlightBookingDetailsScreenState
                   const SizedBox(width: 6),
                   Text(
                     'Time Left: ${_formatTimeRemaining()}',
-                    style: const TextStyle(
+                    style: AppConstants.fieldValueStyle.copyWith(
                       color: Colors.white,
-                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -580,10 +523,8 @@ class _SabreFlightBookingDetailsScreenState
                       children: [
                         Text(
                           '${widget.flight.airline} Booking',
-                          style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                          style: AppConstants.sectionTitleStyle.copyWith(
+                            color: const Color(0xFF1E293B),
                           ),
                         ),
                         Container(
@@ -686,15 +627,14 @@ class _SabreFlightBookingDetailsScreenState
         const SizedBox(width: 12),
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+          style: AppConstants.fieldLabelStyle.copyWith(fontSize: 12, color: const Color(0xFF64748B)),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
+            style: AppConstants.fieldValueStyle.copyWith(
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+              color: const Color(0xFF1E293B),
             ),
           ),
         ),
@@ -708,12 +648,11 @@ class _SabreFlightBookingDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Flight Details',
-            style: TextStyle(
+            style: AppConstants.sectionTitleStyle.copyWith(
+              color: const Color(0xFF1E293B),
               fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 12),
@@ -1176,12 +1115,10 @@ class _SabreFlightBookingDetailsScreenState
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Passenger Details',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Container(
@@ -1505,12 +1442,10 @@ class _SabreFlightBookingDetailsScreenState
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Price Breakdown',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF1E293B),
+                    style: AppConstants.sectionTitleStyle.copyWith(
+                      color: const Color(0xFF1E293B),
                     ),
                   ),
                 ],
@@ -1581,12 +1516,11 @@ class _SabreFlightBookingDetailsScreenState
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Total Amount',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          fontSize: 16,
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Text(

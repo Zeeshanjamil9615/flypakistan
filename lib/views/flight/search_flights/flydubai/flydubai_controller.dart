@@ -944,9 +944,8 @@ class FlydubaiFlightController extends GetxController {
 
 
 // Update the buildSegmentArray method in FlydubaiFlightController
-  List<Map<String, dynamic>> buildSegmentArray() {
+  List<Map<String, dynamic>> buildSegmentArray({required FlydubaiExtrasController extrasController}) {
     final List<Map<String, dynamic>> segments = [];
-    final FlydubaiExtrasController extrasController = Get.find<FlydubaiExtrasController>();
 
     print('═══════════════════════════════════════════════════════');
     print('🔧 BUILDING SEGMENT ARRAY FOR PNR');

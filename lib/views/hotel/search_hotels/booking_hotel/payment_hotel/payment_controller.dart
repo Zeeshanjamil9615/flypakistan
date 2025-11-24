@@ -8,6 +8,10 @@ import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/payment_ho
 import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
 import 'package:ready_flights/views/flight/booking_flight/booking_flight_controller.dart';
+import 'package:ready_flights/views/flight/booking_flight/flydubai/flydubai_card_payment_details_screen.dart';
+import 'package:ready_flights/views/flight/booking_flight/flydubai/flydubai_print_voucher.dart';
+import 'package:ready_flights/views/flight/booking_flight/emirates _ndc/emirates_card_payment_details_screen.dart';
+import 'package:ready_flights/views/flight/booking_flight/emirates _ndc/emirates_print_voucher.dart';
 import 'package:ready_flights/views/flight/booking_flight/sabre/sabre_card_payment_details_screen.dart';
 import 'package:ready_flights/views/flight/booking_flight/sabre/sabre_flight_voucher.dart';
 import 'package:ready_flights/views/flight/search_flights/sabre/sabre_flight_models.dart';
@@ -366,6 +370,38 @@ class PaymentController extends GetxController {
         return;
       } catch (e) {
         // Not a Sabre payment, continue with AirBlue
+      }
+
+      // Handle FlyDubai flight payment
+      try {
+        final flydubaiData = Get.find<FlyDubaiFlightPaymentData>();
+        Get.offAll(
+          () => FlyDubaiBookingDetailsScreen(
+            outboundFlight: flydubaiData.flight,
+            returnFlight: flydubaiData.returnFlight,
+            outboundFareOption: flydubaiData.outboundFare,
+            returnFareOption: flydubaiData.returnFare,
+            pnrResponse: flydubaiData.pnrResponse,
+          ),
+        );
+        return;
+      } catch (e) {
+        // Not a FlyDubai payment, continue
+      }
+
+      // Handle Emirates flight payment
+      try {
+        final emiratesData = Get.find<EmiratesFlightPaymentData>();
+        Get.offAll(
+          () => EmiratesBookingDetailsScreen(
+            flight: emiratesData.flight,
+            selectedPackage: emiratesData.outboundPackage,
+            pnrResponse: emiratesData.pnrResponse,
+          ),
+        );
+        return;
+      } catch (e) {
+        // Not an Emirates payment, continue
       }
 
       // Handle AirBlue flight payment

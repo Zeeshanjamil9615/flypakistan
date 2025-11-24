@@ -12,6 +12,8 @@ import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_addons
 import '../../../../../services/api_service_airblue.dart';
 import '../../../../../services/api_service_airarabia.dart';
 import '../../../../../services/api_service_sabre.dart';
+import '../../../../../services/api_service_flydubai.dart';
+import '../../../../../services/api_service_emirates.dart';
 import '../../../../../utility/colors.dart';
 import '../../../../../utility/app_constants.dart';
 import '../../../../../widgets/travelers_selection_bottom_sheet.dart';
@@ -21,7 +23,12 @@ import '../../search_flights/airblue/airblue_pnr_pricing.dart';
 import '../../search_flights/airarabia/airarabia_flight_controller.dart';
 import '../../search_flights/airarabia/airarabia_flight_model.dart';
 import '../../search_flights/airarabia/validation_data/validation_controller.dart';
+import '../../search_flights/emirates_ndc/emirates_flight_controller.dart';
 import '../../search_flights/sabre/sabre_flight_models.dart';
+import '../../search_flights/flydubai/flydubai_model.dart';
+import '../../search_flights/flydubai/flydubai_controller.dart';
+import '../../search_flights/flydubai/flydubai_extras_controller.dart';
+import '../../search_flights/emirates_ndc/emirates_model.dart';
 import '../booking_flight_controller.dart';
 import '../../form/flight_booking_controller.dart';
 import '../sabre/sabre_payment_screen.dart';
@@ -29,12 +36,15 @@ import '../airarabia/airarabia_addons_screen.dart';
 import '../airarabia/airarabia_addons_screen.dart';
 import '../airarabia/airarabia_payment_screen.dart';
 import '../airarabia/airarabia_print_voucher.dart';
+import '../flydubai/flydubai_addons_screen.dart';
+import '../flydubai/flydubai_payment_screen.dart';
+import '../emirates _ndc/emirates_payment_screen.dart';
 import 'flight_print_voucher.dart';
 import '../../../users/login/login.dart';
 import '../../../users/rejistration/register.dart';
 import '../../../users/login/login_api_service/login_api.dart';
 
-enum FlightProvider { airblue, sabre, airarabia }
+enum FlightProvider { airblue, sabre, airarabia, flydubai, emirates }
 
 class AirBlueBookingFlight extends StatefulWidget {
   // Provider type - defaults to AirBlue for backward compatibility
@@ -58,6 +68,20 @@ class AirBlueBookingFlight extends StatefulWidget {
   final Map<String, dynamic>? airArabiaExtrasData;
   final Map<String, dynamic>? airArabiaRevalidationArgs;
   
+  // FlyDubai specific fields
+  final FlydubaiFlight? flyDubaiFlight;
+  final FlydubaiFlight? flyDubaiReturnFlight;
+  final FlydubaiFlightFare? flyDubaiOutboundFare;
+  final FlydubaiFlightFare? flyDubaiReturnFare;
+  final Map<String, dynamic>? flyDubaiCartData;
+
+  // Emirates specific fields
+  final EmiratesFlight? emiratesFlight;
+  final EmiratesFlight? emiratesReturnFlight;
+  final EmiratesFarePackage? emiratesOutboundPackage;
+  final EmiratesFarePackage? emiratesReturnPackage;
+  final bool isEmiratesRoundTrip;
+  
   // Common fields
   final double totalPrice;
   final String currency;
@@ -80,6 +104,16 @@ class AirBlueBookingFlight extends StatefulWidget {
     this.airArabiaPackage,
     this.airArabiaExtrasData,
     this.airArabiaRevalidationArgs,
+    this.flyDubaiFlight,
+    this.flyDubaiReturnFlight,
+    this.flyDubaiOutboundFare,
+    this.flyDubaiReturnFare,
+    this.flyDubaiCartData,
+    this.emiratesFlight,
+    this.emiratesReturnFlight,
+    this.emiratesOutboundPackage,
+    this.emiratesReturnPackage,
+    this.isEmiratesRoundTrip = false,
   });
 
   // Sabre factory constructor
@@ -120,6 +154,62 @@ class AirBlueBookingFlight extends StatefulWidget {
       totalPrice: totalPrice,
       currency: currency,
       flight: null,
+    );
+  }
+
+  // FlyDubai factory constructor
+  factory AirBlueBookingFlight.forFlyDubai({
+    required FlydubaiFlight flight,
+    FlydubaiFlight? returnFlight,
+    required FlydubaiFlightFare outboundFare,
+    FlydubaiFlightFare? returnFare,
+    required double totalPrice,
+    required String currency,
+    Map<String, dynamic>? cartData,
+  }) {
+    return AirBlueBookingFlight(
+      provider: FlightProvider.flydubai,
+      flyDubaiFlight: flight,
+      flyDubaiReturnFlight: returnFlight,
+      flyDubaiOutboundFare: outboundFare,
+      flyDubaiReturnFare: returnFare,
+      flyDubaiCartData: cartData,
+      totalPrice: totalPrice,
+      currency: currency,
+      flight: null,
+      airArabiaFlight: null,
+      airArabiaPackage: null,
+      airArabiaExtrasData: null,
+    );
+  }
+
+  // Emirates factory constructor
+  factory AirBlueBookingFlight.forEmirates({
+    required EmiratesFlight flight,
+    EmiratesFlight? returnFlight,
+    required EmiratesFarePackage selectedPackage,
+    EmiratesFarePackage? returnPackage,
+    required double totalPrice,
+    required String currency,
+  }) {
+    return AirBlueBookingFlight(
+      provider: FlightProvider.emirates,
+      emiratesFlight: flight,
+      emiratesReturnFlight: returnFlight,
+      emiratesOutboundPackage: selectedPackage,
+      emiratesReturnPackage: returnPackage,
+      isEmiratesRoundTrip: returnFlight != null && returnPackage != null,
+      totalPrice: totalPrice,
+      currency: currency,
+      flight: null,
+      sabreFlight: null,
+      airArabiaFlight: null,
+      airArabiaPackage: null,
+      airArabiaExtrasData: null,
+      flyDubaiFlight: null,
+      flyDubaiOutboundFare: null,
+      flyDubaiReturnFare: null,
+      flyDubaiCartData: null,
     );
   }
 
@@ -1824,6 +1914,10 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
       await _handleSabreContinue();
     } else if (widget.provider == FlightProvider.airarabia) {
       await _handleAirArabiaContinue();
+    } else if (widget.provider == FlightProvider.flydubai) {
+      await _handleFlyDubaiContinue();
+    } else if (widget.provider == FlightProvider.emirates) {
+      await _handleEmiratesContinue();
     } else {
       await _handleAirBlueContinue();
     }
@@ -2037,6 +2131,291 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         snackPosition: SnackPosition.TOP,
         duration: const Duration(seconds: 4),
       );
+    }
+  }
+
+  Future<void> _handleFlyDubaiContinue() async {
+    if (widget.flyDubaiFlight == null || widget.flyDubaiOutboundFare == null) {
+      Get.snackbar(
+        'Error',
+        'FlyDubai booking data is incomplete',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    try {
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(TColors.primary),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      // Initialize FlyDubai extras controller
+      final extrasController = Get.isRegistered<FlydubaiExtrasController>()
+          ? Get.find<FlydubaiExtrasController>()
+          : Get.put(FlydubaiExtrasController());
+
+      // Load extras data
+      await extrasController.loadExtras(
+        flight: widget.flyDubaiFlight!,
+        fare: widget.flyDubaiOutboundFare!,
+        returnFlight: widget.flyDubaiReturnFlight,
+        returnFare: widget.flyDubaiReturnFare,
+        cartData: widget.flyDubaiCartData,
+        adult: bookingController.adults.length,
+        child: bookingController.children.length,
+        infant: bookingController.infants.length,
+      );
+
+      Get.back();
+
+      if (extrasController.errorMessage.value.isNotEmpty) {
+        Get.snackbar(
+          'Error',
+          extrasController.errorMessage.value,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+        return;
+      }
+
+      _navigateToFlyDubaiAddOns(extrasController);
+    } catch (e) {
+      Get.back();
+      Get.snackbar(
+        'Error',
+        'Failed to prepare add-ons: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+    }
+  }
+
+  void _navigateToFlyDubaiAddOns(FlydubaiExtrasController extrasController) {
+    if (widget.flyDubaiFlight == null || widget.flyDubaiOutboundFare == null) return;
+
+    Get.to(
+      () => FlyDubaiAddOnsScreen(
+        flight: widget.flyDubaiFlight!,
+        returnFlight: widget.flyDubaiReturnFlight,
+        outboundFare: widget.flyDubaiOutboundFare!,
+        returnFare: widget.flyDubaiReturnFare,
+        bookingController: bookingController,
+        travelersController: travelersController,
+        totalPrice: widget.totalPrice,
+        currency: widget.currency,
+        initialSecondsLeft: _secondsLeft.value,
+        onProceedToPayment: () => _createFlyDubaiBooking(extrasController),
+        extrasController: extrasController,
+      ),
+    );
+  }
+
+  Future<void> _handleEmiratesContinue() async {
+    if (widget.emiratesFlight == null || widget.emiratesOutboundPackage == null) {
+      Get.snackbar(
+        'Error',
+        'Emirates booking data is incomplete',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return;
+    }
+
+    try {
+      final pnrResponse = await _createEmiratesBooking();
+      if (pnrResponse == null) return;
+
+      Get.to(
+        () => EmiratesPaymentScreen(
+          flight: widget.emiratesFlight!,
+          returnFlight: widget.emiratesReturnFlight,
+          outboundPackage: widget.emiratesOutboundPackage!,
+          returnPackage: widget.emiratesReturnPackage,
+          bookingController: bookingController,
+          travelersController: travelersController,
+          totalPrice: widget.totalPrice,
+          currency: widget.currency,
+          initialSecondsLeft: _secondsLeft.value,
+          pnrResponse: pnrResponse,
+        ),
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to proceed: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+    }
+  }
+
+  Future<Map<String, dynamic>?> _createFlyDubaiBooking(FlydubaiExtrasController extrasController) async {
+    try {
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(TColors.primary),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      final apiService = Get.find<ApiServiceFlyDubai>();
+      final flyDubaiController = Get.find<FlydubaiFlightController>();
+
+      // Prepare traveler data
+      final adults = bookingController.adults;
+      final children = bookingController.children;
+      final infants = bookingController.infants;
+
+      // Get cart data
+      final cartData = widget.flyDubaiCartData ??
+          flyDubaiController.cartData ??
+          flyDubaiController.outboundCartData ??
+          flyDubaiController.returnCartData;
+      
+      if (cartData == null) {
+        Get.back();
+        Get.snackbar(
+          'Error',
+          'No cart data available. Please try again.',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+        return null;
+      }
+
+      // Build segment array with extras
+      final segmentArray = flyDubaiController.buildSegmentArray(extrasController: extrasController);
+      
+      // Get city and SIM code
+      final city = 'Islamabad';
+      final simCode = '123';
+
+      // Get trip type
+      final FlightBookingController flightBookingController = Get.find<FlightBookingController>();
+      final flightType = flightBookingController.tripType.value == TripType.roundTrip 
+          ? 'roundtrip' 
+          : 'oneway';
+
+      // Call createPNR API
+      final pnrResult = await apiService.createPNR(
+        adults: adults,
+        children: children,
+        infants: infants,
+        clientEmail: bookingController.emailController.text,
+        clientPhone: bookingController.phoneController.text.trim(),
+        countryCode: bookingController.bookerPhoneCountry.value?.phoneCode ?? '92',
+        simCode: simCode,
+        city: city,
+        flightType: flightType,
+        segmentArray: segmentArray,
+        cartData: cartData,
+      );
+
+      Get.back();
+
+      if (pnrResult['success'] == true) {
+        print('✅ FlyDubai PNR created successfully: ${pnrResult['confirmationNumber']}');
+        return pnrResult;
+      } else {
+        print('❌ FlyDubai PNR creation failed: ${pnrResult['error']}');
+        Get.snackbar(
+          'PNR Creation Failed',
+          pnrResult['error']?.toString() ?? 'Unknown error occurred',
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+        // Still return the result so payment screen can show pending status
+        return pnrResult;
+      }
+    } catch (e, stackTrace) {
+      Get.back();
+      print('❌ FlyDubai booking error: $e');
+      print('Stack trace: $stackTrace');
+      Get.snackbar(
+        'Error',
+        'Failed to create booking: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return null;
+    }
+  }
+
+  Future<Map<String, dynamic>?> _createEmiratesBooking() async {
+    try {
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(TColors.primary),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      final apiService = Get.isRegistered<ApiServiceEmirates>()
+          ? Get.find<ApiServiceEmirates>()
+          : Get.put(ApiServiceEmirates());
+
+      final selectedOffers = <Map<String, dynamic>>[
+        {
+          'offerId': widget.emiratesOutboundPackage!.offerId,
+          'offerData': widget.emiratesOutboundPackage!.rawFlightData,
+        },
+        if (widget.isEmiratesRoundTrip && widget.emiratesReturnPackage != null)
+          {
+            'offerId': widget.emiratesReturnPackage!.offerId,
+            'offerData': widget.emiratesReturnPackage!.rawFlightData,
+          },
+      ];
+
+      final pnrResponse = await apiService.createEmiratesNdcPnr(
+        selectedOffers: selectedOffers,
+        bookingController: bookingController,
+      );
+
+      Get.back();
+
+      if (pnrResponse['success'] == true) {
+        return pnrResponse;
+      } else {
+        Get.snackbar(
+          'Error',
+          pnrResponse['error']?.toString() ?? 'Failed to create Emirates booking',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+        );
+        return null;
+      }
+    } catch (e, stackTrace) {
+      Get.back();
+      debugPrint('Error in _createEmiratesBooking: $e');
+      debugPrint('Stack trace: $stackTrace');
+      Get.snackbar(
+        'Error',
+        'Failed to create Emirates booking: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+      );
+      return null;
     }
   }
 

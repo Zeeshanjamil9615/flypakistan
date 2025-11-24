@@ -1186,6 +1186,11 @@ class _FlyDubaiBookingFlightState extends State<FlyDubaiBookingFlight> {
                       // Get controller instances
                       final apiService = Get.find<ApiServiceFlyDubai>();
                       final flydubaiController = Get.find<FlydubaiFlightController>();
+                      
+                      // Get extras controller (try to find existing or create new)
+                      final extrasController = Get.isRegistered<FlydubaiExtrasController>()
+                          ? Get.find<FlydubaiExtrasController>()
+                          : Get.put(FlydubaiExtrasController());
 
                       // Prepare traveler data
                       final adults = bookingController.adults;
@@ -1203,7 +1208,7 @@ class _FlyDubaiBookingFlightState extends State<FlyDubaiBookingFlight> {
                       }
 
                       // Build segment array
-                      final segmentArray = flydubaiController.buildSegmentArray();
+                      final segmentArray = flydubaiController.buildSegmentArray(extrasController: extrasController);
                       print('Segment array: ${segmentArray.length} items');
 
                       // Get city from booking controller or use default

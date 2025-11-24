@@ -11,6 +11,7 @@ import 'package:printing/printing.dart';
 
 import '../../../../../services/api_service_sabre.dart';
 import '../../../../../utility/colors.dart';
+import '../../../../../utility/app_constants.dart';
 import '../../../home/home_screen.dart';import '../../search_flights/flydubai/flydubai_controller.dart';
 import '../../search_flights/flydubai/flydubai_model.dart';
 import '../booking_flight_controller.dart';
@@ -216,6 +217,23 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
     } catch (e) {}
   }
 
+  String _getConfirmationNumber() {
+    final response = widget.pnrResponse;
+    if (response == null) return 'N/A';
+
+    final confirmation =
+        response['confirmationNumber'] ??
+            response['ConfirmationNumber'] ??
+            response['commitData']?['ConfirmationNumber'] ??
+            response['commitData']?['ReservationInfo']?['ConfirmationNumber'] ??
+            response['commitData']?['reservationInfo']?['confirmationNumber'] ??
+            response['commitData']?['confirmationNumber'];
+
+    if (confirmation == null) return 'N/A';
+    final confirmationStr = confirmation.toString().trim();
+    return confirmationStr.isEmpty ? 'N/A' : confirmationStr;
+  }
+
   @override
   Widget build(BuildContext context) {
     _prefetchMarginData();
@@ -252,73 +270,28 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 56,
+      collapsedHeight: 56,
       floating: false,
       pinned: true,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: TColors.primary,
       foregroundColor: Colors.white,
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () {
-            Get.offAll(() => HomeScreen());
-          },
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+        onPressed: () {
+          Get.offAll(() => HomeScreen());
+        },
+      ),
+      title: Text(
+        'Booking Details',
+        style: AppConstants.sectionTitleStyle.copyWith(
+          color: Colors.white,
+          fontSize: 18,
         ),
       ),
-      flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
-          'Booking Details',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-        ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E293B), Color(0xFF334155)],
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 20,
-                right: 20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 60,
-                right: 80,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.03),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      centerTitle: false,
     );
   }
 
@@ -394,30 +367,20 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
                   children: [
-                    const TextSpan(
-                      text: 'Dear ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
+                    const TextSpan(text: 'Dear '),
                     TextSpan(
                       text: customerName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      style: AppConstants.sectionTitleStyle.copyWith(
                         color: Colors.white,
                       ),
                     ),
                     const TextSpan(
                       text: ', your FlyDubai booking is created successfully!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
                     ),
                   ],
                 ),
@@ -439,12 +402,11 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Need help? Contact us:',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppConstants.fieldValueStyle.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -512,10 +474,9 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
               Expanded(
                 child: Text(
                   _expiryMessage,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppConstants.fieldValueStyle.copyWith(
                     color: _getTimerColor(),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -536,9 +497,8 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                   const SizedBox(width: 6),
                   Text(
                     'Time Left: ${_formatTimeRemaining()}',
-                    style: const TextStyle(
+                    style: AppConstants.fieldValueStyle.copyWith(
                       color: Colors.white,
-                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -588,12 +548,10 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'FlyDubai Booking',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                          style: AppConstants.sectionTitleStyle.copyWith(
+                            color: const Color(0xFF1E293B),
                           ),
                         ),
                         Container(
@@ -634,8 +592,8 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                 child: Column(
                   children: [
                     _buildInfoRow(
-                      'Confirmation Number',
-                      widget.pnrResponse?['ConfirmationNumber'] ?? 'N/A',
+                      'PNR Number',
+                      _getConfirmationNumber(),
                       Icons.confirmation_number_outlined,
                     ),
                     const SizedBox(height: 12),
@@ -661,15 +619,14 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
         const SizedBox(width: 12),
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+          style: AppConstants.fieldLabelStyle.copyWith(fontSize: 12, color: const Color(0xFF64748B)),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
+            style: AppConstants.fieldValueStyle.copyWith(
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+              color: const Color(0xFF1E293B),
             ),
           ),
         ),
@@ -690,12 +647,11 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Flight Details',
-            style: TextStyle(
+            style: AppConstants.sectionTitleStyle.copyWith(
+              color: const Color(0xFF1E293B),
               fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 12),
@@ -1210,12 +1166,10 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Passenger Details',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Container(
@@ -1553,12 +1507,10 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Price Breakdown',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF1E293B),
+                    style: AppConstants.sectionTitleStyle.copyWith(
+                      color: const Color(0xFF1E293B),
                     ),
                   ),
                 ],
@@ -1584,12 +1536,11 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Total Amount',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          fontSize: 16,
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Text(
@@ -1735,7 +1686,7 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                     ),
                     pw.SizedBox(height: 4),
                     pw.Text(
-                      'Reference # $bookingReference | Confirmation: ${widget.pnrResponse?['ConfirmationNumber']}',
+                      'Reference # $bookingReference | Confirmation: ${_getConfirmationNumber()}',
                       style: pw.TextStyle(
                         fontWeight: pw.FontWeight.bold,
                         fontSize: 10,

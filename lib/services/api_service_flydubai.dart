@@ -523,7 +523,11 @@ class ApiServiceFlyDubai {
 
         if (commitResponse.statusCode == 200) {
           final commitData = json.decode(commitResponse.body);
-          final confirmationNumber = commitData['ReservationInfo']?['ConfirmationNumber'];
+          final confirmationNumber =
+              commitData['ReservationInfo']?['ConfirmationNumber'] ??
+                  commitData['ConfirmationNumber'] ??
+                  commitData['reservationInfo']?['confirmationNumber'] ??
+                  commitData['confirmationNumber'];
 
           print('✅ Final PNR Confirmation Number: $confirmationNumber');
 

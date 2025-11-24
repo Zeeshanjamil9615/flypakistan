@@ -13,6 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../services/api_service_sabre.dart';
 import '../../../../../utility/colors.dart';
+import '../../../../../utility/app_constants.dart';
 import '../../../home/home_screen.dart';
 import '../../search_flights/emirates_ndc/emirates_flight_controller.dart';
 import '../../search_flights/emirates_ndc/emirates_model.dart';
@@ -239,43 +240,26 @@ class _EmiratesBookingDetailsScreenState
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 56,
+      collapsedHeight: 56,
       floating: false,
       pinned: true,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: TColors.primary,
       foregroundColor: Colors.white,
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Get.offAll(() => HomeScreen()),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+        onPressed: () => Get.offAll(() => HomeScreen()),
+      ),
+      title: Text(
+        'Booking Details',
+        style: AppConstants.sectionTitleStyle.copyWith(
+          color: Colors.white,
+          fontSize: 18,
         ),
       ),
-      flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
-          'Booking Details',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-        ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E293B), Color(0xFF334155)],
-            ),
-          ),
-        ),
-      ),
+      centerTitle: false,
     );
   }
 
@@ -340,30 +324,20 @@ class _EmiratesBookingDetailsScreenState
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
                   children: [
-                    const TextSpan(
-                      text: 'Dear ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
+                    const TextSpan(text: 'Dear '),
                     TextSpan(
                       text: customerName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      style: AppConstants.sectionTitleStyle.copyWith(
                         color: Colors.white,
                       ),
                     ),
                     const TextSpan(
                       text: ', your booking is created successfully!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
                     ),
                   ],
                 ),
@@ -382,12 +356,11 @@ class _EmiratesBookingDetailsScreenState
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Need help? Contact us:',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppConstants.fieldValueStyle.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -450,10 +423,9 @@ class _EmiratesBookingDetailsScreenState
               Expanded(
                 child: Text(
                   _expiryMessage,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppConstants.fieldValueStyle.copyWith(
                     color: _getTimerColor(),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -474,9 +446,8 @@ class _EmiratesBookingDetailsScreenState
                   const SizedBox(width: 6),
                   Text(
                     'Time Left: ${_formatTimeRemaining()}',
-                    style: const TextStyle(
+                    style: AppConstants.fieldValueStyle.copyWith(
                       color: Colors.white,
-                      fontSize: 12,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
@@ -526,12 +497,10 @@ class _EmiratesBookingDetailsScreenState
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Emirates Booking',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                          style: AppConstants.sectionTitleStyle.copyWith(
+                            color: const Color(0xFF1E293B),
                           ),
                         ),
                         Container(
@@ -604,15 +573,14 @@ class _EmiratesBookingDetailsScreenState
         const SizedBox(width: 12),
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+          style: AppConstants.fieldLabelStyle.copyWith(fontSize: 12, color: const Color(0xFF64748B)),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
+            style: AppConstants.fieldValueStyle.copyWith(
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+              color: const Color(0xFF1E293B),
             ),
           ),
         ),
@@ -626,12 +594,11 @@ class _EmiratesBookingDetailsScreenState
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Flight Details',
-            style: TextStyle(
+            style: AppConstants.sectionTitleStyle.copyWith(
+              color: const Color(0xFF1E293B),
               fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 12),
@@ -1019,12 +986,10 @@ class _EmiratesBookingDetailsScreenState
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Passenger Details',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Container(
@@ -1344,12 +1309,10 @@ class _EmiratesBookingDetailsScreenState
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Price Breakdown',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF1E293B),
+                    style: AppConstants.sectionTitleStyle.copyWith(
+                      color: const Color(0xFF1E293B),
                     ),
                   ),
                 ],
@@ -1414,12 +1377,11 @@ class _EmiratesBookingDetailsScreenState
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Total Amount',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          fontSize: 16,
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Text(

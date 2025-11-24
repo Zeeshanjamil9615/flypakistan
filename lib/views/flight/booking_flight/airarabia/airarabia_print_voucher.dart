@@ -11,6 +11,7 @@ import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../../../../utility/colors.dart';
+import '../../../../../utility/app_constants.dart';
 import '../../../home/home_screen.dart';
 import '../../search_flights/airarabia/airarabia_flight_model.dart';
 import '../booking_flight_controller.dart';
@@ -238,71 +239,26 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
 
   Widget _buildSliverAppBar() {
     return SliverAppBar(
-      expandedHeight: 120,
+      expandedHeight: 56,
+      collapsedHeight: 56,
       floating: false,
       pinned: true,
-      backgroundColor: const Color(0xFF1E293B),
+      backgroundColor: TColors.primary,
       foregroundColor: Colors.white,
       elevation: 0,
       systemOverlayStyle: SystemUiOverlayStyle.light,
-      leading: Container(
-        margin: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.1),
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
-          onPressed: () => Get.offAll(() => HomeScreen()),
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, color: Colors.white),
+        onPressed: () => Get.offAll(() => HomeScreen()),
+      ),
+      title: Text(
+        'Booking Confirmation',
+        style: AppConstants.sectionTitleStyle.copyWith(
+          color: Colors.white,
+          fontSize: 18,
         ),
       ),
-      flexibleSpace: FlexibleSpaceBar(
-        title: const Text(
-          'Booking Confirmation',
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-            fontSize: 18,
-          ),
-        ),
-        background: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [Color(0xFF1E293B), Color(0xFF334155)],
-            ),
-          ),
-          child: Stack(
-            children: [
-              Positioned(
-                top: 20,
-                right: 20,
-                child: Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 60,
-                right: 80,
-                child: Container(
-                  width: 60,
-                  height: 60,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.03),
-                    shape: BoxShape.circle,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
+      centerTitle: false,
     );
   }
 
@@ -355,30 +311,20 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
               RichText(
                 textAlign: TextAlign.center,
                 text: TextSpan(
+                  style: AppConstants.sectionTitleStyle.copyWith(
+                    color: Colors.white,
+                    fontSize: 18,
+                  ),
                   children: [
-                    const TextSpan(
-                      text: 'Dear ',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
-                    ),
+                    const TextSpan(text: 'Dear '),
                     TextSpan(
                       text: customerName,
-                      style: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                      style: AppConstants.sectionTitleStyle.copyWith(
                         color: Colors.white,
                       ),
                     ),
                     const TextSpan(
                       text: ', your Air Arabia booking is confirmed!',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w500,
-                        color: Colors.white,
-                      ),
                     ),
                   ],
                 ),
@@ -400,12 +346,11 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    const Text(
+                    Text(
                       'Need help? Contact us:',
-                      style: TextStyle(
-                        fontSize: 14,
+                      style: AppConstants.fieldValueStyle.copyWith(
                         color: Colors.white,
-                        fontWeight: FontWeight.w500,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(width: 10),
@@ -473,10 +418,9 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
               Expanded(
                 child: Text(
                   _expiryMessage,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w500,
+                  style: AppConstants.fieldValueStyle.copyWith(
                     color: _getTimerColor(),
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -495,14 +439,13 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                 children: [
                   const Icon(Icons.timer, color: Colors.white, size: 16),
                   const SizedBox(width: 6),
-                  Text(
-                    'Time Left: ${_formatTimeRemaining()}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
+                    Text(
+                      'Time Left: ${_formatTimeRemaining()}',
+                      style: AppConstants.fieldValueStyle.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -551,12 +494,10 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Air Arabia Booking',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF1E293B),
+                          style: AppConstants.sectionTitleStyle.copyWith(
+                            color: const Color(0xFF1E293B),
                           ),
                         ),
                         Container(
@@ -575,16 +516,16 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                                   : const Color(0xFF10B981).withOpacity(0.3),
                             ),
                           ),
-                          child: Text(
-                            bookingData['status']?.toString().toUpperCase() ?? 'CONFIRMED',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: bookingData['status'] == 'Hold'
-                                  ? Colors.orange
-                                  : const Color(0xFF10B981),
+                            child: Text(
+                              bookingData['status']?.toString().toUpperCase() ?? 'CONFIRMED',
+                              style: AppConstants.fieldLabelStyle.copyWith(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: bookingData['status'] == 'Hold'
+                                    ? Colors.orange
+                                    : const Color(0xFF10B981),
+                              ),
                             ),
-                          ),
                         ),
                       ],
                     ),
@@ -635,15 +576,14 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
         const SizedBox(width: 12),
         Text(
           '$label: ',
-          style: const TextStyle(fontSize: 14, color: Color(0xFF64748B)),
+          style: AppConstants.fieldLabelStyle.copyWith(fontSize: 12, color: const Color(0xFF64748B)),
         ),
         Expanded(
           child: Text(
             value,
-            style: const TextStyle(
-              fontSize: 14,
+            style: AppConstants.fieldValueStyle.copyWith(
               fontWeight: FontWeight.w600,
-              color: Color(0xFF1E293B),
+              color: const Color(0xFF1E293B),
             ),
           ),
         ),
@@ -657,12 +597,11 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Flight Details',
-            style: TextStyle(
+            style: AppConstants.sectionTitleStyle.copyWith(
+              color: const Color(0xFF1E293B),
               fontSize: 20,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF1E293B),
             ),
           ),
           const SizedBox(height: 12),
@@ -715,7 +654,7 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                   Expanded(
                     child: Text(
                       'Air Arabia • ${widget.flight.airlineName}',
-                      style: const TextStyle(
+                      style: AppConstants.fieldValueStyle.copyWith(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -757,25 +696,22 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                           children: [
                             Text(
                               DateFormat('HH:mm').format(departureDateTime),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E293B),
+                              style: AppConstants.sectionTitleStyle.copyWith(
+                                fontSize: 22,
+                                color: const Color(0xFF1E293B),
                               ),
                             ),
                             Text(
                               firstSegment['departure']['airport'],
-                              style: const TextStyle(
+                              style: AppConstants.fieldValueStyle.copyWith(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF64748B),
+                                color: const Color(0xFF64748B),
                               ),
                             ),
                             Text(
                               DateFormat('MMM dd').format(departureDateTime),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF94A3B8),
+                              style: AppConstants.fieldLabelStyle.copyWith(
+                                color: const Color(0xFF94A3B8),
                               ),
                             ),
                           ],
@@ -795,7 +731,7 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                             ),
                             child: Text(
                               '${hours}h ${minutes}m',
-                              style: const TextStyle(
+                              style: AppConstants.fieldValueStyle.copyWith(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
                                 color: TColors.primary,
@@ -828,25 +764,22 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                           children: [
                             Text(
                               DateFormat('HH:mm').format(arrivalDateTime),
-                              style: const TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: Color(0xFF1E293B),
+                              style: AppConstants.sectionTitleStyle.copyWith(
+                                fontSize: 22,
+                                color: const Color(0xFF1E293B),
                               ),
                             ),
                             Text(
                               lastSegment['arrival']['airport'],
-                              style: const TextStyle(
+                              style: AppConstants.fieldValueStyle.copyWith(
                                 fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: Color(0xFF64748B),
+                                color: const Color(0xFF64748B),
                               ),
                             ),
                             Text(
                               DateFormat('MMM dd').format(arrivalDateTime),
-                              style: const TextStyle(
-                                fontSize: 12,
-                                color: Color(0xFF94A3B8),
+                              style: AppConstants.fieldLabelStyle.copyWith(
+                                color: const Color(0xFF94A3B8),
                               ),
                             ),
                           ],
@@ -914,17 +847,17 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                 children: [
                   Text(
                     label,
-                    style: const TextStyle(
+                    style: AppConstants.fieldLabelStyle.copyWith(
                       fontSize: 10,
-                      color: Color(0xFF94A3B8),
+                      color: const Color(0xFF94A3B8),
                     ),
                   ),
                   Text(
                     value,
-                    style: const TextStyle(
+                    style: AppConstants.fieldValueStyle.copyWith(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF1E293B),
+                      color: const Color(0xFF1E293B),
                     ),
                   ),
                 ],
@@ -940,12 +873,12 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
+        Text(
           'Flight Segments',
-          style: TextStyle(
+          style: AppConstants.sectionTitleStyle.copyWith(
             fontWeight: FontWeight.w600,
             fontSize: 14,
-            color: Color(0xFF374151),
+            color: const Color(0xFF374151),
           ),
         ),
         const SizedBox(height: 12),
@@ -983,17 +916,17 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                     children: [
                       Text(
                         flightNumber,
-                        style: const TextStyle(
+                        style: AppConstants.fieldValueStyle.copyWith(
                           fontWeight: FontWeight.w600,
                           fontSize: 12,
-                          color: Color(0xFF1E293B),
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Text(
                         '${_formatTime(departure['dateTime'])} - ${_formatTime(arrival['dateTime'])}',
-                        style: const TextStyle(
+                        style: AppConstants.fieldLabelStyle.copyWith(
                           fontSize: 11,
-                          color: Color(0xFF64748B),
+                          color: const Color(0xFF64748B),
                         ),
                       ),
                     ],
@@ -1001,10 +934,10 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                 ),
                 Text(
                   '${departure['airport']} → ${arrival['airport']}',
-                  style: const TextStyle(
+                  style: AppConstants.fieldLabelStyle.copyWith(
                     fontSize: 11,
                     fontWeight: FontWeight.w500,
-                    color: Color(0xFF64748B),
+                    color: const Color(0xFF64748B),
                   ),
                 ),
               ],
@@ -1060,12 +993,10 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Passenger Details',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 18,
-                          color: Color(0xFF1E293B),
+                        style: AppConstants.sectionTitleStyle.copyWith(
+                          color: const Color(0xFF1E293B),
                         ),
                       ),
                       Container(
@@ -1082,7 +1013,7 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                         ),
                         child: Text(
                           '${bookingController.adults.length + bookingController.children.length + bookingController.infants.length} Passengers',
-                          style: const TextStyle(
+                          style: AppConstants.fieldLabelStyle.copyWith(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
                             color: TColors.primary,
@@ -1186,14 +1117,14 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
           ),
         ),
         const SizedBox(width: 12),
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
-            color: color,
+          Text(
+            title,
+            style: AppConstants.fieldValueStyle.copyWith(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
           ),
-        ),
         const SizedBox(width: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
@@ -1286,10 +1217,9 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                 const SizedBox(height: 8),
                 Text(
                   name,
-                  style: const TextStyle(
-                    fontSize: 14,
+                  style: AppConstants.fieldValueStyle.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: Color(0xFF1E293B),
+                    color: const Color(0xFF1E293B),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -1303,8 +1233,7 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                     const SizedBox(width: 6),
                     Text(
                       passport.isNotEmpty ? passport : 'Not provided',
-                      style: TextStyle(
-                        fontSize: 12,
+                      style: AppConstants.fieldLabelStyle.copyWith(
                         color:
                             passport.isNotEmpty
                                 ? const Color(0xFF64748B)
@@ -1387,12 +1316,10 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                     ),
                   ),
                   const SizedBox(width: 12),
-                  const Text(
+                  Text(
                     'Price Breakdown',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 18,
-                      color: Color(0xFF1E293B),
+                    style: AppConstants.sectionTitleStyle.copyWith(
+                      color: const Color(0xFF1E293B),
                     ),
                   ),
                 ],
@@ -1455,20 +1382,18 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Total Amount',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                      style: AppConstants.sectionTitleStyle.copyWith(
+                        fontSize: 16,
+                        color: const Color(0xFF1E293B),
                       ),
                     ),
                     Text(
                       '${bookingData['currency']} ${bookingData['total_amount']}',
-                      style: const TextStyle(
-                        fontSize: 20,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1E293B),
+                      style: AppConstants.sectionTitleStyle.copyWith(
+                        fontSize: 16,
+                        color: const Color(0xFF1E293B),
                       ),
                     ),
                   ],
@@ -1494,7 +1419,7 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
         children: [
           Text(
             label,
-            style: TextStyle(
+            style: AppConstants.fieldLabelStyle.copyWith(
               fontSize: 13,
               fontWeight:
                   isTotal || isSubtotal ? FontWeight.w600 : FontWeight.normal,
@@ -1504,7 +1429,7 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
           ),
           Text(
             value,
-            style: TextStyle(
+            style: AppConstants.fieldValueStyle.copyWith(
               fontSize: 13,
               fontWeight:
                   isTotal || isSubtotal ? FontWeight.w600 : FontWeight.normal,

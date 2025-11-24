@@ -124,6 +124,8 @@ class ApiServiceAirArabia {
         "infant": infant.toString(),
         "stop": "0", // Air Arabia doesn't support stop filter
         "cabin": cabin,
+        "username": "user123456",
+        "password": "pass123456"
       };
 
       print("AirArabia Request *********************");
