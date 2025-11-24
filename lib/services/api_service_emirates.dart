@@ -778,6 +778,14 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       passengerRefsOrdered.add(currentRef);
       validPassengerIds.add(currentRef);
 
+      final adultNationalityCode = adult.nationalityCountry.value?.countryCode ?? 'PK';
+      final adultIdentityDocumentXml = _buildIdentityDocumentBlock(
+        documentNumber: adult.passportCnicController.text.trim(),
+        expiryDate: adult.passportExpiryController.text.trim(),
+        issuingCountry: adultNationalityCode,
+        nationalityCountry: adultNationalityCode,
+      );
+
       String infantRef = '';
       String infantDetails = '';
 
@@ -805,7 +813,7 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       passengerListXml += '''
                 <Passenger PassengerID="$currentRef">
                          <PTC>ADT</PTC>
-                         <ResidenceCountryCode>${adult.nationalityCountry.value?.countryCode ?? 'PK'}</ResidenceCountryCode>
+                         <ResidenceCountryCode>$adultNationalityCode</ResidenceCountryCode>
                          <Individual>
                              <Birthdate>${adult.dateOfBirthController.text}</Birthdate>
                              <Gender>${adult.genderController.text}</Gender>
@@ -813,6 +821,10 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                              <GivenName>${adult.firstNameController.text}</GivenName>
                              <Surname>${adult.lastNameController.text}</Surname>
                          </Individual>''';
+
+      if (adultIdentityDocumentXml.isNotEmpty) {
+        passengerListXml += adultIdentityDocumentXml;
+      }
 
       if (i == 0) {
         passengerListXml += '''
@@ -838,17 +850,31 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       passengerRefsOrdered.add(currentRef);
       validPassengerIds.add(currentRef);
 
+      final childNationalityCode = child.nationalityCountry.value?.countryCode ?? 'PK';
+      final childIdentityDocumentXml = _buildIdentityDocumentBlock(
+        documentNumber: child.passportCnicController.text.trim(),
+        expiryDate: child.passportExpiryController.text.trim(),
+        issuingCountry: childNationalityCode,
+        nationalityCountry: childNationalityCode,
+      );
+
       passengerListXml += '''
                 <Passenger PassengerID="$currentRef">
                          <PTC>CNN</PTC>
-                         <ResidenceCountryCode>${child.nationalityCountry.value?.countryCode ?? 'PK'}</ResidenceCountryCode>
+                         <ResidenceCountryCode>$childNationalityCode</ResidenceCountryCode>
                          <Individual>
                              <Birthdate>${child.dateOfBirthController.text}</Birthdate>
                              <Gender>${child.genderController.text}</Gender>
                              <NameTitle>${child.titleController.text}</NameTitle>
                              <GivenName>${child.firstNameController.text}</GivenName>
                              <Surname>${child.lastNameController.text}</Surname>
-                         </Individual> 
+                         </Individual>''';
+
+      if (childIdentityDocumentXml.isNotEmpty) {
+        passengerListXml += childIdentityDocumentXml;
+      }
+
+      passengerListXml += ''' 
                      </Passenger>''';
       debugPrint(
           'Added child passenger: ${child.firstNameController.text} ${child.lastNameController.text}');
@@ -1013,12 +1039,12 @@ $passengerListXml
               <ContactList>
                 <ContactInformation ContactID="CID1">
                   <PostalAddress>
-                    <Label>AddressAtDestination</Label>
-                    <Street>123 STREET</Street>
-                    <PostalCode>33160</PostalCode>
-                    <CityName>MIAMI</CityName>
-                    <CountrySubdivisionName>FL</CountrySubdivisionName>
-                    <CountryCode>US</CountryCode>
+                    <Label></Label>
+                    <Street></Street>
+                    <PostalCode></PostalCode>
+                    <CityName></CityName>
+                    <CountrySubdivisionName></CountrySubdivisionName>
+                    <CountryCode></CountryCode>
                   </PostalAddress>
                   <ContactProvided>
                     <EmailAddress>
@@ -1747,6 +1773,31 @@ Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
       'error': 'Failed to parse PNR response: $e',
     };
   }
+}
+
+String _buildIdentityDocumentBlock({
+  required String documentNumber,
+  required String expiryDate,
+  required String issuingCountry,
+  required String nationalityCountry,
+}) {
+  final docNumber = documentNumber.trim();
+  final docExpiry = expiryDate.trim();
+  final issuing = issuingCountry.trim().isEmpty ? 'PK' : issuingCountry.trim();
+  final nationality = nationalityCountry.trim().isEmpty ? issuing : nationalityCountry.trim();
+
+  if (docNumber.isEmpty || docExpiry.isEmpty) {
+    return '';
+  }
+
+  return '''
+                         <IdentityDocument>
+                             <IdentityDocumentNumber>$docNumber</IdentityDocumentNumber>
+                             <IdentityDocumentType>PT</IdentityDocumentType>
+                             <ExpiryDate>$docExpiry</ExpiryDate>
+                             <IssuingCountryCode>$issuing</IssuingCountryCode>
+                             <NationalityCountryCode>$nationality</NationalityCountryCode>
+                         </IdentityDocument>''';
 }
 
 }
