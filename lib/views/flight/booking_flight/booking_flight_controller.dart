@@ -224,6 +224,9 @@ class BookingFlightController extends GetxController {
     isLoadingUserData.value = true;
     
     try {
+      // Sync traveler counts from FlightBookingController if available
+      _syncTravelerCountsFromSearch();
+      
       // Check if user is logged in and get their data
       final isLoggedIn = await authController.isLoggedIn();
       
@@ -244,6 +247,20 @@ class BookingFlightController extends GetxController {
       ever(travelersController.adultCount, (_) => updateAdults());
       ever(travelersController.childrenCount, (_) => updateChildren());
       ever(travelersController.infantCount, (_) => updateInfants());
+    }
+  }
+
+  void _syncTravelerCountsFromSearch() {
+    try {
+      final flightBookingController = Get.find<FlightBookingController>();
+      // Sync the counts from search to travelers controller
+      travelersController.adultCount.value = flightBookingController.adultCount.value;
+      travelersController.childrenCount.value = flightBookingController.childrenCount.value;
+      travelersController.infantCount.value = flightBookingController.infantCount.value;
+      print('Synced traveler counts: ${travelersController.adultCount.value} adults, ${travelersController.childrenCount.value} children, ${travelersController.infantCount.value} infants');
+    } catch (e) {
+      // FlightBookingController not found, use defaults
+      print('FlightBookingController not found, using default traveler counts: $e');
     }
   }
 

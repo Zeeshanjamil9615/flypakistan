@@ -1039,7 +1039,7 @@ $passengerListXml
               <ContactList>
                 <ContactInformation ContactID="CID1">
                   <PostalAddress>
-                    <Label></Label>
+                    <Label>  </Label>
                     <Street></Street>
                     <PostalCode></PostalCode>
                     <CityName></CityName>

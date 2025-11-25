@@ -68,7 +68,7 @@ class FlightBookingScreen extends StatelessWidget {
   }
 
   String _getPassengerDisplayText() {
-    final adults = controller.travellersCount.value;
+    final adults = controller.adultCount.value;
     final children = controller.childrenCount.value;
     final infants = controller.infantCount.value;
     final total = adults + children + infants;
@@ -842,15 +842,17 @@ class FlightBookingScreen extends StatelessWidget {
       onTap: () async {
         final result = await showPassengerClassSelection(
           context: context,
-          adults: controller.travellersCount.value,
+          adults: controller.adultCount.value,
           children: controller.childrenCount.value,
           infants: controller.infantCount.value,
           travelClass: controller.travelClass.value,
         );
         if (result != null) {
-          controller.travellersCount.value = result['adults'];
-          controller.childrenCount.value = result['children'];
-          controller.infantCount.value = result['infants'];
+          controller.updateTravellerCounts(
+            result['adults'],
+            result['children'],
+            result['infants'],
+          );
           controller.travelClass.value = result['travelClass'];
         }
       },

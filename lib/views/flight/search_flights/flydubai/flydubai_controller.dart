@@ -961,11 +961,21 @@ class FlydubaiFlightController extends GetxController {
         print('   - Fare ID: ${selectedOutboundFareOption!.fareId}');
         
         final fareId = selectedOutboundFareOption!.fareId;
+        final outboundMeta = _buildSegmentMeta(selectedOutboundFlight!);
 
         // Get extras data from extras controller
-        final baggageExtras = _buildBaggageExtras(extrasController.selectedBaggage);
-        final mealExtras = _buildMealExtras(extrasController.selectedMeals);
-        final seatExtras = _buildSeatExtras(extrasController.selectedSeats);
+        final baggageExtras = _buildBaggageExtras(
+          extrasController.selectedBaggage,
+          outboundMeta,
+        );
+        final mealExtras = _buildMealExtras(
+          extrasController.selectedMeals,
+          outboundMeta,
+        );
+        final seatExtras = _buildSeatExtras(
+          extrasController.selectedSeats,
+          outboundMeta,
+        );
 
         print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
         print('   - Meal extras: ${mealExtras.length}');
@@ -993,11 +1003,21 @@ class FlydubaiFlightController extends GetxController {
         print('   - Fare ID: ${selectedReturnFareOption!.fareId}');
         
         final fareId = selectedReturnFareOption!.fareId;
+        final returnMeta = _buildSegmentMeta(selectedReturnFlight!);
 
         // Get extras data from extras controller (you might want separate handling for return flight)
-        final baggageExtras = _buildBaggageExtras(extrasController.selectedBaggage);
-        final mealExtras = _buildMealExtras(extrasController.selectedMeals);
-        final seatExtras = _buildSeatExtras(extrasController.selectedSeats);
+        final baggageExtras = _buildBaggageExtras(
+          extrasController.selectedBaggage,
+          returnMeta,
+        );
+        final mealExtras = _buildMealExtras(
+          extrasController.selectedMeals,
+          returnMeta,
+        );
+        final seatExtras = _buildSeatExtras(
+          extrasController.selectedSeats,
+          returnMeta,
+        );
 
         print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
         print('   - Meal extras: ${mealExtras.length}');
@@ -1028,20 +1048,87 @@ class FlydubaiFlightController extends GetxController {
     return segments;
   }
 
+  Map<String, dynamic> _buildSegmentMeta(FlydubaiFlight flight) {
+    final int lfid = flight.flightSegment.lfid;
+    final departureDateTime = flight.flightSegment.departureDateTime;
+    final String departureIso = departureDateTime.toIso8601String();
+
+    final physicalFlightId = _extractPhysicalFlightId(
+      flight.rawData,
+      lfid,
+    );
+
+    final departureDateOnly = departureIso.split('T').first;
+
+    return {
+      'lfid': lfid,
+      'physicalFlightId': physicalFlightId,
+      'departureDateTime': departureIso,
+      'departureDateMidnight': '${departureDateOnly}T00:00:00',
+    };
+  }
+
+  int _extractPhysicalFlightId(Map<String, dynamic> rawData, int lfid) {
+    try {
+      final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']
+          ?['RetrieveFareQuoteDateRangeResult'];
+      if (retrieveResult == null) return 0;
+
+      final segmentData = retrieveResult['FlightSegments']?['FlightSegment'];
+      final List<dynamic> segments;
+
+      if (segmentData is List) {
+        segments = segmentData;
+      } else if (segmentData is Map) {
+        segments = [segmentData];
+      } else {
+        return 0;
+      }
+
+      for (final segment in segments) {
+        if (segment is! Map) continue;
+        final segmentLfid = (segment['LFID'] as num?)?.toInt();
+        if (segmentLfid != lfid) continue;
+
+        final legDetails = segment['FlightLegDetails']?['FlightLegDetail'];
+        if (legDetails is List && legDetails.isNotEmpty) {
+          return (legDetails.first['PFID'] as num?)?.toInt() ?? 0;
+        } else if (legDetails is Map) {
+          return (legDetails['PFID'] as num?)?.toInt() ?? 0;
+        }
+        break;
+      }
+    } catch (e) {
+      debugPrint('Error extracting PFID: $e');
+    }
+    return 0;
+  }
+
 // Helper methods to build extras in the correct format
-  String _buildBaggageExtras(RxMap<String, dynamic> selectedBaggage) {
+  String _buildBaggageExtras(
+    RxMap<String, dynamic> selectedBaggage,
+    Map<String, dynamic> segmentMeta,
+  ) {
     if (selectedBaggage.isEmpty) return '';
 
     try {
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID
       final baggage = selectedBaggage.values.first;
-      return '${baggage['id']}!!0!!${DateTime.now().toIso8601String()}!!${baggage['charge']}!!PKR!!BAGGAGE_RULE!!0';
+      final code = baggage['id']?.toString() ?? 'BAGB';
+      final amount = baggage['charge']?.toString() ?? '0';
+      final currency = baggage['currency']?.toString() ?? 'PKR';
+      final description = baggage['description']?.toString() ?? 'Baggage';
+
+      return '$code!!${segmentMeta['lfid']}!!${segmentMeta['departureDateMidnight']}!!$amount!!$currency!!$description!!${segmentMeta['physicalFlightId']}';
     } catch (e) {
       return '';
     }
   }
 
-  List<String> _buildMealExtras(RxMap<String, dynamic> selectedMeals) {
+  List<String> _buildMealExtras(
+    RxMap<String, dynamic> selectedMeals,
+    Map<String, dynamic> segmentMeta,
+  ) {
     final List<String> meals = [];
 
     if (selectedMeals.isEmpty) return meals;
@@ -1049,7 +1136,12 @@ class FlydubaiFlightController extends GetxController {
     try {
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID
       for (final meal in selectedMeals.values) {
-        meals.add('${meal['id']}!!0!!${DateTime.now().toIso8601String()}!!${meal['charge']}!!PKR!!MEAL_RULE!!0');
+        final code = meal['id']?.toString() ?? 'MLIN';
+        final amount = meal['charge']?.toString() ?? '0';
+        final currency = meal['currency']?.toString() ?? 'PKR';
+        final description = meal['description']?.toString() ?? meal['name']?.toString() ?? 'Meal';
+
+        meals.add('$code!!${segmentMeta['lfid']}!!${segmentMeta['departureDateMidnight']}!!$amount!!$currency!!$description!!${segmentMeta['physicalFlightId']}');
       }
     } catch (e) {
       print('Error building meal extras: $e');
@@ -1058,7 +1150,10 @@ class FlydubaiFlightController extends GetxController {
     return meals;
   }
 
-  List<String> _buildSeatExtras(RxMap<String, dynamic> selectedSeats) {
+  List<String> _buildSeatExtras(
+    RxMap<String, dynamic> selectedSeats,
+    Map<String, dynamic> segmentMeta,
+  ) {
     final List<String> seats = [];
 
     if (selectedSeats.isEmpty) return seats;
@@ -1066,7 +1161,17 @@ class FlydubaiFlightController extends GetxController {
     try {
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID!!RowNumber!!SeatNumber
       for (final seat in selectedSeats.values) {
-        seats.add('SEAT!!0!!${DateTime.now().toIso8601String()}!!${seat['charge']}!!PKR!!SEAT_RULE!!0!!${seat['rowNumber']}!!${seat['seatNumber']}');
+        final code = seat['serviceCode']?.toString();
+        final amount = seat['charge']?.toString() ?? '0';
+        final currency = seat['currency']?.toString() ?? 'PKR';
+        final row = seat['rowNumber']?.toString() ?? '';
+        final seatNumber = seat['seatNumber']?.toString() ?? '';
+        final comment = 'Seat $seatNumber';
+        final departure = seat['departureDate']?.toString().isNotEmpty == true
+            ? seat['departureDate'].toString()
+            : segmentMeta['departureDateTime'];
+
+        seats.add('${code ?? 'SPST'}!!${segmentMeta['lfid']}!!$departure!!$amount!!$currency!!$comment!!${segmentMeta['physicalFlightId']}!!$row!!$seatNumber');
       }
     } catch (e) {
       print('Error building seat extras: $e');

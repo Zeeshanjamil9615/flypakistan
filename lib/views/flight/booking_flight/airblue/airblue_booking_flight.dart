@@ -219,12 +219,14 @@ class AirBlueBookingFlight extends StatefulWidget {
 
 class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   final _formKey = GlobalKey<FormState>();
-  final BookingFlightController bookingController = Get.put(
-    BookingFlightController(),
-  );
-  final TravelersController travelersController = Get.put(
-    TravelersController(),
-  );
+  final BookingFlightController bookingController =
+      Get.isRegistered<BookingFlightController>()
+          ? Get.find<BookingFlightController>()
+          : Get.put(BookingFlightController());
+  final TravelersController travelersController =
+      Get.isRegistered<TravelersController>()
+          ? Get.find<TravelersController>()
+          : Get.put(TravelersController());
   AirBlueFlightController? _airblueFlightController;
   AirArabiaRevalidationController? _airArabiaRevalidationController;
   final AuthController? _authController = Get.isRegistered<AuthController>() 
@@ -236,11 +238,34 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   final RxInt _secondsLeft = (4 * 60 * 60).obs;
   Timer? _countdownTimer;
   bool _loginDialogVisible = false;
+  bool _isUserLoggedIn = false;
+  Worker? _adultCountWorker;
+  Worker? _bookerPhoneCountryWorker;
+  TextEditingController? _trackedFirstTravelerFirstNameController;
+  TextEditingController? _trackedFirstTravelerLastNameController;
+  VoidCallback? _firstTravelerFirstNameListener;
+  VoidCallback? _firstTravelerLastNameListener;
 
   @override
   void initState() {
     super.initState();
+    _syncTravelersFromSearch();
     bookingController.initializeTravelers();
+    _syncTravelerContactInfo();
+    _attachFirstTravelerListeners();
+    bookingController.emailController.addListener(_syncTravelerContactInfo);
+    bookingController.phoneController.addListener(_syncTravelerContactInfo);
+    _bookerPhoneCountryWorker = ever<Country?>(
+      bookingController.bookerPhoneCountry,
+      (_) => _syncTravelerContactInfo(),
+    );
+    _adultCountWorker = ever<int>(
+      travelersController.adultCount,
+      (_) {
+        _syncTravelerContactInfo();
+        _attachFirstTravelerListeners();
+      },
+    );
     // Only get AirBlue controller if provider is AirBlue
     if (widget.provider == FlightProvider.airblue && Get.isRegistered<AirBlueFlightController>()) {
       _airblueFlightController = Get.find<AirBlueFlightController>();
@@ -257,6 +282,15 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         _checkLoginStatus();
       }
     });
+  }
+
+  void _syncTravelersFromSearch() {
+    if (Get.isRegistered<FlightBookingController>()) {
+      final searchController = Get.find<FlightBookingController>();
+      travelersController.adultCount.value = searchController.adultCount.value;
+      travelersController.childrenCount.value = searchController.childrenCount.value;
+      travelersController.infantCount.value = searchController.infantCount.value;
+    }
   }
 
   void _fillDummyData() {
@@ -348,6 +382,192 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     );
   }
 
+  void _syncTravelerContactInfo() {
+    final phone = bookingController.phoneController.text;
+    final email = bookingController.emailController.text;
+    final bookerCountry = bookingController.bookerPhoneCountry.value;
+    for (final adult in bookingController.adults) {
+      if (adult.phoneController.text != phone) {
+        adult.phoneController.text = phone;
+      }
+      if (adult.emailController.text != email) {
+        adult.emailController.text = email;
+      }
+      if (bookerCountry != null &&
+          (adult.phoneCountry.value?.countryCode ?? '') != bookerCountry.countryCode) {
+        adult.phoneCountry.value = bookerCountry;
+      }
+    }
+  }
+
+  void _attachFirstTravelerListeners() {
+    _removeFirstTravelerListeners();
+    if (bookingController.adults.isEmpty) return;
+
+    final traveler = bookingController.adults.first;
+    _trackedFirstTravelerFirstNameController = traveler.firstNameController;
+    _trackedFirstTravelerLastNameController = traveler.lastNameController;
+
+    _firstTravelerFirstNameListener = _onFirstTravelerNameChanged;
+    _firstTravelerLastNameListener = _onFirstTravelerNameChanged;
+
+    _trackedFirstTravelerFirstNameController
+        ?.addListener(_firstTravelerFirstNameListener!);
+    _trackedFirstTravelerLastNameController
+        ?.addListener(_firstTravelerLastNameListener!);
+
+    _syncBookerNameFromTravelers();
+  }
+
+  void _removeFirstTravelerListeners() {
+    if (_trackedFirstTravelerFirstNameController != null &&
+        _firstTravelerFirstNameListener != null) {
+      _trackedFirstTravelerFirstNameController!
+          .removeListener(_firstTravelerFirstNameListener!);
+    }
+    if (_trackedFirstTravelerLastNameController != null &&
+        _firstTravelerLastNameListener != null) {
+      _trackedFirstTravelerLastNameController!
+          .removeListener(_firstTravelerLastNameListener!);
+    }
+    _trackedFirstTravelerFirstNameController = null;
+    _trackedFirstTravelerLastNameController = null;
+    _firstTravelerFirstNameListener = null;
+    _firstTravelerLastNameListener = null;
+  }
+
+  void _onFirstTravelerNameChanged() {
+    if (_isUserLoggedIn) return;
+    _syncBookerNameFromTravelers();
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  void _syncBookerNameFromTravelers() {
+    if (_isUserLoggedIn || bookingController.adults.isEmpty) return;
+    final traveler = bookingController.adults.first;
+    final first = traveler.firstNameController.text.trim();
+    final last = traveler.lastNameController.text.trim();
+    if (bookingController.firstNameController.text != first) {
+      bookingController.firstNameController.text = first;
+    }
+    if (bookingController.lastNameController.text != last) {
+      bookingController.lastNameController.text = last;
+    }
+  }
+
+  String _contactName() {
+    if (_isUserLoggedIn) {
+      final first = bookingController.firstNameController.text.trim();
+      final last = bookingController.lastNameController.text.trim();
+      return [first, last].where((part) => part.isNotEmpty).join(' ').trim();
+    }
+    if (bookingController.adults.isNotEmpty) {
+      final traveler = bookingController.adults.first;
+      final first = traveler.firstNameController.text.trim();
+      final last = traveler.lastNameController.text.trim();
+      final combined =
+          [first, last].where((part) => part.isNotEmpty).join(' ').trim();
+      if (combined.isNotEmpty) {
+        return combined;
+      }
+    }
+    final fallbackFirst = bookingController.firstNameController.text.trim();
+    final fallbackLast = bookingController.lastNameController.text.trim();
+    return [fallbackFirst, fallbackLast]
+        .where((part) => part.isNotEmpty)
+        .join(' ')
+        .trim();
+  }
+
+  String _contactNameSourceDescription() {
+    if (_isUserLoggedIn) {
+      return 'Using the name from your logged-in profile.';
+    }
+    if (bookingController.adults.isNotEmpty) {
+      return 'Using Adult 1 traveler name automatically.';
+    }
+    return 'Enter traveler details to populate this name.';
+  }
+
+  DateTime _yearsAgo(DateTime reference, int years) {
+    return DateTime(reference.year - years, reference.month, reference.day);
+  }
+
+  DateTime? _getDobMinDate(String type) {
+    final now = DateTime.now();
+    switch (type) {
+      case 'infant':
+        // Infant must be younger than 2 years (minimum allowable date is > now - 2 years)
+        return _yearsAgo(now, 2).add(const Duration(days: 1));
+      case 'child':
+        // Child must be younger than 12 years (date must be greater than now - 12 years)
+        return _yearsAgo(now, 12).add(const Duration(days: 1));
+      case 'adult':
+        // Adults have no minimum bound (can be any older age)
+        return null;
+      default:
+        return null;
+    }
+  }
+
+  DateTime? _getDobMaxDate(String type) {
+    final now = DateTime.now();
+    switch (type) {
+      case 'infant':
+        // Infant must be at least 1 day old
+        return now.subtract(const Duration(days: 1));
+      case 'child':
+        // Child must be at least 2 years old
+        return _yearsAgo(now, 2);
+      case 'adult':
+        // Adult must be at least 12 years old
+        return _yearsAgo(now, 12);
+      default:
+        return null;
+    }
+  }
+
+  String? _getDobMinErrorText(String type) {
+    switch (type) {
+      case 'infant':
+        return 'Infant must be younger than 2 years.';
+      case 'child':
+        return 'Child traveler must be younger than 12 years.';
+      default:
+        return null;
+    }
+  }
+
+  String? _getDobErrorText(String type) {
+    switch (type) {
+      case 'infant':
+        return 'Infant must be at least 1 day old.';
+      case 'child':
+        return 'Child traveler must be at least 2 years old.';
+      case 'adult':
+        return 'Adult traveler must be at least 12 years old.';
+      default:
+        return null;
+    }
+  }
+
+  Widget _buildTravelerContactInfoNotice() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blueGrey.withOpacity(0.04),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        'Phone and email will use the contact details entered above.',
+        style: AppConstants.fieldLabelStyle.copyWith(fontSize: 11),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -380,9 +600,9 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
               children: [
                 _buildStepProgressCard(activeStep: 1),
                 const SizedBox(height: 20),
-                _buildTravelersForm(),
+                _buildContactDetails(),
                 const SizedBox(height: 24),
-                _buildBookerDetails(),
+                _buildTravelersForm(),
                 const SizedBox(height: 24),
                 _buildTermsAndConditions(),
                 const SizedBox(height: 100), // Space for bottom bar
@@ -458,6 +678,12 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     }
 
     final headingText = 'Traveler details for $title';
+    final now = DateTime.now();
+    final bool isDomestic = bookingController.isDomesticFlight;
+    final DateTime? minPassportExpiry =
+        isDomestic ? null : DateTime(now.year, now.month + 6, now.day);
+    final String? minPassportExpiryError =
+        isDomestic ? null : 'Passport expiry should be 6 months or onwards.';
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 24),
@@ -516,21 +742,16 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
             label: 'Date of Birth*',
             controller: travelerInfo.dateOfBirthController,
             isDob: true,
+            minSelectableDate: _getDobMinDate(type),
+            maxSelectableDate: _getDobMaxDate(type),
+            minDateErrorText: _getDobMinErrorText(type),
+            maxDateErrorText: _getDobErrorText(type),
+            yearRange: type == 'infant' ? 5 : 120,
           ),
-          if (type == 'adult') ...[
-            const SizedBox(height: 16),
-            _buildPhoneFieldWithCountryPicker(
-              label: 'Phone*',
-              phoneController: travelerInfo.phoneController,
-              travelerInfo: travelerInfo,
-            ),
-            const SizedBox(height: 16),
-            _buildTextField(
-              label: 'Passenger Email',
-              controller: travelerInfo.emailController,
-              keyboardType: TextInputType.emailAddress,
-            ),
-          ],
+          // if (type == 'adult') ...[
+          //   const SizedBox(height: 12),
+          //   _buildTravelerContactInfoNotice(),
+          // ],
           const SizedBox(height: 16),
           _buildTextField(
             label: bookingController.isDomesticFlight
@@ -546,6 +767,8 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                 : 'Passport Expiry*',
             controller: travelerInfo.passportExpiryController,
             isDob: false,
+            minSelectableDate: minPassportExpiry,
+            minDateErrorText: minPassportExpiryError,
           ),
           const SizedBox(height: 16),
           _buildNationalityPickerField(
@@ -556,7 +779,9 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
       ),
     );
   }
-  Widget _buildBookerDetails() {
+  Widget _buildContactDetails() {
+    final contactName = _contactName();
+    final nameDescription = _contactNameSourceDescription();
     return Container(
       margin: EdgeInsets.all(4),
       padding: EdgeInsets.all(16),
@@ -576,7 +801,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
               Icon(Icons.badge, color: TColors.primary, size: AppConstants.iconSize),
               const SizedBox(width: 8),
               Text(
-                'Booker Information',
+                'Contact Details',
                 style: AppConstants.sectionTitleStyle.copyWith(
                   fontSize: 18,
                   color: Colors.black87,
@@ -584,22 +809,41 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
               ),
             ],
           ),
-          const SizedBox(height: 20),
-          _buildTextField(
-            label: 'Given Name*',
-            controller: bookingController.firstNameController,
-            isRequired: true,
-            helperText:
-            'Please ensure your name is as it appears on your Passport.',
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            label: 'Surname*',
-            controller: bookingController.lastNameController,
-            isRequired: true,
-            helperText:
-            'Please ensure your name is as it appears on your Passport.',
-          ),
+          // const SizedBox(height: 20),
+          // Container(
+          //   width: double.infinity,
+          //   padding: const EdgeInsets.all(12),
+          //   decoration: BoxDecoration(
+          //     color: Colors.blueGrey.withOpacity(0.04),
+          //     borderRadius: BorderRadius.circular(8),
+          //     border: Border.all(color: Colors.blueGrey.withOpacity(0.2)),
+          //   ),
+          //   child: Column(
+          //     crossAxisAlignment: CrossAxisAlignment.start,
+          //     children: [
+          //       Text(
+          //         'Contact name',
+          //         style: AppConstants.fieldLabelStyle.copyWith(fontSize: 12),
+          //       ),
+          //       const SizedBox(height: 4),
+          //       Text(
+          //         contactName.isNotEmpty ? contactName : 'Pending traveler details',
+          //         style: AppConstants.fieldValueStyle.copyWith(
+          //           fontSize: 15,
+          //           fontWeight: FontWeight.w600,
+          //         ),
+          //       ),
+          //       const SizedBox(height: 4),
+          //       Text(
+          //         nameDescription,
+          //         style: AppConstants.fieldLabelStyle.copyWith(
+          //           fontSize: 11,
+          //           color: Colors.grey[600],
+          //         ),
+          //       ),
+          //     ],
+          //   ),
+          // ),
           const SizedBox(height: 16),
           _buildTextField(
             label: 'Email*',
@@ -611,13 +855,6 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
           _buildBookerPhoneFieldWithCountryPicker(
             label: 'Phone*',
             phoneController: bookingController.phoneController,
-          ),
-          const SizedBox(height: 16),
-          _buildTextField(
-            label: 'Remarks',
-            controller: bookingController.remarksController,
-            maxLines: 3,
-            helperText: 'Optional',
           ),
         ],
       ),
@@ -746,118 +983,6 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildPhoneFieldWithCountryPicker({
-    required String label,
-    required TextEditingController phoneController,
-    required TravelerInfo travelerInfo,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppConstants.fieldValueStyle),
-        const SizedBox(height: 6),
-        FormField<String>(
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          validator: (value) {
-            if (phoneController.text.isEmpty) {
-              return 'Please enter phone number';
-            }
-            return null;
-          },
-          builder: (fieldState) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    border: Border.all(
-                      color: fieldState.hasError
-                          ? Colors.red
-                          : AppConstants.fieldBorderColor,
-                    ),
-                    borderRadius: BorderRadius.circular(
-                      AppConstants.borderRadius,
-                    ),
-                  ),
-                  child: Row(
-                    children: [
-                      Obx(() {
-                        final country = travelerInfo.phoneCountry.value;
-                        return InkWell(
-                          onTap: () {
-                            bookingController.showPhoneCountryPicker(
-                              context,
-                              travelerInfo,
-                            );
-                          },
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            decoration: BoxDecoration(
-                              border: Border(
-                                right: BorderSide(
-                                  color: fieldState.hasError
-                                      ? Colors.red
-                                      : AppConstants.fieldBorderColor,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  country?.flagEmoji ?? '🇵🇰',
-                                  style: const TextStyle(fontSize: 16),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  '+${country?.phoneCode ?? '92'}',
-                                  style: const TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const Icon(Icons.arrow_drop_down, size: 20),
-                              ],
-                            ),
-                          ),
-                        );
-                      }),
-                      Expanded(
-                        child: TextFormField(
-                          controller: phoneController,
-                          keyboardType: TextInputType.phone,
-                          decoration: const InputDecoration(
-                            border: InputBorder.none,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12,
-                              vertical: 12,
-                            ),
-                            hintText: 'Phone Number',
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (fieldState.hasError) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    fieldState.errorText ?? '',
-                    style: const TextStyle(color: Colors.red, fontSize: 12),
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ],
     );
   }
 
@@ -1162,9 +1287,27 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     required String label,
     required TextEditingController controller,
     required bool isDob,
+    DateTime? minSelectableDate,
+    DateTime? maxSelectableDate,
+    String? minDateErrorText,
+    String? maxDateErrorText,
+    int? yearRange,
   }) {
     final selection = _syncDateSelection(controller);
     final now = DateTime.now();
+    final resolvedYearRange = yearRange ?? (isDob ? 120 : 30);
+
+    List<int> _buildYearOptions() {
+      if (isDob) {
+        // For DOB, start from current year and go backwards
+        // This ensures we cover the full range including min/max dates
+        final startYear = now.year;
+        return List.generate(resolvedYearRange, (index) => startYear - index);
+      } else {
+        final startYear = (minSelectableDate ?? now).year;
+        return List.generate(resolvedYearRange, (index) => startYear + index);
+      }
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1177,10 +1320,22 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
             if (parsedDate == null) {
               return 'Please select $label';
             }
+            if (maxSelectableDate != null &&
+                parsedDate.isAfter(maxSelectableDate)) {
+              return maxDateErrorText ??
+                  'Selected date exceeds the allowed range';
+            }
+            if (minSelectableDate != null &&
+                parsedDate.isBefore(minSelectableDate)) {
+              return minDateErrorText ??
+                  'Selected date is before the allowed range';
+            }
             if (isDob && parsedDate.isAfter(now)) {
               return 'Date cannot be in the future';
             }
-            if (!isDob && parsedDate.isBefore(now)) {
+            if (!isDob &&
+                minSelectableDate == null &&
+                parsedDate.isBefore(now)) {
               return 'Date cannot be in the past';
             }
             return null;
@@ -1209,6 +1364,9 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                               controller: controller,
                               fieldState: fieldState,
                               isDob: isDob,
+                              minSelectableDate: minSelectableDate,
+                              maxSelectableDate: maxSelectableDate,
+                              yearRange: resolvedYearRange,
                             );
                           },
                           addRightDivider: true,
@@ -1242,9 +1400,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                           placeholder: 'Year',
                           value: selection.year?.toString(),
                           onTap: () async {
-                            final years = isDob
-                                ? List.generate(120, (index) => now.year - index)
-                                : List.generate(30, (index) => now.year + index);
+                            final years = _buildYearOptions();
                             final selected = await _showSelectionDialog<int>(
                               title: 'Select Year',
                               options: years,
@@ -1369,7 +1525,13 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     required TextEditingController controller,
     required FormFieldState<String> fieldState,
     required bool isDob,
+    DateTime? minSelectableDate,
+    DateTime? maxSelectableDate,
+    int? yearRange,
   }) async {
+    final bool monthAlreadySelected = selection.month != null;
+    final bool yearAlreadySelected = selection.year != null;
+
     final date = await _showSelectionDialog<int>(
       title: 'Select Date',
       options: List.generate(31, (index) => index + 1),
@@ -1380,29 +1542,39 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     _updateDateController(controller, selection);
     fieldState.didChange(controller.text);
 
-    final month = await _showSelectionDialog<int>(
-      title: 'Select Month',
-      options: List.generate(12, (index) => index + 1),
-      displayBuilder: (value) => DateFormat.MMMM().format(DateTime(0, value)),
-    );
-    if (month == null) return;
-    selection.month = month;
-    _updateDateController(controller, selection);
-    fieldState.didChange(controller.text);
+    if (!monthAlreadySelected) {
+      final month = await _showSelectionDialog<int>(
+        title: 'Select Month',
+        options: List.generate(12, (index) => index + 1),
+        displayBuilder: (value) => DateFormat.MMMM().format(DateTime(0, value)),
+      );
+      if (month == null) return;
+      selection.month = month;
+      _updateDateController(controller, selection);
+      fieldState.didChange(controller.text);
+    }
 
     final now = DateTime.now();
-    final years = isDob
-        ? List.generate(120, (index) => now.year - index)
-        : List.generate(30, (index) => now.year + index);
-    final year = await _showSelectionDialog<int>(
-      title: 'Select Year',
-      options: years,
-      displayBuilder: (value) => value.toString(),
-    );
-    if (year == null) return;
-    selection.year = year;
-    _updateDateController(controller, selection);
-    fieldState.didChange(controller.text);
+    final resolvedYearRange = yearRange ?? (isDob ? 120 : 30);
+    // For DOB, start from current year and go backwards to cover full range
+    final startYear = isDob
+        ? now.year
+        : (minSelectableDate ?? now).year;
+    if (!yearAlreadySelected) {
+      final years = List.generate(
+        resolvedYearRange,
+        (index) => isDob ? startYear - index : startYear + index,
+      );
+      final year = await _showSelectionDialog<int>(
+        title: 'Select Year',
+        options: years,
+        displayBuilder: (value) => value.toString(),
+      );
+      if (year == null) return;
+      selection.year = year;
+      _updateDateController(controller, selection);
+      fieldState.didChange(controller.text);
+    }
   }
 
   _DateSelectionState _syncDateSelection(TextEditingController controller) {
@@ -1718,6 +1890,14 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   Future<void> _checkLoginStatus() async {
     if (_authController == null) return;
     final isLoggedIn = await _authController!.isLoggedIn();
+    if (mounted) {
+      setState(() {
+        _isUserLoggedIn = isLoggedIn;
+      });
+    }
+    if (!isLoggedIn) {
+      _syncBookerNameFromTravelers();
+    }
     if (!isLoggedIn) {
       _showLoginRequiredDialog();
     }
@@ -1909,6 +2089,9 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
       );
       return;
     }
+
+    _syncBookerNameFromTravelers();
+    _syncTravelerContactInfo();
 
     // Route based on provider
     if (widget.provider == FlightProvider.sabre) {
@@ -2940,6 +3123,11 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     // Don't dispose GetX-managed controllers - they're singletons and reused
     // bookingController and travelersController are managed by GetX
     // Only dispose local resources like timers
+    bookingController.emailController.removeListener(_syncTravelerContactInfo);
+    bookingController.phoneController.removeListener(_syncTravelerContactInfo);
+    _adultCountWorker?.dispose();
+    _bookerPhoneCountryWorker?.dispose();
+    _removeFirstTravelerListeners();
     _countdownTimer?.cancel();
     super.dispose();
   }

@@ -1793,6 +1793,38 @@ class ApiServiceFlyDubai {
           }
         }
       }
+
+      // Handle seats as chargeable SSR (SPST)
+      if (extra['seat'] is List) {
+        for (final seat in extra['seat'] as List) {
+          if (seat != null && seat.toString().isNotEmpty) {
+            final seatItems = seat.toString().split('!!');
+            if (seatItems.length >= 9) {
+              final depDate = seatItems[2].contains('T')
+                  ? seatItems[2]
+                  : "${seatItems[2]}T00:00:00";
+
+              services.add({
+                "ServiceID": 1,
+                "CodeType": seatItems[0],
+                "SSRCategory": 0,
+                "LogicalFlightID": int.tryParse(seatItems[1]) ?? 0,
+                "DepartureDate": depDate,
+                "Amount": double.tryParse(seatItems[3]) ?? 0.0,
+                "OverrideAmount": false,
+                "CurrencyCode": seatItems[4],
+                "Commissionable": false,
+                "Refundable": false,
+                "ChargeComment": seatItems[5],
+                "PersonOrgID": -paxId,
+                "AlreadyAdded": false,
+                "PhysicalFlightID": int.tryParse(seatItems[6]) ?? 0,
+                "secureHash": ""
+              });
+            }
+          }
+        }
+      }
     } catch (e) {
       print('Error building special services: $e');
     }
