@@ -94,7 +94,8 @@ class SabrePackageSelectionDialog extends StatelessWidget {
       case 'M':
         return 'Meal';
       case 'N':
-        return 'No meal service';
+        // return 'No meal service';
+        return 'Meal Yes';
       case 'R':
         return 'Complimentary refreshments';
       case 'V':
