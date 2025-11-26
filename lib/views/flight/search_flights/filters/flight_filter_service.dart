@@ -4,6 +4,8 @@ import '../airarabia/airarabia_flight_controller.dart';
 import '../airblue/airblue_flight_controller.dart';
 import '../pia/pia_flight_controller.dart';
 import '../sabre/sabre_flight_controller.dart';
+import '../flydubai/flydubai_controller.dart';
+import '../emirates_ndc/emirates_flight_controller.dart';
 import 'filter_flight_model.dart';
 
 
@@ -240,6 +242,28 @@ class FilterController extends GetxController {
     try {
       final piaController = Get.find<PIAFlightController>();
       piaController.applyFilters(
+        airlines: selectedAirlines,
+        stops: selectedStops,
+        sortType: sortType.value,
+      );
+    } catch (e) {
+      // Controller not found or method not available
+    }
+
+    try {
+      final flydubaiController = Get.find<FlydubaiFlightController>();
+      flydubaiController.applyFilters(
+        airlines: selectedAirlines,
+        stops: selectedStops,
+        sortType: sortType.value,
+      );
+    } catch (e) {
+      // Controller not found or method not available
+    }
+
+    try {
+      final emiratesController = Get.find<EmiratesFlightController>();
+      emiratesController.applyFilters(
         airlines: selectedAirlines,
         stops: selectedStops,
         sortType: sortType.value,

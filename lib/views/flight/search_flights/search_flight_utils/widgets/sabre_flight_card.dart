@@ -529,6 +529,32 @@ class _FlightCardState extends State<FlightCard>
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
+              Container(
+                width: 60,
+                // height: 60,
+                decoration: BoxDecoration(
+                  color: const Color(0xFFBB0103),
+                  borderRadius: BorderRadius.circular(8),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ],
+                ),
+                child: Center(
+                  child: Text(
+                    widget.flight.isNDC?'Sabre NDC':"Sabre",
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
               const SizedBox(),
               if (widget.isShowBookButton)
                 GetX<SabreFlightController>(
