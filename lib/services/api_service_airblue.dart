@@ -1451,7 +1451,7 @@ Future<Map<String, dynamic>> updateAirBlueSeats({
         i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
       );
       if (kDebugMode) {
-        print(chunk);
+        // print(chunk);
       }
     }
   }

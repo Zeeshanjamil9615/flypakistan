@@ -122,10 +122,14 @@ class _FlightCardState extends State<FlightCard>
     if (widget.flight.baggageAllowance.pieces > 0) {
       return '${widget.flight.baggageAllowance.pieces} piece(s) included';
     } else if (widget.flight.baggageAllowance.weight > 0) {
-      return '${widget.flight.baggageAllowance.weight} ${widget.flight.baggageAllowance.unit} included';
+      // Convert weight to integer if it has no fractional part
+      final weight = widget.flight.baggageAllowance.weight;
+      final weightStr = weight % 1 == 0 ? weight.toInt().toString() : weight.toString();
+      return '$weightStr ${widget.flight.baggageAllowance.unit} included';
     }
     return widget.flight.baggageAllowance.type;
   }
+
 
   // Add these utility methods for date formatting
   String formatTimeFromDateTime(String dateTimeString) {

@@ -105,12 +105,14 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
     if (widget.flight.baggageAllowance.pieces > 0) {
       return '${widget.flight.baggageAllowance.pieces} piece(s) included';
     } else if (widget.flight.baggageAllowance.weight > 0) {
-      // Remove decimal points
-      final cleanWeight = widget.flight.baggageAllowance.weight.toStringAsFixed(0);
+      final weight = widget.flight.baggageAllowance.weight;
+      // Remove decimal if it's a whole number, otherwise keep one decimal
+      final cleanWeight = weight % 1 == 0 ? weight.toInt().toString() : weight.toStringAsFixed(1);
       return '$cleanWeight ${widget.flight.baggageAllowance.unit} included';
     }
     return widget.flight.baggageAllowance.type;
   }
+
 
   String formatTimeFromDateTime(String dateTimeString) {
     try {

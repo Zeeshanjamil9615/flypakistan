@@ -77,10 +77,14 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
     if (widget.flight.baggageAllowance.pieces > 0) {
       return '${widget.flight.baggageAllowance.pieces} piece(s) included';
     } else if (widget.flight.baggageAllowance.weight > 0) {
-      return '${widget.flight.baggageAllowance.weight.toStringAsFixed(1)} ${widget.flight.baggageAllowance.unit} included';
+      final weight = widget.flight.baggageAllowance.weight;
+      // If weight is whole number, remove decimal, otherwise keep one decimal
+      final weightStr = weight % 1 == 0 ? weight.toInt().toString() : weight.toStringAsFixed(1);
+      return '$weightStr ${widget.flight.baggageAllowance.unit} included';
     }
     return widget.flight.baggageAllowance.type;
   }
+
 
   String formatTimeFromDateTime(String dateTimeString) {
     try {

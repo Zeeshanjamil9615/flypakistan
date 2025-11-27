@@ -156,26 +156,26 @@ class FlightBookingPage extends StatelessWidget {
             ],
           );
         }),
-        actions: [
-          GetX<SabreFlightController>(
-            builder: (controller) => TextButton(
-              onPressed: () {
-                showDialog(
-                  context: context,
-                  builder: (context) => CurrencyDialog(controller: controller),
-                );
-              },
-              child: Text(
-                controller.selectedCurrency.value,
-                style: const TextStyle(
-                  color: TColors.primary,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-        ],
+        // actions: [
+        //   GetX<SabreFlightController>(
+        //     builder: (controller) => TextButton(
+        //       onPressed: () {
+        //         showDialog(
+        //           context: context,
+        //           builder: (context) => CurrencyDialog(controller: controller),
+        //         );
+        //       },
+        //       child: Text(
+        //         controller.selectedCurrency.value,
+        //         style: const TextStyle(
+        //           color: TColors.primary,
+        //           fontWeight: FontWeight.bold,
+        //         ),
+        //       ),
+        //     ),
+        //   ),
+        //   const SizedBox(width: 8),
+        // ],
       ),
       body: Column(
         children: [

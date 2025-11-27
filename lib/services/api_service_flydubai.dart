@@ -95,9 +95,9 @@ class ApiServiceFlyDubai {
     List<Map<String, String>>? multiCitySegments,
   }) async {
     try {
-      print('=== FLYDUBAI API SEARCH STARTED ===');
-      print('Trip Type: $type (${_getTripTypeName(type)})');
-      print('Raw depDate: "$depDate"');
+      // print('=== FLYDUBAI API SEARCH STARTED ===');
+      // print('Trip Type: $type (${_getTripTypeName(type)})');
+      // print('Raw depDate: "$depDate"');
 
       // Only authenticate here if no valid token exists
       if (_accessToken == null || _isTokenExpired()) {
@@ -284,17 +284,17 @@ class ApiServiceFlyDubai {
       }
 
       final tokenToUse = _accessToken;
-      print("🔐 Using access token in ADD TO CART: $tokenToUse");
-      print("🔐 Token hash: ${tokenToUse?.hashCode}");
-
-      print('=== FLYDUBAI ADD TO CART STARTED ===');
-      print('Booking IDs: $bookingIds');
+      // print("🔐 Using access token in ADD TO CART: $tokenToUse");
+      // print("🔐 Token hash: ${tokenToUse?.hashCode}");
+      //
+      // print('=== FLYDUBAI ADD TO CART STARTED ===');
+      // print('Booking IDs: $bookingIds');
 
       // Parse the flight data and build the request
       final requestBody = _buildAddToCartRequest(bookingIds, flightData);
 
-      print("+++++++++++++++++++Add to cart Request+++++++++++++++++++++++");
-      printJsonPretty(requestBody);
+      // print("+++++++++++++++++++Add to cart Request+++++++++++++++++++++++");
+      // printJsonPretty(requestBody);
 
       final response = await http.post(
         Uri.parse('$baseUrl/order/cart'),
@@ -307,8 +307,8 @@ class ApiServiceFlyDubai {
         body: json.encode(requestBody),
       );
 
-      print("+++++++++++++++++++Add to cart Response+++++++++++++++++++++++");
-      print('Add to Cart Response Status: ${response.statusCode}');
+      // print("+++++++++++++++++++Add to cart Response+++++++++++++++++++++++");
+      // print('Add to Cart Response Status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
@@ -416,9 +416,9 @@ class ApiServiceFlyDubai {
         };
       }
 
-      print('=== CREATING PNR FOR FLYDUBAI ===');
-      print('Flight Type: $flightType');
-      print('Using access token: $_accessToken');
+      // print('=== CREATING PNR FOR FLYDUBAI ===');
+      // print('Flight Type: $flightType');
+      // print('Using access token: $_accessToken');
 
       if (cartData.isEmpty) {
         return {
@@ -456,10 +456,10 @@ class ApiServiceFlyDubai {
         cartData: cartData,
         securityGuid: securityGuid, // Pass the security GUID
       );
-      print("the token is $_accessToken");
-      print('PNR Request Body:');
-      printJsonPretty(requestBody);
-      print("the token is $_accessToken");
+      // print("the token is $_accessToken");
+      // print('PNR Request Body:');
+      // printJsonPretty(requestBody);
+      // print("the token is $_accessToken");
 
 
       final response = await http.post(
@@ -473,9 +473,9 @@ class ApiServiceFlyDubai {
 
       );
 
-      print('PNR Creation Response Status: ${response.statusCode}');
-      print('PNR Creation Response Body:');
-      printJsonPretty(response.body);
+      // print('PNR Creation Response Status: ${response.statusCode}');
+      // print('PNR Creation Response Body:');
+      // printJsonPretty(response.body);
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
@@ -518,8 +518,8 @@ class ApiServiceFlyDubai {
         );
 
         print('CommitPNR Response Status: ${commitResponse.statusCode}');
-        print('CommitPNR Response Body:');
-        printJsonPretty(commitResponse.body);
+        // print('CommitPNR Response Body:');
+        // printJsonPretty(commitResponse.body);
 
         if (commitResponse.statusCode == 200) {
           final commitData = json.decode(commitResponse.body);
@@ -2929,13 +2929,13 @@ class ApiServiceFlyDubai {
     const int chunkSize = 1000;
     final jsonString = const JsonEncoder.withIndent(' ').convert(jsonData);
 
-    for (int i = 0; i < jsonString.length; i += chunkSize) {
-      final chunk = jsonString.substring(
-        i,
-        i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
-      );
-      print(chunk);
-    }
+    // for (int i = 0; i < jsonString.length; i += chunkSize) {
+    //   final chunk = jsonString.substring(
+    //     i,
+    //     i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
+    //   );
+    //   print(chunk);
+    // }
   }
 
   // Recursively search for a Security GUID key in a nested response

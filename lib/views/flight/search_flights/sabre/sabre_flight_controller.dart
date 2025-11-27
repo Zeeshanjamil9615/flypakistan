@@ -371,7 +371,12 @@ extension FlightDateTimeExtension on SabreFlightController {
               // Handle regular fare packages
               if (fareInfo != null) {
 
-                packages.add(FlightPackageInfo.fromApiResponse(fareInfo));
+                packages.add(
+                  FlightPackageInfo.fromApiResponse(
+                    fareInfo,
+                    baggageAllowanceDescsMap,
+                  ),
+                );
               }
               // Handle sold-out packages
               else if (pricing.containsKey('soldOut')) {

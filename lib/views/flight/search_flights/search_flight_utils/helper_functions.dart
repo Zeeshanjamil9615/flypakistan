@@ -24,30 +24,48 @@ String getFareType(Map<String, dynamic> fareInfo) {
 }
 
 
-BaggageAllowance parseBaggageAllowance(List<dynamic> baggageInfo) {
+BaggageAllowance parseBaggageAllowance(
+    List<dynamic> baggageInfo, {
+      Map<int, Map<String, dynamic>>? baggageAllowanceDescsMap,
+    }) {
   try {
     if (baggageInfo.isEmpty) {
       return BaggageAllowance(
           pieces: 0, weight: 0, unit: '', type: 'Check airline policy');
     }
 
-    // Check if we have weight-based allowance
-    if (baggageInfo[0]?['allowance']?['weight'] != null) {
+    final allowance = baggageInfo[0]?['allowance'] as Map<String, dynamic>?;
+    if (allowance == null) {
       return BaggageAllowance(
-          pieces: 0,
-          weight: (baggageInfo[0]['allowance']['weight'] as num).toDouble(),
-          unit: baggageInfo[0]['allowance']['unit'] ?? 'KG',
-          type:
-              '${baggageInfo[0]['allowance']['weight']} ${baggageInfo[0]['allowance']['unit'] ?? 'KG'}');
+          pieces: 0, weight: 0, unit: '', type: 'Check airline policy');
+    }
+
+    // Try to resolve the allowance reference (Sabre provides only refs here)
+    final ref = allowance['ref'];
+    final allowanceDesc = (ref is int && baggageAllowanceDescsMap != null)
+        ? baggageAllowanceDescsMap[ref]
+        : null;
+
+    final source = allowanceDesc ?? allowance;
+
+    // Check if we have weight-based allowance
+    if (source['weight'] != null) {
+      return BaggageAllowance(
+        pieces: 0,
+        weight: (source['weight'] as num).toDouble(),
+        unit: source['unit']?.toString() ?? 'KG',
+        type: '${source['weight']} ${source['unit'] ?? 'KG'}',
+      );
     }
 
     // Check if we have piece-based allowance
-    if (baggageInfo[0]?['allowance']?['pieceCount'] != null) {
+    if (source['pieceCount'] != null) {
       return BaggageAllowance(
-          pieces: baggageInfo[0]['allowance']['pieceCount'] as int,
-          weight: 0,
-          unit: 'PC',
-          type: '${baggageInfo[0]['allowance']['pieceCount']} PC');
+        pieces: (source['pieceCount'] as num).toInt(),
+        weight: 0,
+        unit: 'PC',
+        type: '${source['pieceCount']} PC',
+      );
     }
 
     // Default case

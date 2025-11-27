@@ -355,7 +355,7 @@ class ApiServiceSabre extends GetxService {
         }
       };
       print("Sabre Request");
-      print(requestBody);
+      printJsonPretty(requestBody);
 
       final response = await dio.post(
         '/v3/offers/shop',
@@ -369,7 +369,7 @@ class ApiServiceSabre extends GetxService {
       );
       if (response.statusCode == 200) {
         print("Sabre Response");
-        // printJsonPretty(response.data);
+        printJsonPretty(response.data);
         return response.data;
       } else {
         throw Exception('Failed to model_controllers flights: ${response.statusCode}');

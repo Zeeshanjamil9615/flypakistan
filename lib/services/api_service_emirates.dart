@@ -142,8 +142,8 @@ class ApiServiceEmirates {
         throw Exception('Failed to prepare Emirates travel segments');
       }
 
-      print(
-          '🛫 Emirates search segments (${segments.length}): ${segments.map((s) => '${s.origin}->${s.destination} (${s.date})').join(', ')}');
+      // print(
+      //     '🛫 Emirates search segments (${segments.length}): ${segments.map((s) => '${s.origin}->${s.destination} (${s.date})').join(', ')}');
 
       final originDestinationsBuffer = StringBuffer();
       for (int i = 0; i < segments.length; i++) {
@@ -278,18 +278,18 @@ $sectorDetail
         'agencyName': '',
         'Content-Type': 'application/xml',
       };
-
-      print("===============================================");
-      print("EMIRATES SOAP REQUEST");
-      print("===============================================");
-      print("URL: $endpoint");
-      print("Headers:");
-      headers.forEach((key, value) {
-        print("  $key: $value");
-      });
-      print("XML Body:");
-      print(xmlData);
-      print("===============================================");
+      //
+      // print("===============================================");
+      // print("EMIRATES SOAP REQUEST");
+      // print("===============================================");
+      // print("URL: $endpoint");
+      // print("Headers:");
+      // headers.forEach((key, value) {
+      //   print("  $key: $value");
+      // });
+      // print("XML Body:");
+      // print(xmlData);
+      // print("===============================================");
 
       final response = await _dio.request(
         endpoint,
@@ -301,29 +301,29 @@ $sectorDetail
         data: xmlData,
       );
 
-      print("===============================================");
-      print("EMIRATES SOAP RESPONSE - RAW XML");
-      print("===============================================");
-      print("Status Code: ${response.statusCode}");
-      print("Response Length: ${response.data.toString().length} characters");
-      print("===============================================");
-      
-      // Print the entire raw XML response in chunks
-      _printLargeText(response.data.toString(), "RAW XML RESPONSE");
-      
-      print("===============================================");
+      // print("===============================================");
+      // print("EMIRATES SOAP RESPONSE - RAW XML");
+      // print("===============================================");
+      // print("Status Code: ${response.statusCode}");
+      // print("Response Length: ${response.data.toString().length} characters");
+      // print("===============================================");
+      //
+      // // Print the entire raw XML response in chunks
+      // _printLargeText(response.data.toString(), "RAW XML RESPONSE");
+      //
+      // print("===============================================");
 
       if (response.statusCode == 200) {
-        print("✅ Emirates response received - Starting parsing...");
+        // print("✅ Emirates response received - Starting parsing...");
         var data = _parseXmlResponse(response.data.toString());
         
-        // Print the parsed structured data
-        print("\n===============================================");
-        print("PARSED STRUCTURED DATA (JSON FORMAT)");
-        print("===============================================");
-        printJsonPretty(data);
-        print("===============================================\n");
-        
+        // // Print the parsed structured data
+        // print("\n===============================================");
+        // print("PARSED STRUCTURED DATA (JSON FORMAT)");
+        // print("===============================================");
+        // printJsonPretty(data);
+        // print("===============================================\n");
+        //
         return data;
       } else {
         throw Exception('Failed to load Emirates flights: ${response.statusCode}');
@@ -348,17 +348,17 @@ $sectorDetail
     const int chunkSize = 800; // Android Studio console limit per print
     final int length = text.length;
     
-    print("📄 $label (Total: $length characters)");
-    print("───────────────────────────────────────────────");
-    
-    for (int i = 0; i < length; i += chunkSize) {
-      final end = (i + chunkSize < length) ? i + chunkSize : length;
-      final chunk = text.substring(i, end);
-      print(chunk);
-    }
-    
-    print("───────────────────────────────────────────────");
-    print("✅ End of $label\n");
+    // print("📄 $label (Total: $length characters)");
+    // print("───────────────────────────────────────────────");
+    //
+    // for (int i = 0; i < length; i += chunkSize) {
+    //   final end = (i + chunkSize < length) ? i + chunkSize : length;
+    //   final chunk = text.substring(i, end);
+    //   print(chunk);
+    // }
+    //
+    // print("───────────────────────────────────────────────");
+    // print("✅ End of $label\n");
   }
 
   String _generateTransactionId() {
@@ -367,10 +367,10 @@ $sectorDetail
 
   Map<String, dynamic> _parseXmlResponse(String xmlResponse) {
     try {
-      print('=== PARSING XML RESPONSE ===');
-      print('XML Length: ${xmlResponse.length} characters');
-      print('===========================');
-      
+      // print('=== PARSING XML RESPONSE ===');
+      // print('XML Length: ${xmlResponse.length} characters');
+      // print('===========================');
+      //
       if (xmlResponse.contains('<Error>') || xmlResponse.contains('error')) {
         print('⚠️ Error detected in XML response');
         return {
@@ -724,21 +724,21 @@ $sectorDetail
     final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
     final int totalLength = jsonString.length;
     
-    print('📊 JSON Output (Total: $totalLength characters)');
-    print('═══════════════════════════════════════════════');
-    
-    for (int i = 0; i < totalLength; i += chunkSize) {
-      final chunk = jsonString.substring(
-        i,
-        i + chunkSize < totalLength ? i + chunkSize : totalLength,
-      );
-      if (kDebugMode) {
-        print(chunk);
-      }
-    }
-    
-    print('═══════════════════════════════════════════════');
-    print('✅ End of JSON Output\n');
+    // print('📊 JSON Output (Total: $totalLength characters)');
+    // print('═══════════════════════════════════════════════');
+    //
+    // for (int i = 0; i < totalLength; i += chunkSize) {
+    //   final chunk = jsonString.substring(
+    //     i,
+    //     i + chunkSize < totalLength ? i + chunkSize : totalLength,
+    //   );
+    //   if (kDebugMode) {
+    //     print(chunk);
+    //   }
+    // }
+    //
+    // print('═══════════════════════════════════════════════');
+    // print('✅ End of JSON Output\n');
   }
   // Add this method to your existing ApiServiceEmirates class
 
@@ -1101,15 +1101,15 @@ $passengerListXml
       data: xmlData,
     );
 
-    debugPrint('Response received with status code: ${response.statusCode}');
-
-    debugPrint("===============================================");
-    debugPrint("EMIRATES ORDER CREATE RESPONSE");
-    debugPrint("===============================================");
-    debugPrint("Status Code: ${response.statusCode}");
-    debugPrint("Response Length: ${response.data.toString().length} characters");
-    _printLargeText(response.data.toString(), "ORDER CREATE RAW XML");
-    debugPrint("===============================================\n");
+    // debugPrint('Response received with status code: ${response.statusCode}');
+    //
+    // debugPrint("===============================================");
+    // debugPrint("EMIRATES ORDER CREATE RESPONSE");
+    // debugPrint("===============================================");
+    // debugPrint("Status Code: ${response.statusCode}");
+    // debugPrint("Response Length: ${response.data.toString().length} characters");
+    // _printLargeText(response.data.toString(), "ORDER CREATE RAW XML");
+    // debugPrint("===============================================\n");
 
     if (response.statusCode == 200) {
       final parsedResponse = _parsePnrResponse(response.data.toString());

@@ -38,7 +38,10 @@ class FlightPackageInfo {
   }) : cabinName = cabinName ?? _deriveCabinName(cabinCode);
 
 
-  factory FlightPackageInfo.fromApiResponse(Map<String, dynamic> fareInfo) {
+  factory FlightPackageInfo.fromApiResponse(
+      Map<String, dynamic> fareInfo,
+      Map<int, Map<String, dynamic>> baggageAllowanceDescsMap,
+      ) {
 
     try {
       final passengerInfo = fareInfo['passengerInfoList'][0]['passengerInfo'];
@@ -82,7 +85,10 @@ class FlightPackageInfo {
         taxAmount: (totalFare['totalTaxAmount'] as num?)?.toDouble() ?? 0.0,
         currency: totalFare['currency'] ?? 'PKR',
         isNonRefundable: passengerInfo['nonRefundable'] ?? true,
-        baggageAllowance: parseBaggageAllowance(baggageInfo),
+        baggageAllowance: parseBaggageAllowance(
+          baggageInfo,
+          baggageAllowanceDescsMap: baggageAllowanceDescsMap,
+        ),
         brandCode: brandCode,
         brandDescription: brandDescription,
         offerItemId: passengerInfo['offerItemId'],

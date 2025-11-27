@@ -128,8 +128,8 @@ class ApiServiceAirArabia {
         "password": "pass123456"
       };
 
-      print("AirArabia Request *********************");
-      print(data);
+      // print("AirArabia Request *********************");
+      // print(data);
       final response = await _dio.request(
         'https://readyflights.pk/api/new-air-arabia-flights',
         options: Options(
@@ -139,15 +139,15 @@ class ApiServiceAirArabia {
         data: data,
       );
 
-      print("*************** Response Arabia*********");
-      print(response);
+      // print("*************** Response Arabia*********");
+      // print(response);
       if (response.statusCode == 200) {
         // Ensure the response is parsed as Map
         if (response.data is String) {
           return jsonDecode(response.data) as Map<String, dynamic>;
         }
-        print("*************** Response Arabia*********");
-        print(response);
+        // print("*************** Response Arabia*********");
+        // print(response);
         return response.data as Map<String, dynamic>;
       } else {
         throw Exception('Failed to load Air Arabia flights: ${response.statusMessage}');
@@ -178,23 +178,23 @@ class ApiServiceAirArabia {
         "sector": sector,
       };
 
-      // Print full request details
-      printFullRequest(
-        "GET FLIGHT PACKAGES", 
-        'https://readyflights.pk/api/get-air-arabia-package',
-        headers,
-        data
-      );
+      // // Print full request details
+      // printFullRequest(
+      //   "GET FLIGHT PACKAGES",
+      //   'https://readyflights.pk/api/get-air-arabia-package',
+      //   headers,
+      //   data
+      // );
 
-      print("AirArabia Packages Request *********************");
-      print("Request URL: https://readyflights.pk/api/get-air-arabia-package");
-      print("Request Headers:");
-      headers.forEach((key, value) {
-        print("  $key: $value");
-      });
-      print("Request Payload:");
-      debugPrint(jsonEncode(data), wrapWidth: 1024);
-      print("***************************************************");
+      // print("AirArabia Packages Request *********************");
+      // print("Request URL: https://readyflights.pk/api/get-air-arabia-package");
+      // print("Request Headers:");
+      // headers.forEach((key, value) {
+      //   print("  $key: $value");
+      // });
+      // print("Request Payload:");
+      // debugPrint(jsonEncode(data), wrapWidth: 1024);
+      // print("***************************************************");
 
       final response = await _dio.request(
         'https://readyflights.pk/api/get-air-arabia-package',
@@ -205,15 +205,15 @@ class ApiServiceAirArabia {
         data: data,
       );
 
-      print("*************** AirArabia Packages Response *********");
-      print("Response Status Code: ${response.statusCode}");
-      print("Response Headers:");
-      response.headers.forEach((key, value) {
-        print("  $key: $value");
-      });
-      print("Response Body:");
-      debugPrint(jsonEncode(response.data), wrapWidth: 1024);
-      print("****************************************************");
+      // print("*************** AirArabia Packages Response *********");
+      // print("Response Status Code: ${response.statusCode}");
+      // print("Response Headers:");
+      // response.headers.forEach((key, value) {
+      //   print("  $key: $value");
+      // });
+      // print("Response Body:");
+      // debugPrint(jsonEncode(response.data), wrapWidth: 1024);
+      // print("****************************************************");
 
       if (response.statusCode == 200) {
         // Ensure the response is parsed as Map
@@ -255,22 +255,22 @@ class ApiServiceAirArabia {
       };
 
       // Print full request details
-      printFullRequest(
-        "REVALIDATE PACKAGE", 
-        'https://readyflights.pk/api/air-arabia-package-revalidate',
-        headers,
-        data
-      );
+      // printFullRequest(
+      //   "REVALIDATE PACKAGE",
+      //   'https://readyflights.pk/api/air-arabia-package-revalidate',
+      //   headers,
+      //   data
+      // );
 
-      print("AirArabia Package Revalidation Request *********************");
-      print("Request URL: https://readyflights.pk/api/air-arabia-package-revalidate");
-      print("Request Headers:");
-      headers.forEach((key, value) {
-        print("  $key: $value");
-      });
-      print("Request Payload:");
-      debugPrint(jsonEncode(data), wrapWidth: 1024);
-      print("*************************************************************");
+      // print("AirArabia Package Revalidation Request *********************");
+      // print("Request URL: https://readyflights.pk/api/air-arabia-package-revalidate");
+      // print("Request Headers:");
+      // headers.forEach((key, value) {
+      //   print("  $key: $value");
+      // });
+      // print("Request Payload:");
+      // debugPrint(jsonEncode(data), wrapWidth: 1024);
+      // print("*************************************************************");
 
       final response = await _dio.request(
         'https://readyflights.pk/api/air-arabia-package-revalidate',
@@ -281,19 +281,19 @@ class ApiServiceAirArabia {
         data: data,
       );
 
-      print("*************** AirArabia Package Revalidation Response *********");
-      print("Response Status Code: ${response.statusCode}");
-      print("Response Headers:");
-      response.headers.forEach((key, value) {
-        print("  $key: $value");
-      });
-      print("Response Body:");
-      debugPrint(jsonEncode(response.data), wrapWidth: 1024);
-      print("***************************************************************");
+      // print("*************** AirArabia Package Revalidation Response *********");
+      // print("Response Status Code: ${response.statusCode}");
+      // print("Response Headers:");
+      // response.headers.forEach((key, value) {
+      //   print("  $key: $value");
+      // });
+      // print("Response Body:");
+      // debugPrint(jsonEncode(response.data), wrapWidth: 1024);
+      // print("***************************************************************");
 
       if (response.statusCode == 200) {
-        print("*************** AirArabia Package Revalidation Response *********");
-        print(jsonEncode(response.data));
+        // print("*************** AirArabia Package Revalidation Response *********");
+        // print(jsonEncode(response.data));
         if (response.data is String) {
           return jsonDecode(response.data) as Map<String, dynamic>;
         }
@@ -388,8 +388,8 @@ class ApiServiceAirArabia {
         "flight_details": flightDetails,
       };
 
-      print("AirArabia Booking Request *********************");
-      debugPrint(jsonEncode(data), wrapWidth: 1024);
+      // print("AirArabia Booking Request *********************");
+      // debugPrint(jsonEncode(data), wrapWidth: 1024);
 
       final response = await _dio.request(
         'https://readyflights.pk/api/air-arabia-create-booking',
@@ -399,9 +399,9 @@ class ApiServiceAirArabia {
         ),
         data: data,
       );
-
-      print("******** AirArabia Booking Response ********");
-      debugPrint(jsonEncode(response.data), wrapWidth: 1024);
+      //
+      // print("******** AirArabia Booking Response ********");
+      // debugPrint(jsonEncode(response.data), wrapWidth: 1024);
 
       if (response.statusCode == 200) {
         if (response.data is String) {

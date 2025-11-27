@@ -406,10 +406,10 @@ class FlydubaiFlight {
       }
 
       // Create leg schedules with corrected origin/destination
-      final legSchedules = _createLegSchedules(segment, airlineInfo);
+      final legSchedules = _createLegSchedules(segment, airlineInfo, rawData);
 
       // Create stop schedules
-      final stopSchedules = _createStopSchedules(segment);
+      final stopSchedules = _createStopSchedules(segment, legSchedules);
 
       // Create segment info
       final segmentInfo = _createSegmentInfo(segment);
@@ -485,68 +485,255 @@ class FlydubaiFlight {
   }static List<Map<String, dynamic>> _createLegSchedules(
       FlydubaiFlightSegment segment,
       AirlineInfo airlineInfo,
+      Map<String, dynamic> rawData,
       ) {
-    final flightTime = segment.arrivalDateTime.difference(segment.departureDateTime).inMinutes;
+    final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']
+        ?['RetrieveFareQuoteDateRangeResult'];
 
-    // Get origin and destination with multiple fallbacks
-    String origin = segment.origin;
-    String destination = segment.destination;
-
-    // If segment origin/destination is empty or N/A, try legDetails
-    if (origin.isEmpty || origin == 'N/A') {
-      origin = segment.legDetails['Origin']?.toString() ?? 'DXB'; // Default fallback
+    List<Map<String, dynamic>> _toMapList(dynamic data) {
+      if (data == null) return [];
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+            .toList();
+      }
+      if (data is Map) {
+        return [Map<String, dynamic>.from(data)];
+      }
+      return [];
     }
-    if (destination.isEmpty || destination == 'N/A') {
-      destination = segment.legDetails['Destination']?.toString() ?? 'LHE'; // Default fallback
+
+    Map<String, dynamic>? _findMatchingSegment() {
+      final segmentsData = retrieveResult?['FlightSegments']?['FlightSegment'];
+      for (final seg in _toMapList(segmentsData)) {
+        if ((seg['LFID'] as num?)?.toInt() == segment.lfid) {
+          return seg;
+        }
+      }
+      return null;
     }
 
-    return [
-      {
-        'airlineCode': 'FZ',
+    final legDetailMap = <int, Map<String, dynamic>>{};
+    final legDetailsData = retrieveResult?['LegDetails']?['LegDetail'];
+    for (final detail in _toMapList(legDetailsData)) {
+      final pfid = (detail['PFID'] as num?)?.toInt();
+      if (pfid != null) {
+        legDetailMap[pfid] = detail;
+      }
+    }
+
+    DateTime _parseDate(String? value, DateTime fallback) {
+      if (value == null) return fallback;
+      return DateTime.tryParse(value) ?? fallback;
+    }
+
+    Map<String, dynamic> _buildSchedule({
+      required String origin,
+      required String destination,
+      required DateTime departure,
+      required DateTime arrival,
+      required String marketingCarrier,
+      required String marketingFlightNumber,
+      required String operatingCarrier,
+      required String equipment,
+      required String fromTerminal,
+      required String toTerminal,
+      required int elapsedMinutes,
+    }) {
+      final departureIso = departure.toIso8601String();
+      final arrivalIso = arrival.toIso8601String();
+
+      return {
+        'airlineCode': marketingCarrier,
         'airlineName': airlineInfo.name,
         'airlineImg': airlineInfo.logoPath,
         'departure': {
-          'airport': origin, // Use the determined origin
+          'airport': origin,
           'city': _getCityName(origin),
-          'terminal': segment.legDetails['FromTerminal']?.toString() ?? _getTerminal(origin),
-          'time': segment.departureDateTime.toIso8601String(),
-          'dateTime': segment.departureDateTime.toIso8601String(),
+          'terminal': fromTerminal,
+          'time': departureIso,
+          'dateTime': departureIso,
         },
         'arrival': {
-          'airport': destination, // Use the determined destination
+          'airport': destination,
           'city': _getCityName(destination),
-          'terminal': segment.legDetails['ToTerminal']?.toString() ?? _getTerminal(destination),
-          'time': segment.arrivalDateTime.toIso8601String(),
-          'dateTime': segment.arrivalDateTime.toIso8601String(),
+          'terminal': toTerminal,
+          'time': arrivalIso,
+          'dateTime': arrivalIso,
         },
-        'elapsedTime': flightTime,
+        'elapsedTime': elapsedMinutes,
         'stops': 0,
         'schedules': [
           {
             'carrier': {
-              'marketing': 'FZ',
-              'marketingFlightNumber': segment.flightNumber,
-              'operating': segment.legDetails['OperatingCarrier']?.toString() ?? 'FZ',
+              'marketing': marketingCarrier,
+              'marketingFlightNumber': marketingFlightNumber,
+              'operating': operatingCarrier,
             },
             'departure': {
               'airport': origin,
-              'terminal': segment.legDetails['FromTerminal']?.toString() ?? _getTerminal(origin),
-              'time': segment.departureDateTime.toIso8601String(),
-              'dateTime': segment.departureDateTime.toIso8601String(),
+              'terminal': fromTerminal,
+              'time': departureIso,
+              'dateTime': departureIso,
             },
             'arrival': {
               'airport': destination,
-              'terminal': segment.legDetails['ToTerminal']?.toString() ?? _getTerminal(destination),
-              'time': segment.arrivalDateTime.toIso8601String(),
-              'dateTime': segment.arrivalDateTime.toIso8601String(),
+              'terminal': toTerminal,
+              'time': arrivalIso,
+              'dateTime': arrivalIso,
             },
-            'equipment': segment.aircraft,
+            'equipment': equipment,
           }
         ],
-      }
+      };
+    }
+
+    final matchingSegment = _findMatchingSegment();
+    final flightLegRefs = matchingSegment != null
+        ? _toMapList(matchingSegment['FlightLegDetails']?['FlightLegDetail'])
+        : <Map<String, dynamic>>[];
+
+    final List<Map<String, dynamic>> schedules = [];
+
+    for (final legRef in flightLegRefs) {
+      final pfid = (legRef['PFID'] as num?)?.toInt();
+      final detail = pfid != null ? legDetailMap[pfid] : null;
+
+      final origin = detail?['Origin']?.toString() ??
+          legRef['Origin']?.toString() ??
+          segment.origin;
+      final destination = detail?['Destination']?.toString() ??
+          legRef['Destination']?.toString() ??
+          segment.destination;
+
+      final departureDate = _parseDate(
+        detail?['DepartureDate']?.toString() ?? legRef['DepartureDate']?.toString(),
+        segment.departureDateTime,
+      );
+      final arrivalDate = _parseDate(
+        detail?['ArrivalDate']?.toString() ?? legRef['ArrivalDate']?.toString(),
+        segment.arrivalDateTime,
+      );
+
+      final marketingCarrier =
+          detail?['MarketingCarrier']?.toString() ?? segment.legDetails['MarketingCarrier']?.toString() ?? 'FZ';
+      final operatingCarrier =
+          detail?['OperatingCarrier']?.toString() ?? segment.legDetails['OperatingCarrier']?.toString() ?? marketingCarrier;
+      final marketingFlightNumber =
+          detail?['MarketingFlightNum']?.toString() ?? legRef['FlightNum']?.toString() ?? segment.flightNumber;
+      final equipment = detail?['EQP']?.toString() ?? segment.aircraft;
+      final fromTerminal =
+          detail?['FromTerminal']?.toString() ?? segment.legDetails['FromTerminal']?.toString() ?? _getTerminal(origin);
+      final toTerminal =
+          detail?['ToTerminal']?.toString() ?? segment.legDetails['ToTerminal']?.toString() ?? _getTerminal(destination);
+      final elapsedMinutes = (detail?['FlightTime'] as num?)?.toInt() ??
+          arrivalDate.difference(departureDate).inMinutes;
+
+      schedules.add(
+        _buildSchedule(
+          origin: origin,
+          destination: destination,
+          departure: departureDate,
+          arrival: arrivalDate,
+          marketingCarrier: marketingCarrier,
+          marketingFlightNumber: marketingFlightNumber,
+          operatingCarrier: operatingCarrier,
+          equipment: equipment,
+          fromTerminal: fromTerminal,
+          toTerminal: toTerminal,
+          elapsedMinutes: elapsedMinutes,
+        ),
+      );
+    }
+
+    if (schedules.isNotEmpty) {
+      return schedules;
+    }
+
+    // Fallback to single segment schedule when leg data is missing
+    final flightTime = segment.arrivalDateTime.difference(segment.departureDateTime).inMinutes;
+    String origin = segment.origin;
+    String destination = segment.destination;
+
+    if (origin.isEmpty || origin == 'N/A') {
+      origin = segment.legDetails['Origin']?.toString() ?? 'DXB';
+    }
+    if (destination.isEmpty || destination == 'N/A') {
+      destination = segment.legDetails['Destination']?.toString() ?? 'LHE';
+    }
+
+    return [
+      _buildSchedule(
+        origin: origin,
+        destination: destination,
+        departure: segment.departureDateTime,
+        arrival: segment.arrivalDateTime,
+        marketingCarrier: 'FZ',
+        marketingFlightNumber: segment.flightNumber,
+        operatingCarrier: segment.legDetails['OperatingCarrier']?.toString() ?? 'FZ',
+        equipment: segment.aircraft,
+        fromTerminal: segment.legDetails['FromTerminal']?.toString() ?? _getTerminal(origin),
+        toTerminal: segment.legDetails['ToTerminal']?.toString() ?? _getTerminal(destination),
+        elapsedMinutes: flightTime,
+      )
     ];
   }
-  static List<Map<String, dynamic>> _createStopSchedules(FlydubaiFlightSegment segment) {
+  static List<Map<String, dynamic>> _createStopSchedules(
+      FlydubaiFlightSegment segment,
+      List<Map<String, dynamic>> legSchedules,
+      ) {
+    if (legSchedules.isNotEmpty) {
+      return legSchedules.map((leg) {
+        Map<String, dynamic> carrier = {};
+        final schedules = leg['schedules'];
+        if (leg['carrier'] is Map) {
+          carrier = Map<String, dynamic>.from(leg['carrier']);
+        } else if (schedules is List && schedules.isNotEmpty && schedules.first is Map) {
+          carrier = Map<String, dynamic>.from(
+              (schedules.first as Map)['carrier'] as Map? ?? {});
+        }
+        carrier.putIfAbsent('marketing', () => leg['airlineCode'] ?? 'FZ');
+        carrier.putIfAbsent('marketingFlightNumber', () => segment.flightNumber);
+        carrier.putIfAbsent('operating', () => carrier['marketing']);
+
+        Map<String, dynamic> _copyLocation(String key) {
+          final source = leg[key];
+          final scheduleSource = (schedules is List && schedules.isNotEmpty)
+              ? (schedules.first as Map)[key]
+              : null;
+          if (source is Map) {
+            return Map<String, dynamic>.from(source);
+          }
+          if (scheduleSource is Map) {
+            return Map<String, dynamic>.from(scheduleSource);
+          }
+          return {
+            'airport': key == 'departure' ? segment.origin : segment.destination,
+            'terminal': _getTerminal(
+              key == 'departure' ? segment.origin : segment.destination,
+            ),
+            'time': key == 'departure'
+                ? segment.departureDateTime.toIso8601String()
+                : segment.arrivalDateTime.toIso8601String(),
+            'dateTime': key == 'departure'
+                ? segment.departureDateTime.toIso8601String()
+                : segment.arrivalDateTime.toIso8601String(),
+          };
+        }
+
+        return {
+          'carrier': carrier,
+          'departure': _copyLocation('departure'),
+          'arrival': _copyLocation('arrival'),
+          'equipment': leg['equipment'] ??
+              (schedules is List && schedules.isNotEmpty
+                  ? (schedules.first as Map)['equipment']
+                  : segment.aircraft),
+        };
+      }).toList();
+    }
+
     // Get origin and destination with fallbacks
     String origin = segment.origin;
     String destination = segment.destination;
