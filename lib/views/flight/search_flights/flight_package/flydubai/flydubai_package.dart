@@ -318,19 +318,32 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
   }
 
   String getBaggageInfo(String fareTypeName) {
-    switch (fareTypeName.toUpperCase()) {
-      case 'LITE':
-        return '0 KG';
-      case 'VALUE':
-        return '20 KG';
-      case 'FLEX':
-        return '30 KG';
-      case 'BUSINESS':
-        return '40 KG';
-      default:
-        return '20 KG';
+    final type = fareTypeName.toLowerCase();
+
+    if (type.contains('lite')) {
+      return '0 KG';
     }
+
+    if (type.contains('value')) {
+      return '20 KG';
+    }
+
+    if (type.contains('flex')) {
+      return '30 KG';
+    }
+
+    if (type.contains('economy')) {
+      return '30 KG';
+    }
+
+    if (type.contains('business')) {
+      return '40 KG';
+    }
+
+    // Default
+    return '20 KG';
   }
+
 
   String getCabinDisplayName(String cabin) {
     switch (cabin.toUpperCase()) {

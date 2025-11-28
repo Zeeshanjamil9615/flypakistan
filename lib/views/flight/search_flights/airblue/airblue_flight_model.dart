@@ -3,8 +3,10 @@
 // ignore_for_file: empty_catches
 
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 import '../sabre/sabre_flight_models.dart';
 import 'airblue_pnr_pricing.dart';
+import '../../../../widgets/city_selection_bottom_sheet.dart';
 
 class AirBlueFlight {
   final String id;
@@ -580,16 +582,19 @@ class AirBlueFlight {
   }
 
    static String _getCityName(String airportCode) {
-    // Add more airport codes as needed
-    const cityMap = {
-      'LHE': 'Lahore',
-      'KHI': 'Karachi',
-      'ISB': 'Islamabad',
-      'PEW': 'Peshawar',
-      'JED': 'Jeddah',
-      'DXB': 'Dubai',
-    };
-    return cityMap[airportCode] ?? airportCode;
+    try {
+      final airportController = Get.find<AirportController>();
+      for (var airport in airportController.airports) {
+        if (airport.code.toUpperCase() == airportCode.toUpperCase()) {
+          return airport.cityName;
+        }
+      }
+    } catch (e) {
+      // AirportController not found or error accessing airports
+    }
+    
+    // Fallback to airport code if not found
+    return airportCode;
   }
 }
 

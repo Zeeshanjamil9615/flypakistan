@@ -15,6 +15,7 @@ import 'views/hotel/search_hotels/search_hotel_controller.dart';
 import 'views/introduce.dart';
 import 'views/users/login/login_api_service/login_api.dart';
 import 'widgets/travelers_selection_bottom_sheet.dart';
+import 'widgets/city_selection_bottom_sheet.dart';
 
 void main() {
   runApp(const MyApp());
@@ -35,6 +36,10 @@ class MyApp extends StatelessWidget {
     Get.lazyPut(() => ApiServiceAirArabia(), fenix: true);
     Get.lazyPut(() => AirBlueFlightController(), fenix: true);
     Get.lazyPut(() => FlydubaiFlightController(), fenix: true);
+    
+    // Initialize AirportController and preload airports
+    final airportController = Get.put(AirportController());
+    airportController.fetchAirports(); // Preload airports at app start
 
     Get.put(AuthController());
 

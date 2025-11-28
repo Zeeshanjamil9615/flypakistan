@@ -1,5 +1,7 @@
 // models/emirates_flight_model.dart
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
+import '../../../../widgets/city_selection_bottom_sheet.dart';
 
 class EmiratesFlight {
   final String id;
@@ -498,64 +500,19 @@ class EmiratesFlight {
   }
 
   static String _getCityName(String airportCode) {
-    // Map of common airport codes to city names
-    final cityMap = {
-      'LHE': 'Lahore',
-      'JED': 'Jeddah',
-      'DXB': 'Dubai',
-      'AUH': 'Abu Dhabi',
-      'KHI': 'Karachi',
-      'ISB': 'Islamabad',
-      'PEW': 'Peshawar',
-      'MUX': 'Multan',
-      'LYP': 'Faisalabad',
-      'SKT': 'Sialkot',
-      'DEL': 'New Delhi',
-      'BOM': 'Mumbai',
-      'BLR': 'Bangalore',
-      'MAA': 'Chennai',
-      'CCU': 'Kolkata',
-      'HYD': 'Hyderabad',
-      'AMD': 'Ahmedabad',
-      'COK': 'Kochi',
-      'TRV': 'Thiruvananthapuram',
-      'GOI': 'Goa',
-      'IXC': 'Chandigarh',
-      'PNQ': 'Pune',
-      'BDQ': 'Vadodara',
-      'JAI': 'Jaipur',
-      'LKO': 'Lucknow',
-      'VNS': 'Varanasi',
-      'PAT': 'Patna',
-      'GAU': 'Guwahati',
-      'IXB': 'Bagdogra',
-      'IXJ': 'Jammu',
-      'IXL': 'Leh',
-      'IXZ': 'Port Blair',
-      'IXE': 'Mangalore',
-      'IXM': 'Madurai',
-      'IXU': 'Aurangabad',
-      'IXA': 'Agartala',
-      'IXC': 'Chandigarh',
-      'IXD': 'Allahabad',
-      'IXG': 'Belgaum',
-      'IXH': 'Kailashahar',
-      'IXI': 'Lilabari',
-      'IXK': 'Kandla',
-      'IXN': 'Khowai',
-      'IXO': 'Kullu',
-      'IXP': 'Pathankot',
-      'IXQ': 'Kamalpur',
-      'IXR': 'Ranchi',
-      'IXS': 'Silchar',
-      'IXT': 'Pasighat',
-      'IXV': 'Along',
-      'IXW': 'Jamshedpur',
-      'IXY': 'Kandla',
-      'IXZ': 'Port Blair',
-    };
+    try {
+      final airportController = Get.find<AirportController>();
+      for (var airport in airportController.airports) {
+        if (airport.code.toUpperCase() == airportCode.toUpperCase()) {
+          return airport.cityName;
+        }
+      }
+    } catch (e) {
+      // AirportController not found or error accessing airports
+    }
     
-    return cityMap[airportCode.toUpperCase()] ?? airportCode;
+    // Fallback to airport code if not found
+    return airportCode;
   }
 
 

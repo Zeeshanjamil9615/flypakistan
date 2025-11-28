@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import '../../../../../utility/colors.dart';
 import '../../airarabia/airarabia_flight_controller.dart';
 import '../../airarabia/airarabia_flight_model.dart';
+import '../helper_functions.dart';
 
 class AirArabiaFlightCard extends StatefulWidget {
   final AirArabiaFlight flight;
@@ -44,6 +45,15 @@ class _AirArabiaFlightCardState extends State<AirArabiaFlightCard>
       parent: _controller,
       curve: Curves.easeInOut,
     );
+  }
+
+  String _formatLocation(Map<String, dynamic>? location,
+      {String? fallbackCode}) {
+    final city = location?['city']?.toString();
+    final code = location?['airport']?.toString() ??
+        location?['code']?.toString() ??
+        fallbackCode;
+    return formatCityLabel(cityName: city, code: code);
   }
 
   @override
@@ -558,8 +568,11 @@ class _AirArabiaFlightCardState extends State<AirArabiaFlightCard>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      segment['departure']['airport'] ?? "UNK",
+                        Text(
+                          _formatLocation(
+                              segment['departure'] as Map<String, dynamic>?,
+                              fallbackCode:
+                                  segment['departure']['airport']?.toString()),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -619,8 +632,11 @@ class _AirArabiaFlightCardState extends State<AirArabiaFlightCard>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      segment['arrival']['airport'] ?? "UNK",
+                        Text(
+                          _formatLocation(
+                              segment['arrival'] as Map<String, dynamic>?,
+                              fallbackCode:
+                                  segment['arrival']['airport']?.toString()),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -851,7 +867,8 @@ class _AirArabiaFlightCardState extends State<AirArabiaFlightCard>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          legSchedule['departure']['airport'] ?? 'DEP',
+                          _formatLocation(
+                              legSchedule['departure'] as Map<String, dynamic>?),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade600,
@@ -916,7 +933,8 @@ class _AirArabiaFlightCardState extends State<AirArabiaFlightCard>
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          legSchedule['arrival']['airport'] ?? 'ARR',
+                          _formatLocation(
+                              legSchedule['arrival'] as Map<String, dynamic>?),
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.grey.shade600,

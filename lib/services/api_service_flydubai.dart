@@ -95,9 +95,9 @@ class ApiServiceFlyDubai {
     List<Map<String, String>>? multiCitySegments,
   }) async {
     try {
-      // print('=== FLYDUBAI API SEARCH STARTED ===');
-      // print('Trip Type: $type (${_getTripTypeName(type)})');
-      // print('Raw depDate: "$depDate"');
+      print('=== FLYDUBAI API SEARCH STARTED ===');
+      print('Trip Type: $type (${_getTripTypeName(type)})');
+      print('Raw depDate: "$depDate"');
 
       // Only authenticate here if no valid token exists
       if (_accessToken == null || _isTokenExpired()) {
@@ -2929,13 +2929,13 @@ class ApiServiceFlyDubai {
     const int chunkSize = 1000;
     final jsonString = const JsonEncoder.withIndent(' ').convert(jsonData);
 
-    // for (int i = 0; i < jsonString.length; i += chunkSize) {
-    //   final chunk = jsonString.substring(
-    //     i,
-    //     i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
-    //   );
-    //   print(chunk);
-    // }
+    for (int i = 0; i < jsonString.length; i += chunkSize) {
+      final chunk = jsonString.substring(
+        i,
+        i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
+      );
+      print(chunk);
+    }
   }
 
   // Recursively search for a Security GUID key in a nested response

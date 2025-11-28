@@ -82,6 +82,10 @@ class AirportController extends GetxController {
   void onInit() {
     super.onInit();
     loadRecentSearches();
+    // Auto-fetch airports if not already loaded
+    if (!isAirportsLoaded.value && !isLoading.value) {
+      fetchAirports();
+    }
   }
 
   Future<void> fetchAirports() async {

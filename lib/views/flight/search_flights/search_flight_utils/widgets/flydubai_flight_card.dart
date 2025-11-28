@@ -7,6 +7,7 @@ import '../../flydubai/flydubai_controller.dart';
 
 import '../../flydubai/flydubai_model.dart';
 import '../../sabre/sabre_flight_models.dart';
+import '../helper_functions.dart';
 
 class FlyDubaiFlightCard extends StatefulWidget {
   final FlydubaiFlight flight;
@@ -81,15 +82,24 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
   }
 
   String formatBaggageInfo() {
-    if (widget.flight.baggageAllowance.pieces > 0) {
-      return '${widget.flight.baggageAllowance.pieces} piece(s) included';
-    } else if (widget.flight.baggageAllowance.weight > 0) {
+    final baggage = widget.flight.baggageAllowance;
+
+    if (baggage.weight > 0) {
       // Convert weight to integer string to remove decimal points
-      final weight = widget.flight.baggageAllowance.weight;
-      final weightStr = weight.toStringAsFixed(0); // removes .0
-      return '$weightStr ${widget.flight.baggageAllowance.unit} included';
+      final weightStr = baggage.weight.toStringAsFixed(0);
+      return '$weightStr ${baggage.unit} included';
     }
-    return widget.flight.baggageAllowance.type;
+
+    // Fallback to type if weight is 0
+    return baggage.type;
+  }
+
+  String _formatAirportLabel(String? code) {
+    if (code == null || code.isEmpty) {
+      return 'Unknown';
+    }
+    final city = getCityNameByCode(code);
+    return '$city ($code)';
   }
 
 
@@ -244,7 +254,7 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        getDepartureAirport(),
+                        _formatAirportLabel(getDepartureAirport()),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -309,7 +319,7 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        getArrivalAirport(),
+                        _formatAirportLabel(getArrivalAirport()),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -447,7 +457,7 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      segment.origin,
+                      _formatAirportLabel(segment.origin),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -508,7 +518,7 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      segment.destination,
+                      _formatAirportLabel(segment.destination),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -909,8 +919,11 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      schedule['departure']?['airport'] ??
-                          widget.flight.flightSegment.origin,
+                      _formatAirportLabel(
+                        (schedule['departure']?['airport'] ??
+                                widget.flight.flightSegment.origin)
+                            ?.toString(),
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -980,8 +993,11 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      schedule['arrival']?['airport'] ??
-                          widget.flight.flightSegment.destination,
+                      _formatAirportLabel(
+                        (schedule['arrival']?['airport'] ??
+                                widget.flight.flightSegment.destination)
+                            ?.toString(),
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(

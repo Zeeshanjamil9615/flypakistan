@@ -7,6 +7,7 @@ import '../../../../../utility/colors.dart';
 import '../../airblue/airblue_flight_controller.dart';
 import '../../airblue/airblue_flight_model.dart';
 import '../../sabre/sabre_flight_models.dart';
+import '../helper_functions.dart';
 
 class AirBlueFlightCard extends StatefulWidget {
   final AirBlueFlight flight;
@@ -111,6 +112,15 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
       return '$cleanWeight ${widget.flight.baggageAllowance.unit} included';
     }
     return widget.flight.baggageAllowance.type;
+  }
+
+  String _formatLocation(Map<String, dynamic>? location,
+      {String? fallbackCode}) {
+    final city = location?['city']?.toString();
+    final code = location?['airport']?.toString() ??
+        location?['code']?.toString() ??
+        fallbackCode;
+    return formatCityLabel(cityName: city, code: code);
   }
 
 
@@ -459,7 +469,11 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      schedule['departure']['airport'] ?? "UNK",
+                      _formatLocation(
+                        schedule['departure'] as Map<String, dynamic>?,
+                        fallbackCode:
+                            schedule['departure']['airport']?.toString(),
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -520,7 +534,11 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      schedule['arrival']['airport'] ?? "UNK",
+                      _formatLocation(
+                        schedule['arrival'] as Map<String, dynamic>?,
+                        fallbackCode:
+                            schedule['arrival']['airport']?.toString(),
+                      ),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -652,6 +670,14 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
 
   @override
   Widget build(BuildContext context) {
+    final Map<String, dynamic>? primaryLeg =
+        widget.flight.legSchedules.isNotEmpty
+            ? widget.flight.legSchedules.first as Map<String, dynamic>?
+            : null;
+    final Map<String, dynamic>? primaryDeparture =
+        primaryLeg?['departure'] as Map<String, dynamic>?;
+    final Map<String, dynamic>? primaryArrival =
+        primaryLeg?['arrival'] as Map<String, dynamic>?;
     return InkWell(
       onTap: widget.isShowBookButton ? () {
         if (widget.showReturnFlight) {
@@ -759,7 +785,10 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        getDepartureAirport(),
+                        _formatLocation(
+                          primaryDeparture,
+                          fallbackCode: getDepartureAirport(),
+                        ),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -824,7 +853,10 @@ class _AirBlueFlightCardState extends State<AirBlueFlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        getArrivalAirport(),
+                        _formatLocation(
+                          primaryArrival,
+                          fallbackCode: getArrivalAirport(),
+                        ),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,

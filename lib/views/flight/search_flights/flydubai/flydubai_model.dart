@@ -3,8 +3,10 @@
 // ignore_for_file: empty_catches
 
 import 'package:flutter/foundation.dart';
+import 'package:get/get.dart';
 
 import '../sabre/sabre_flight_models.dart';
+import '../../../../widgets/city_selection_bottom_sheet.dart';
 
 class FlydubaiResponse {
   final bool success;
@@ -781,44 +783,64 @@ class FlydubaiFlight {
   }
 
   static BaggageAllowance _createBaggageAllowance(String fareTypeName) {
-    // FlyDubai baggage varies by fare type
-    switch (fareTypeName.toUpperCase()) {
-      case 'LITE':
-        return BaggageAllowance(
-          type: 'Checked',
-          pieces: 0,
-          weight: 0,
-          unit: 'KGS',
-        );
-      case 'VALUE':
-        return BaggageAllowance(
-          type: 'Checked',
-          pieces: 1,
-          weight: 20,
-          unit: 'KGS',
-        );
-      case 'FLEX':
-        return BaggageAllowance(
-          type: 'Checked',
-          pieces: 1,
-          weight: 30,
-          unit: 'KGS',
-        );
-      case 'BUSINESS':
-        return BaggageAllowance(
-          type: 'Checked',
-          pieces: 2,
-          weight: 40,
-          unit: 'KGS',
-        );
-      default:
-        return BaggageAllowance(
-          type: 'Checked',
-          pieces: 1,
-          weight: 20,
-          unit: 'KGS',
-        );
+    print("**************Flydubai Fare Name Check ***********");
+    print(fareTypeName);
+
+    final type = fareTypeName.toLowerCase();
+
+
+    if (type.contains('lite')) {
+      return BaggageAllowance(
+        type: 'Checked',
+        pieces: 0,
+        weight: 0,
+        unit: 'KGS',
+      );
     }
+
+    if (type.contains('value')) {
+      return BaggageAllowance(
+        type: 'Checked',
+        pieces: 1,
+        weight: 20,
+        unit: 'KGS',
+      );
+    }
+
+    if (type.contains('flex')) {
+      return BaggageAllowance(
+        type: 'Checked',
+        pieces: 1,
+        weight: 30,
+        unit: 'KGS',
+      );
+    }
+
+    if (type.contains('economy')) {
+      return BaggageAllowance(
+        type: 'Checked',
+        pieces: 1,
+        weight: 30,
+        unit: 'KGS',
+      );
+    }
+
+    if (type.contains('business')) {
+      return BaggageAllowance(
+        type: 'Checked',
+        pieces: 2,
+        weight: 40,
+        unit: 'KGS',
+      );
+    }
+
+    // Default
+    return BaggageAllowance(
+      type: 'Checked',
+      pieces: 1,
+      weight: 20,
+      unit: 'KGS',
+    );
   }
 
   static bool _determineRefundable(String fareTypeName) {
@@ -826,25 +848,19 @@ class FlydubaiFlight {
   }
 
   static String _getCityName(String airportCode) {
-    const cityMap = {
-      'DXB': 'Dubai',
-      'AUH': 'Abu Dhabi',
-      'SHJ': 'Sharjah',
-      'KHI': 'Karachi',
-      'LHE': 'Lahore',
-      'ISB': 'Islamabad',
-      'PEW': 'Peshawar',
-      'JED': 'Jeddah',
-      'RUH': 'Riyadh',
-      'DAM': 'Damascus',
-      'BEY': 'Beirut',
-      'CAI': 'Cairo',
-      'AMM': 'Amman',
-      'KWI': 'Kuwait City',
-      'DOH': 'Doha',
-      'BAH': 'Manama',
-    };
-    return cityMap[airportCode] ?? airportCode;
+    try {
+      final airportController = Get.find<AirportController>();
+      for (var airport in airportController.airports) {
+        if (airport.code.toUpperCase() == airportCode.toUpperCase()) {
+          return airport.cityName;
+        }
+      }
+    } catch (e) {
+      // AirportController not found or error accessing airports
+    }
+    
+    // Fallback to airport code if not found
+    return airportCode;
   }
 
   static String _getTerminal(String airportCode) {

@@ -130,6 +130,14 @@ class _FlightCardState extends State<FlightCard>
     return widget.flight.baggageAllowance.type;
   }
 
+  String _formatAirportLabel(String? code) {
+    if (code == null || code.isEmpty) {
+      return 'Unknown';
+    }
+    final city = getCityNameByCode(code);
+    return '$city ($code)';
+  }
+
 
   // Add these utility methods for date formatting
   String formatTimeFromDateTime(String dateTimeString) {
@@ -447,7 +455,11 @@ class _FlightCardState extends State<FlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        legSchedule['departure']['airport'] ?? legSchedule['departure']['code'] ?? 'DEP',
+                        _formatAirportLabel(
+                          (legSchedule['departure']['airport'] ??
+                                  legSchedule['departure']['code'])
+                              ?.toString(),
+                        ),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -512,7 +524,11 @@ class _FlightCardState extends State<FlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        legSchedule['arrival']['airport'] ?? legSchedule['arrival']['code'] ?? 'ARR',
+                        _formatAirportLabel(
+                          (legSchedule['arrival']['airport'] ??
+                                  legSchedule['arrival']['code'])
+                              ?.toString(),
+                        ),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -758,7 +774,7 @@ class _FlightCardState extends State<FlightCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      schedule['departure']['airport'] ?? "UNK",
+                      _formatAirportLabel(schedule['departure']['airport']?.toString()),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -819,7 +835,7 @@ class _FlightCardState extends State<FlightCard>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      schedule['arrival']['airport'] ?? "UNK",
+                      _formatAirportLabel(schedule['arrival']['airport']?.toString()),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(

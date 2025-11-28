@@ -25,21 +25,43 @@ import 'search_flight_utils/widgets/sabre_flight_card.dart';
 import 'flydubai/flydubai_model.dart';
 import '../form/flight_booking_controller.dart';
 import 'emirates_ndc/emirates_model.dart';
+import '../../../widgets/city_selection_bottom_sheet.dart';
 
 enum FlightScenario { oneWay, returnFlight, multiCity }
 
-class FlightBookingPage extends StatelessWidget {
+class FlightBookingPage extends StatefulWidget {
   final FlightScenario scenario;
+
+  const FlightBookingPage({super.key, required this.scenario});
+
+  @override
+  State<FlightBookingPage> createState() => _FlightBookingPageState();
+}
+
+class _FlightBookingPageState extends State<FlightBookingPage> {
   final SabreFlightController controller = Get.put(SabreFlightController());
   final AirBlueFlightController airBlueController = Get.find<AirBlueFlightController>();
   final PIAFlightController piaController = Get.put(PIAFlightController());
   final AirArabiaFlightController airArabiaController = Get.put(AirArabiaFlightController());
   final FlydubaiFlightController flyDubaiController = Get.put(FlydubaiFlightController());
   final FilterController filterController = Get.put(FilterController());
-   final EmiratesFlightController emiratesController = Get.put(EmiratesFlightController()); 
+  final EmiratesFlightController emiratesController = Get.put(EmiratesFlightController());
+  late final AirportController airportController;
 
-  FlightBookingPage({super.key, required this.scenario}) {
-    controller.setScenario(scenario);
+  @override
+  void initState() {
+    super.initState();
+    controller.setScenario(widget.scenario);
+    
+    // Initialize AirportController and ensure airports are loaded
+    airportController = Get.isRegistered<AirportController>()
+        ? Get.find<AirportController>()
+        : Get.put(AirportController());
+    
+    // Fetch airports if not already loaded
+    if (!airportController.isAirportsLoaded.value) {
+      airportController.fetchAirports();
+    }
   }
 
   @override
@@ -263,8 +285,17 @@ Widget _buildFlightList(BuildContext context) {
           piaController.isLoading.value ||
           airArabiaController.isLoading.value ||
           emiratesController.isLoading.value;
+      
+      // Wait for airports to be loaded before showing flight cards
+      final airportsLoading = airportController.isLoading.value;
+      final airportsLoaded = airportController.isAirportsLoaded.value;
 
       final combinedFlights = _buildUnifiedFlightItems();
+
+      // Show loading if airports are still loading (even if flights are ready)
+      if (airportsLoading || (!airportsLoaded && combinedFlights.isNotEmpty)) {
+        return _buildInitialLoadingState(context);
+      }
 
       if (combinedFlights.isEmpty && isAnyLoading) {
         return _buildInitialLoadingState(context);

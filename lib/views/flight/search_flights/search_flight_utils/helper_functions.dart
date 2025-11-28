@@ -1,7 +1,10 @@
 // 1. First, let's update the Flight model to match the API response
 
 
+import 'package:get/get.dart';
+
 import '../../../../utility/colors.dart';
+import '../../../../widgets/city_selection_bottom_sheet.dart';
 import '../../../../widgets/snackbar.dart';
 import '../sabre/sabre_flight_models.dart';
 
@@ -83,11 +86,64 @@ AirlineInfo getAirlineInfo(String code, Map<String, AirlineInfo>? apiAirlineMap)
     return apiAirlineMap[code]!;
   }
 
+  // Special case for X1 - Salam Airline
+  if (code == 'X1') {
+    return AirlineInfo(
+      'Salam Airline',
+      'https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcT8_PEhMe5rBBr_HHy9-QjQuP68cMtZhQXv2Q&s');
+  }
+
   CustomSnackBar(message: 'Airlines name and logo could not be loaded from API', backgroundColor: TColors.third);
 
   return AirlineInfo(
       'Unknown Airline',
       'https://cdn-icons-png.flaticon.com/128/15700/15700374.png');
+}
+
+String getCityNameByCode(String? code) {
+  if (code == null || code.isEmpty) {
+    return 'Unknown City';
+  }
+
+  try {
+    final airportController = Get.find<AirportController>();
+    for (final airport in airportController.airports) {
+      if (airport.code.toUpperCase() == code.toUpperCase()) {
+        return airport.cityName;
+      }
+    }
+  } catch (e) {
+    // Ignore errors – fall back to showing the code
+  }
+
+  return code;
+}
+
+String formatCityLabel({String? cityName, String? code}) {
+  final trimmedCity = cityName?.trim() ?? '';
+  final normalizedCode = code?.toUpperCase() ?? '';
+
+  if (trimmedCity.isNotEmpty) {
+    if (normalizedCode.isEmpty) {
+      return trimmedCity;
+    }
+    if (trimmedCity.toUpperCase() == normalizedCode) {
+      // Avoid duplicates like "LHE (LHE)"
+      final resolved = getCityNameByCode(normalizedCode);
+      return resolved == normalizedCode ? normalizedCode : '$resolved ($normalizedCode)';
+    }
+    return '$trimmedCity ($normalizedCode)';
+  }
+
+  if (normalizedCode.isEmpty) {
+    return 'Unknown City';
+  }
+
+  final resolvedCity = getCityNameByCode(normalizedCode);
+  if (resolvedCity == normalizedCode) {
+    return normalizedCode;
+  }
+  return '$resolvedCity ($normalizedCode)';
 }
 
 

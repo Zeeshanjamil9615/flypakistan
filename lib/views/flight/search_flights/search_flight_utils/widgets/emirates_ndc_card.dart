@@ -8,6 +8,8 @@ import 'package:ready_flights/utility/colors.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
 
+import '../helper_functions.dart';
+
 class EmiratesFlightCard extends StatefulWidget {
   final EmiratesFlight flight;
   final bool showReturnFlight;
@@ -55,6 +57,14 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
   void dispose() {
     _controller.dispose();
     super.dispose();
+  }
+
+  String _formatAirportLabel(String? code) {
+    if (code == null || code.isEmpty || code == 'N/A') {
+      return 'Unknown';
+    }
+    final city = getCityNameByCode(code);
+    return '$city ($code)';
   }
 
   String getCabinClassName(String cabinCode) {
@@ -144,6 +154,42 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
     if (widget.flight.legSchedules.isEmpty) return 'N/A';
     final arrival = widget.flight.legSchedules.last['arrival']['dateTime']?.toString() ?? '';
     return arrival.isEmpty ? 'N/A' : formatTimeFromDateTime(arrival);
+  }
+
+  String _getStopText() {
+    if (widget.flight.legSchedules.isEmpty) {
+      return 'Nonstop';
+    }
+    
+    // Check if any leg schedule has stops field
+    int totalStops = 0;
+    for (var legSchedule in widget.flight.legSchedules) {
+      if (legSchedule is Map<String, dynamic>) {
+        final stops = legSchedule['stops'];
+        if (stops != null) {
+          if (stops is List) {
+            totalStops += stops.length;
+          } else if (stops is int) {
+            totalStops += stops;
+          }
+        }
+      }
+    }
+    
+    // If no stops found in leg schedules, calculate based on number of legs
+    // Multiple legs mean there are stops between them
+    if (totalStops == 0) {
+      final numberOfLegs = widget.flight.legSchedules.length;
+      totalStops = numberOfLegs > 1 ? numberOfLegs - 1 : 0;
+    }
+    
+    if (totalStops == 0) {
+      return 'Nonstop';
+    } else if (totalStops == 1) {
+      return '1 stop';
+    } else {
+      return '$totalStops stops';
+    }
   }
 
   void _showFlightDetailsDialog() {
@@ -419,7 +465,7 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      schedule['departure']['airport'] ?? "UNK",
+                      _formatAirportLabel(schedule['departure']['airport']?.toString()),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -480,7 +526,7 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Text(
-                      schedule['arrival']['airport'] ?? "UNK",
+                      _formatAirportLabel(schedule['arrival']['airport']?.toString()),
                       style: const TextStyle(fontWeight: FontWeight.w500),
                     ),
                     Text(
@@ -715,7 +761,7 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        getDepartureAirport(),
+                        _formatAirportLabel(getDepartureAirport()),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
@@ -745,16 +791,16 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
                         color: const Color(0xFFD71921),
                       ),
                       const SizedBox(height: 4),
-                      // Nonstop indicator below line
+                      // Stops indicator below line
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: BoxDecoration(
                           color: const Color(0xFFD71921).withOpacity(0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: const Text(
-                          'Nonstop',
-                          style: TextStyle(
+                        child: Text(
+                          _getStopText(),
+                          style: const TextStyle(
                             fontSize: 11,
                             color: Color(0xFFD71921),
                             fontWeight: FontWeight.w500,
@@ -780,7 +826,7 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        getArrivalAirport(),
+                        _formatAirportLabel(getArrivalAirport()),
                         style: TextStyle(
                           fontSize: 13,
                           color: Colors.grey.shade600,
