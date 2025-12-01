@@ -8,6 +8,7 @@ import '../../flydubai/flydubai_controller.dart';
 import '../../flydubai/flydubai_model.dart';
 import '../../sabre/sabre_flight_models.dart';
 import '../helper_functions.dart';
+import '../../../../../services/api_service_sabre.dart';
 
 class FlyDubaiFlightCard extends StatefulWidget {
   final FlydubaiFlight flight;
@@ -901,11 +902,58 @@ class _FlyDubaiFlightCardState extends State<FlyDubaiFlightCard>
                 fit: BoxFit.contain,
               ),
               const SizedBox(width: 8),
-              Text(
-                '${widget.flight.airlineName} $flightNumber',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '${widget.flight.airlineName} $flightNumber',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w500,
+                        fontSize: 14,
+                      ),
+                    ),
+                    // Operating carrier display
+                    Builder(
+                      builder: (context) {
+                        final operatingCarrierCode = carrier['operating']?.toString() ?? 
+                            widget.flight.flightSegment.legDetails['OperatingCarrier']?.toString() ?? 
+                            carrier['marketing']?.toString() ?? 
+                            widget.flight.airlineCode;
+                        
+                        try {
+                          final ApiServiceSabre apiService = Get.find<ApiServiceSabre>();
+                          final airlineMap = apiService.getAirlineMap();
+                          final operatingAirlineInfo = getAirlineInfo(operatingCarrierCode, airlineMap);
+                          
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Operated by ${operatingAirlineInfo.name}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          );
+                        } catch (e) {
+                          // If service not found or error, show carrier code as fallback
+                          return Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Operated by $operatingCarrierCode',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.grey[600],
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
                 ),
               ),
             ],

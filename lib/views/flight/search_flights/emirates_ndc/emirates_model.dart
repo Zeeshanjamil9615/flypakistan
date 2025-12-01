@@ -430,6 +430,9 @@ class EmiratesFlight {
         'operating': _extractValue(operatingCarrier['AirlineID']) ??
             _extractValue(marketingCarrier['AirlineID']) ??
             'EK',
+        'operatingName': _extractValue(operatingCarrier['Name']) ??
+            _extractValue(marketingCarrier['Name']) ??
+            'Emirates',
       },
       'equipment': _extractValue(segmentData['Equipment']?['AircraftCode']) ?? '777',
       'flightNumber': _extractValue(marketingCarrier['FlightNumber']) ?? '',
