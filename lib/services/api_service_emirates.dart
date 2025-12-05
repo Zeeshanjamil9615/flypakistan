@@ -1111,8 +1111,10 @@ $passengerListXml
     // _printLargeText(response.data.toString(), "ORDER CREATE RAW XML");
     // debugPrint("===============================================\n");
 
+    Map<String, dynamic> parsedResponse;
+    
     if (response.statusCode == 200) {
-      final parsedResponse = _parsePnrResponse(response.data.toString());
+      parsedResponse = _parsePnrResponse(response.data.toString());
 
       debugPrint("\n📋 === PNR PARSING RESULT ===");
       debugPrint("Success: ${parsedResponse['success']}");
@@ -1124,25 +1126,51 @@ $passengerListXml
         debugPrint("Error: ${parsedResponse['error']}");
       }
       debugPrint("============================\n");
-
-      return parsedResponse;
     } else {
       debugPrint("\n❌ SERVER ERROR RESPONSE:");
       debugPrint("Status: ${response.statusCode}");
       debugPrint("Response: ${response.data}");
 
-      return {
+      parsedResponse = {
         'success': false,
         'error': 'Server error ${response.statusCode}: ${response.data}',
       };
     }
+
+    // Save booking regardless of PNR success/failure
+    try {
+      await saveEmiratesBooking(
+        selectedOffers: selectedOffers,
+        pnrResponse: parsedResponse,
+        bookingController: bookingController,
+      );
+    } catch (saveError) {
+      debugPrint('⚠️ Failed to save booking after PNR creation: $saveError');
+      // Don't throw - continue with PNR response
+    }
+
+    return parsedResponse;
   } catch (e, stackTrace) {
     debugPrint('❌ ERROR creating Emirates PNR: $e');
     debugPrint('Stack trace: $stackTrace');
-    return {
+    
+    final errorResponse = {
       'success': false,
       'error': 'Error: ${e.toString()}',
     };
+
+    // Even if PNR fails, try to save the booking
+    try {
+      await saveEmiratesBooking(
+        selectedOffers: selectedOffers,
+        pnrResponse: errorResponse,
+        bookingController: bookingController,
+      );
+    } catch (saveError) {
+      debugPrint('⚠️ Failed to save booking after PNR error: $saveError');
+    }
+
+    return errorResponse;
   }
 }
 
@@ -1798,6 +1826,317 @@ String _buildIdentityDocumentBlock({
                              <IssuingCountryCode>$issuing</IssuingCountryCode>
                              <NationalityCountryCode>$nationality</NationalityCountryCode>
                          </IdentityDocument>''';
+}
+
+// Save Emirates booking to company portal
+Future<Map<String, dynamic>> saveEmiratesBooking({
+  required List<Map<String, dynamic>> selectedOffers,
+  required Map<String, dynamic> pnrResponse,
+  required dynamic bookingController,
+}) async {
+  try {
+    debugPrint('💾 Saving Emirates booking to portal...');
+
+    // Prepare booking info
+    final bookingInfo = {
+      "bfname": bookingController.firstNameController.text,
+      "blname": bookingController.lastNameController.text,
+      "bemail": bookingController.emailController.text,
+      "bphno": bookingController.phoneController.text,
+      "badd": "b",
+      "bcity": "a",
+      "final_price": _extractTotalPriceFromOffers(selectedOffers).toString(),
+      "client_email": bookingController.emailController.text,
+      "client_phone": bookingController.phoneController.text,
+    };
+
+    // Prepare adults data
+    final adults = bookingController.adults.map((adult) {
+      return {
+        "title": adult.titleController.text,
+        "first_name": adult.firstNameController.text,
+        "last_name": adult.lastNameController.text,
+        "dob": adult.dateOfBirthController.text,
+        "nationality": adult.nationalityCountry.value?.countryCode ?? 'PK',
+        "passport": adult.passportCnicController.text,
+        "passport_expiry": adult.passportExpiryController.text,
+        "cnic": adult.passportCnicController.text,
+      };
+    }).toList();
+
+    // Prepare children data
+    final children = bookingController.children.map((child) {
+      return {
+        "title": child.titleController.text,
+        "first_name": child.firstNameController.text,
+        "last_name": child.lastNameController.text,
+        "dob": child.dateOfBirthController.text,
+        "nationality": child.nationalityCountry.value?.countryCode ?? 'PK',
+        "passport": child.passportCnicController.text,
+        "passport_expiry": child.passportExpiryController.text,
+        "cnic": child.passportCnicController.text,
+      };
+    }).toList();
+
+    // Prepare infants data
+    final infants = bookingController.infants.map((infant) {
+      return {
+        "title": infant.titleController.text,
+        "first_name": infant.firstNameController.text,
+        "last_name": infant.lastNameController.text,
+        "dob": infant.dateOfBirthController.text,
+        "nationality": infant.nationalityCountry.value?.countryCode ?? 'PK',
+        "passport": "a",
+        "passport_expiry": "a",
+        "cnic": "a",
+      };
+    }).toList();
+
+    // Prepare flights data from selected offers
+    final flights = _prepareEmiratesFlightData(selectedOffers);
+
+    // Determine PNR status (1 for success, 0 for failure)
+    final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
+    final pnr = pnrResponse['pnr']?.toString() ?? '';
+
+    // Calculate total price
+    final totalPrice = _extractTotalPriceFromOffers(selectedOffers);
+
+    // Prepare final request body
+    final requestBody = {
+      "booking_info": bookingInfo,
+      "adults": adults,
+      "children": children,
+      "infants": infants,
+      "flights": flights,
+      "pnr": pnr,
+      "buyingPrice": totalPrice.toStringAsFixed(0),
+      "sellingPrice": totalPrice.toStringAsFixed(0),
+      "pnrStatus": pnrStatus,
+      "booking_from": "1",
+      "gds": "Emirates"
+    };
+
+    debugPrint("💾 Emirates Booking Request Body:");
+    debugPrint("PNR: $pnr, Status: $pnrStatus, Price: $totalPrice");
+
+    // Configure Dio
+    final dio = Dio(
+      BaseOptions(
+        baseUrl: 'https://readyflights.pk/api/',
+        headers: {
+          'Content-Type': 'application/json',
+          // Note: Token should be passed from the calling context if needed
+          // 'Authorization': 'Bearer $token',
+        },
+        responseType: ResponseType.json,
+      ),
+    );
+
+    // Make the API call
+    final response = await dio.post('flight-booking', data: requestBody);
+
+    // Handle response
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      debugPrint("✅ Emirates booking saved successfully");
+      if (response.data is Map<String, dynamic>) {
+        return response.data;
+      } else if (response.data is String) {
+        return jsonDecode(response.data) as Map<String, dynamic>;
+      }
+      return {'status': 'success'};
+    } else {
+      debugPrint("⚠️ Failed to save Emirates booking: ${response.statusCode}");
+      throw Exception('Failed to save booking: ${response.statusMessage}');
+    }
+  } catch (e, stackTrace) {
+    debugPrint('❌ Error saving Emirates booking: $e');
+    debugPrint('Stack trace: $stackTrace');
+    // Don't throw - just log the error
+    return {
+      'success': false,
+      'error': 'Error saving booking: ${e.toString()}',
+    };
+  }
+}
+
+// Helper method to extract total price from selected offers
+double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
+  double totalPrice = 0.0;
+  try {
+    for (var offer in selectedOffers) {
+      final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
+      final totalPriceNode = offerData['TotalPrice'];
+      
+      if (totalPriceNode != null) {
+        if (totalPriceNode is Map) {
+          final simpleCurrencyPrice = totalPriceNode['SimpleCurrencyPrice'];
+          if (simpleCurrencyPrice is Map) {
+            final priceValue = simpleCurrencyPrice['\$t'] ?? simpleCurrencyPrice['value'];
+            if (priceValue != null) {
+              totalPrice += double.tryParse(priceValue.toString()) ?? 0.0;
+            }
+          }
+        } else if (totalPriceNode is num) {
+          totalPrice += totalPriceNode.toDouble();
+        }
+      }
+    }
+  } catch (e) {
+    debugPrint('Error extracting total price: $e');
+  }
+  return totalPrice > 0 ? totalPrice : 0.0;
+}
+
+// Helper method to prepare Emirates flight data
+List<Map<String, dynamic>> _prepareEmiratesFlightData(List<Map<String, dynamic>> selectedOffers) {
+  final flights = <Map<String, dynamic>>[];
+
+  try {
+    for (var offer in selectedOffers) {
+      final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
+      final dataLists = offerData['DataLists'] ?? {};
+      final flightSegmentList = dataLists['FlightSegmentList']?['FlightSegment'] ?? {};
+      final offerItems = offerData['OfferItem'] ?? [];
+      
+      // Handle single or multiple offer items
+      final offerItemsList = offerItems is List ? offerItems : [offerItems];
+      
+      for (var offerItem in offerItemsList) {
+        if (offerItem is! Map) continue;
+        
+        final serviceRefs = offerItem['Service'] ?? [];
+        final serviceRefsList = serviceRefs is List ? serviceRefs : [serviceRefs];
+        
+        for (var serviceRef in serviceRefsList) {
+          if (serviceRef is! Map) continue;
+          
+          final segmentRefs = serviceRef['SegmentRefs'] ?? [];
+          final segmentRefsList = segmentRefs is List ? segmentRefs : [segmentRefs];
+          
+          for (var segmentRef in segmentRefsList) {
+            final segmentKey = _extractNodeText(segmentRef);
+            if (segmentKey.isEmpty) continue;
+            
+            final flightSegment = flightSegmentList is Map ? flightSegmentList[segmentKey] : null;
+            if (flightSegment == null || flightSegment is! Map) continue;
+            
+            // Extract flight details
+            final departure = flightSegment['Departure'] ?? {};
+            final arrival = flightSegment['Arrival'] ?? {};
+            final operatingCarrier = flightSegment['OperatingCarrier'] ?? {};
+            final marketingCarrier = flightSegment['MarketingCarrier'] ?? {};
+            
+            final depAirport = _extractNodeText(departure['AirportCode']);
+            final arrAirport = _extractNodeText(arrival['AirportCode']);
+            final depDateTime = _extractNodeText(departure['Date']) + ' ' + _extractNodeText(departure['Time']);
+            final arrDateTime = _extractNodeText(arrival['Date']) + ' ' + _extractNodeText(arrival['Time']);
+            final flightNumber = _extractNodeText(flightSegment['FlightNumber']);
+            final operatingCarrierCode = _extractNodeText(operatingCarrier['AirlineID']);
+            final marketingCarrierCode = _extractNodeText(marketingCarrier['AirlineID']);
+            
+            // Parse dates
+            DateTime? depDate;
+            DateTime? arrDate;
+            try {
+              depDate = DateTime.parse(depDateTime);
+            } catch (e) {
+              try {
+                depDate = DateTime.parse(_extractNodeText(departure['Date']));
+              } catch (_) {}
+            }
+            try {
+              arrDate = DateTime.parse(arrDateTime);
+            } catch (e) {
+              try {
+                arrDate = DateTime.parse(_extractNodeText(arrival['Date']));
+              } catch (_) {}
+            }
+            
+            if (depDate == null || arrDate == null) continue;
+            
+            final duration = arrDate.difference(depDate);
+            
+            // Get cabin class from PriceClass
+            String cabinClass = 'Economy';
+            String cabinCode = 'Y';
+            final priceClassRefs = serviceRef['PriceClassRefs'] ?? [];
+            if (priceClassRefs is List && priceClassRefs.isNotEmpty) {
+              final priceClassId = _extractNodeText(priceClassRefs[0]);
+              final priceClassList = dataLists['PriceClassList']?['PriceClass'] ?? {};
+              if (priceClassList is Map) {
+                final priceClass = priceClassList[priceClassId];
+                if (priceClass is Map) {
+                  final name = _extractNodeText(priceClass['Name']);
+                  cabinClass = name.isNotEmpty ? name : cabinClass;
+                  final code = _extractNodeText(priceClass['Code']);
+                  cabinCode = code.isNotEmpty ? code : cabinCode;
+                }
+              }
+            }
+            
+            flights.add({
+              "departure": {
+                "airport": depAirport,
+                "city": depAirport,
+                "date": depDate.toIso8601String().split('T')[0],
+                "time": "${depDate.hour.toString().padLeft(2, '0')}:${depDate.minute.toString().padLeft(2, '0')}",
+                "terminal": _extractNodeText(departure['Terminal']) ?? 'Main',
+              },
+              "arrival": {
+                "airport": arrAirport,
+                "city": arrAirport,
+                "date": arrDate.toIso8601String().split('T')[0],
+                "time": "${arrDate.hour.toString().padLeft(2, '0')}:${arrDate.minute.toString().padLeft(2, '0')}",
+                "terminal": _extractNodeText(arrival['Terminal']) ?? 'Main',
+              },
+              "flight_number": flightNumber,
+              "airline_code": marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK',
+              "airline_name": "Emirates",
+              "operating_flight_number": flightNumber,
+              "operating_airline_code": operatingCarrierCode.isNotEmpty ? operatingCarrierCode : marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK',
+              "operating_airline_name": "Emirates",
+              "cabin_class": _getCabinClassName(cabinCode),
+              "sub_class": cabinCode,
+              "booking_class": cabinCode,
+              "hand_baggage": "7kg",
+              "check_baggage": "30kg", // Default for Emirates
+              "meal": "Meal",
+              "layover": flights.length > 0 ? "Yes" : "None",
+              "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+              "duration_minutes": duration.inMinutes,
+              "type": flights.isEmpty ? "One-Way" : "Return",
+              "fare_basis": "",
+              "seats_available": "",
+              "is_refundable": true,
+              "aircraft_type": "Unknown",
+            });
+          }
+        }
+      }
+    }
+  } catch (e, stackTrace) {
+    debugPrint('❌ Error preparing Emirates flight data: $e');
+    debugPrint('Stack trace: $stackTrace');
+  }
+
+  return flights;
+}
+
+String _getCabinClassName(String cabinCode) {
+  switch (cabinCode.toUpperCase()) {
+    case 'F':
+      return 'First Class';
+    case 'C':
+    case 'J':
+      return 'Business Class';
+    case 'W':
+    case 'S':
+      return 'Premium Economy';
+    case 'Y':
+    default:
+      return 'Economy';
+  }
 }
 
 }

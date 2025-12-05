@@ -368,7 +368,8 @@ class AirBlueFlightApiService {
         "buyingPrice": finalPrice,
         "sellingPrice":finalPrice,
         "pnrStatus": pnrStatus,
-        "booking_from":"1"
+        "booking_from":"1",
+        "gds": "blue"
       };
 
       // print("bok body");

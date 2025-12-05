@@ -297,73 +297,139 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     final bookerFirstName = TestDataPool.randomFirstName();
     final bookerLastName = TestDataPool.randomLastName();
 
-    // Fill booker information with random data
-    bookingController.firstNameController.text = bookerFirstName;
-    bookingController.lastNameController.text = bookerLastName;
-    bookingController.emailController.text = TestDataPool.randomEmail(bookerFirstName, bookerLastName);
-    bookingController.phoneController.text = TestDataPool.randomPhone();
-    bookingController.remarksController.text = "Test booking ${DateTime.now().millisecondsSinceEpoch}";
-    bookingController.bookerPhoneCountry.value = Country.parse('PK');
+    // Fill booker information with random data - only if empty
+    if (bookingController.firstNameController.text.isEmpty) {
+      bookingController.firstNameController.text = bookerFirstName;
+    }
+    if (bookingController.lastNameController.text.isEmpty) {
+      bookingController.lastNameController.text = bookerLastName;
+    }
+    if (bookingController.emailController.text.isEmpty) {
+      bookingController.emailController.text = TestDataPool.randomEmail(bookerFirstName, bookerLastName);
+    }
+    if (bookingController.phoneController.text.isEmpty) {
+      bookingController.phoneController.text = TestDataPool.randomPhone();
+      bookingController.bookerPhoneCountry.value = Country.parse('PK');
+    }
+    if (bookingController.remarksController.text.isEmpty) {
+      bookingController.remarksController.text = "Test booking ${DateTime.now().millisecondsSinceEpoch}";
+    }
 
-    // Fill adult travelers with random data
+    // Fill adult travelers with random data - only if empty
     for (int i = 0; i < bookingController.adults.length; i++) {
       final adult = bookingController.adults[i];
       final gender = TestDataPool.randomGender();
       final firstName = TestDataPool.randomFirstName();
       final lastName = TestDataPool.randomLastName();
 
-      adult.titleController.text = TestDataPool.randomTitle(gender);
-      adult.firstNameController.text = firstName;
-      adult.lastNameController.text = lastName;
-      adult.passportCnicController.text = bookingController.isDomesticFlight
-          ? TestDataPool.randomCNIC()
-          : TestDataPool.randomPassport();
-      adult.nationalityController.text = "Pakistan";
-      adult.nationalityCountry.value = Country.parse('PK');
-      adult.dateOfBirthController.text = TestDataPool.randomDate(18, 65);
-      adult.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
-      adult.genderController.text = gender;
-      adult.phoneController.text = TestDataPool.randomPhone();
-      adult.phoneCountry.value = Country.parse('PK');
-      adult.emailController.text = TestDataPool.randomEmail(firstName, lastName);
+      if (adult.titleController.text.isEmpty) {
+        adult.titleController.text = TestDataPool.randomTitle(gender);
+      }
+      if (adult.firstNameController.text.isEmpty) {
+        adult.firstNameController.text = firstName;
+      }
+      if (adult.lastNameController.text.isEmpty) {
+        adult.lastNameController.text = lastName;
+      }
+      if (adult.passportCnicController.text.isEmpty) {
+        adult.passportCnicController.text = bookingController.isDomesticFlight
+            ? TestDataPool.randomCNIC()
+            : TestDataPool.randomPassport();
+      }
+      if (adult.nationalityController.text.isEmpty) {
+        adult.nationalityController.text = "Pakistan";
+        adult.nationalityCountry.value = Country.parse('PK');
+      }
+      if (adult.dateOfBirthController.text.isEmpty) {
+        adult.dateOfBirthController.text = TestDataPool.randomDate(18, 65);
+      }
+      if (adult.passportExpiryController.text.isEmpty) {
+        adult.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
+      }
+      if (adult.genderController.text.isEmpty) {
+        adult.genderController.text = gender;
+      }
+      if (adult.phoneController.text.isEmpty) {
+        adult.phoneController.text = TestDataPool.randomPhone();
+        adult.phoneCountry.value = Country.parse('PK');
+      }
+      if (adult.emailController.text.isEmpty) {
+        adult.emailController.text = TestDataPool.randomEmail(firstName, lastName);
+      }
     }
 
-    // Fill child travelers with random data
+    // Fill child travelers with random data - only if empty
     for (int i = 0; i < bookingController.children.length; i++) {
       final child = bookingController.children[i];
       final gender = TestDataPool.randomGender();
       final firstName = TestDataPool.randomFirstName();
       final lastName = TestDataPool.randomLastName();
 
-      child.titleController.text = TestDataPool.randomChildTitle(gender);
-      child.firstNameController.text = firstName;
-      child.lastNameController.text = lastName;
-      child.passportCnicController.text = bookingController.isDomesticFlight
-          ? TestDataPool.randomCNIC()
-          : TestDataPool.randomPassport();
-      child.nationalityController.text = "Pakistan";
-      child.nationalityCountry.value = Country.parse('PK');
-      child.dateOfBirthController.text = TestDataPool.randomDate(2, 12);
-      child.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
-      child.genderController.text = gender;
-      child.phoneController.text = "";
-      child.emailController.text = "";
+      if (child.titleController.text.isEmpty) {
+        child.titleController.text = TestDataPool.randomChildTitle(gender);
+      }
+      if (child.firstNameController.text.isEmpty) {
+        child.firstNameController.text = firstName;
+      }
+      if (child.lastNameController.text.isEmpty) {
+        child.lastNameController.text = lastName;
+      }
+      if (child.passportCnicController.text.isEmpty) {
+        child.passportCnicController.text = bookingController.isDomesticFlight
+            ? TestDataPool.randomCNIC()
+            : TestDataPool.randomPassport();
+      }
+      if (child.nationalityController.text.isEmpty) {
+        child.nationalityController.text = "Pakistan";
+        child.nationalityCountry.value = Country.parse('PK');
+      }
+      if (child.dateOfBirthController.text.isEmpty) {
+        child.dateOfBirthController.text = TestDataPool.randomDate(2, 12);
+      }
+      if (child.passportExpiryController.text.isEmpty) {
+        child.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
+      }
+      if (child.genderController.text.isEmpty) {
+        child.genderController.text = gender;
+      }
+      // Children don't need phone/email
     }
 
-    // Fill infant travelers with random data
+    // Fill infant travelers with random data - only if empty
     for (int i = 0; i < bookingController.infants.length; i++) {
       final infant = bookingController.infants[i];
       final gender = TestDataPool.randomGender();
       final firstName = TestDataPool.randomFirstName();
       final lastName = TestDataPool.randomLastName();
 
-      infant.titleController.text = "Inf";
-      infant.firstNameController.text = firstName;
-      infant.lastNameController.text = lastName;
-      infant.nationalityController.text = "Pakistan";
-      infant.nationalityCountry.value = Country.parse('PK');
-      infant.dateOfBirthController.text = TestDataPool.randomDate(0, 2);
-      infant.genderController.text = gender;
+      if (infant.titleController.text.isEmpty) {
+        infant.titleController.text = "Inf";
+      }
+      if (infant.firstNameController.text.isEmpty) {
+        infant.firstNameController.text = firstName;
+      }
+      if (infant.lastNameController.text.isEmpty) {
+        infant.lastNameController.text = lastName;
+      }
+      if (infant.nationalityController.text.isEmpty) {
+        infant.nationalityController.text = "Pakistan";
+        infant.nationalityCountry.value = Country.parse('PK');
+      }
+      if (infant.dateOfBirthController.text.isEmpty) {
+        infant.dateOfBirthController.text = TestDataPool.randomDate(0, 2);
+      }
+      if (infant.genderController.text.isEmpty) {
+        infant.genderController.text = gender;
+      }
+      // Fill infant passport number and expiry date
+      if (infant.passportCnicController.text.isEmpty) {
+        infant.passportCnicController.text = bookingController.isDomesticFlight
+            ? TestDataPool.randomCNIC()
+            : TestDataPool.randomPassport();
+      }
+      if (infant.passportExpiryController.text.isEmpty) {
+        infant.passportExpiryController.text = "203${Random().nextInt(5) + 5}-12-31";
+      }
     }
 
     // Accept terms and conditions
@@ -1895,11 +1961,80 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         _isUserLoggedIn = isLoggedIn;
       });
     }
-    if (!isLoggedIn) {
+    if (isLoggedIn) {
+      // Auto-fill email and phone from logged-in user data
+      await _populateContactDetailsFromUserData();
+    } else {
       _syncBookerNameFromTravelers();
-    }
-    if (!isLoggedIn) {
       _showLoginRequiredDialog();
+    }
+  }
+
+  Future<void> _populateContactDetailsFromUserData() async {
+    if (_authController == null) return;
+    
+    try {
+      final userData = await _authController!.getUserData();
+      if (userData == null) return;
+
+      // Populate email
+      final email = userData['cs_email'] ?? '';
+      if (email.isNotEmpty && bookingController.emailController.text.isEmpty) {
+        bookingController.emailController.text = email;
+      }
+
+      // Populate phone
+      String phone = userData['cs_phone'] ?? '';
+      if (phone.isNotEmpty && bookingController.phoneController.text.isEmpty) {
+        // Clean and format phone number - remove spaces and keep only digits and +
+        phone = phone.replaceAll(RegExp(r'\s+'), ''); // Remove all spaces first
+        phone = phone.replaceAll(RegExp(r'[^0-9+]'), ''); // Then remove other non-numeric chars except +
+        
+        // Try to extract country code if phone starts with +
+        if (phone.startsWith('+')) {
+          String phoneWithoutPlus = phone.substring(1);
+          
+          // Common country codes
+          Map<String, String> countryCodeMap = {
+            '92': 'PK',  // Pakistan
+            '1': 'US',   // USA/Canada
+            '44': 'GB',  // UK
+            '971': 'AE', // UAE
+            '966': 'SA', // Saudi Arabia
+            '91': 'IN',  // India
+          };
+          
+          // Try to match country code
+          bool countryMatched = false;
+          for (var entry in countryCodeMap.entries) {
+            if (phoneWithoutPlus.startsWith(entry.key)) {
+              try {
+                bookingController.bookerPhoneCountry.value = Country.parse(entry.value);
+                // Remove country code from phone number
+                bookingController.phoneController.text = phoneWithoutPlus.substring(entry.key.length);
+                countryMatched = true;
+              } catch (e) {
+                print('Error parsing country: $e');
+              }
+              break;
+            }
+          }
+          
+          // If no country code matched, just remove the + and use as is
+          if (!countryMatched) {
+            bookingController.phoneController.text = phoneWithoutPlus;
+          }
+        } else {
+          // No country code, assume it's local number
+          // Remove leading zero if present
+          if (phone.startsWith('0')) {
+            phone = phone.substring(1);
+          }
+          bookingController.phoneController.text = phone;
+        }
+      }
+    } catch (e) {
+      print('Error populating contact details from user data: $e');
     }
   }
 
@@ -2165,9 +2300,12 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
             travelersController.childrenCount.value +
             travelersController.infantCount.value;
 
+        // Provide default empty map if pnrResponse is null
+        final safePnrResponse = pnrResponse ?? <String, dynamic>{};
+
         Get.to(
           () => SabrePaymentScreen(
-            pnrResponse: pnrResponse!,
+            pnrResponse: safePnrResponse,
             totalPassengers: totalPassengers,
             flight: widget.sabreFlight!,
             bookingController: bookingController,
@@ -2203,9 +2341,12 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
             travelersController.childrenCount.value +
             travelersController.infantCount.value;
 
+        // Provide default empty map if pnrResponse is null
+        final safePnrResponse = pnrResponse ?? <String, dynamic>{};
+
         Get.to(
           () => SabrePaymentScreen(
-            pnrResponse: pnrResponse!, // May be null
+            pnrResponse: safePnrResponse,
             totalPassengers: totalPassengers,
             flight: widget.sabreFlight!,
             bookingController: bookingController,

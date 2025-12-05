@@ -1,6 +1,5 @@
 // flight_package/emirates/emirates_flight_package.dart
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
@@ -12,6 +11,7 @@ import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_
 import 'package:ready_flights/views/flight/form/flight_booking_controller.dart';
 import 'package:ready_flights/widgets/travelers_selection_bottom_sheet.dart';
 import '../../../booking_flight/airblue/airblue_booking_flight.dart';
+import '../../search_flight_utils/widgets/emirates_ndc_card.dart';
 
 class EmiratesPackageSelectionDialog extends StatelessWidget {
   final EmiratesFlight flight;
@@ -77,107 +77,16 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
   }
 
   Widget _buildFlightInfo() {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: TColors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: TColors.secondary.withOpacity(0.2),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          Row(
-            children: [
-              CachedNetworkImage(
-                imageUrl: 'https://images.kiwi.com/airlines/64/EK.png',
-                height: 40,
-                width: 40,
-                placeholder: (context, url) => const CircularProgressIndicator(strokeWidth: 2),
-                errorWidget: (context, url, error) => const Icon(Icons.flight, size: 40),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'EK-${flight.flightNumber}',
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      flight.cabinName,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: TColors.grey,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildAirportInfo(
-                _getDepartureAirport(),
-                _getDepartureTime(),
-                true,
-              ),
-              Column(
-                children: [
-                  const Icon(Icons.flight, color: TColors.primary),
-                  Text(
-                    _getFlightDuration(),
-                    style: const TextStyle(fontSize: 12, color: TColors.grey),
-                  ),
-                ],
-              ),
-              _buildAirportInfo(
-                _getArrivalAirport(),
-                _getArrivalTime(),
-                false,
-              ),
-            ],
-          ),
-        ],
-      ),
+    return EmiratesFlightCard(
+      flight: flight,
+      showReturnFlight: false,
+      isShowBookButton: false,
+      isMultiCity: isMultiCity,
+      currentSegment: segmentIndex,
     );
   }
 
-  Widget _buildAirportInfo(String airport, String time, bool isDeparture) {
-    return Column(
-      crossAxisAlignment: isDeparture ? CrossAxisAlignment.start : CrossAxisAlignment.end,
-      children: [
-        Text(
-          airport,
-          style: const TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-        Text(
-          time,
-          style: const TextStyle(
-            fontSize: 14,
-            color: TColors.grey,
-          ),
-        ),
-      ],
-    );
-  }
-
+  // Helper methods for debug prints
   String _getDepartureAirport() {
     if (flight.legSchedules.isNotEmpty) {
       return flight.legSchedules[0]['departure']['airport'] ?? 'N/A';
@@ -190,41 +99,6 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
       return flight.legSchedules[0]['arrival']['airport'] ?? 'N/A';
     }
     return 'N/A';
-  }
-
-  String _getDepartureTime() {
-    if (flight.legSchedules.isNotEmpty) {
-      return _formatTimeFromDateTime(
-        flight.legSchedules[0]['departure']['dateTime'],
-      );
-    }
-    return 'N/A';
-  }
-
-  String _getArrivalTime() {
-    if (flight.legSchedules.isNotEmpty) {
-      return _formatTimeFromDateTime(
-        flight.legSchedules[0]['arrival']['dateTime'],
-      );
-    }
-    return 'N/A';
-  }
-
-  String _getFlightDuration() {
-    if (flight.legSchedules.isNotEmpty) {
-      final elapsedTime = flight.legSchedules[0]['elapsedTime'] ?? 0;
-      return '${elapsedTime ~/ 60}h ${elapsedTime % 60}m';
-    }
-    return 'N/A';
-  }
-
-  String _formatTimeFromDateTime(String dateTimeString) {
-    try {
-      final dateTime = DateTime.parse(dateTimeString);
-      return DateFormat('HH:mm').format(dateTime);
-    } catch (e) {
-      return 'N/A';
-    }
   }
 
   Widget _buildPackagesList() {

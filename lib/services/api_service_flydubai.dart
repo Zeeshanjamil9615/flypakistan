@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:dio/dio.dart';
 import 'dart:convert';
 
 import '../views/flight/booking_flight/booking_flight_controller.dart';
@@ -521,6 +522,8 @@ class ApiServiceFlyDubai {
         // print('CommitPNR Response Body:');
         // printJsonPretty(commitResponse.body);
 
+        Map<String, dynamic> pnrResult;
+        
         if (commitResponse.statusCode == 200) {
           final commitData = json.decode(commitResponse.body);
           final confirmationNumber =
@@ -531,7 +534,7 @@ class ApiServiceFlyDubai {
 
           print('✅ Final PNR Confirmation Number: $confirmationNumber');
 
-          return {
+          pnrResult = {
             'success': true,
             'data': responseData,
             'commitData': commitData,
@@ -539,46 +542,122 @@ class ApiServiceFlyDubai {
             'message': 'PNR created and committed successfully',
           };
         } else {
-          return {
+          pnrResult = {
             'success': false,
             'error': 'Commit PNR failed',
             'response': commitResponse.body,
             'statusCode': commitResponse.statusCode,
           };
         }
+
+        // Save booking regardless of PNR success/failure
+        try {
+          await saveFlyDubaiBooking(
+            adults: adults,
+            children: children,
+            infants: infants,
+            clientEmail: clientEmail,
+            clientPhone: clientPhone,
+            pnrResponse: pnrResult,
+            segmentArray: segmentArray,
+            cartData: cartData,
+            flightType: flightType,
+          );
+        } catch (saveError) {
+          print('⚠️ Failed to save booking after PNR creation: $saveError');
+          // Don't throw - continue with PNR response
+        }
+
+        return pnrResult;
       } else if (response.statusCode == 401) {
         _accessToken = null;
         _tokenExpiry = null;
-        return {
+        final errorResponse = {
           'success': false,
           'error': 'Token expired. Please search flights again to get a new token.',
           'response': response.body,
         };
+
+        // Save booking even if token expired
+        try {
+          await saveFlyDubaiBooking(
+            adults: adults,
+            children: children,
+            infants: infants,
+            clientEmail: clientEmail,
+            clientPhone: clientPhone,
+            pnrResponse: errorResponse,
+            segmentArray: segmentArray,
+            cartData: cartData,
+            flightType: flightType,
+          );
+        } catch (saveError) {
+          print('⚠️ Failed to save booking after token error: $saveError');
+        }
+
+        return errorResponse;
       } else {
-        final errorResponse = json.decode(response.body);
-        final errorMessage = errorResponse['errorMessage'] ??
-            errorResponse['Message'] ??
-            errorResponse['error'] ??
-            errorResponse['Exception'] ??
+        final errorResponseData = json.decode(response.body);
+        final errorMessage = errorResponseData['errorMessage'] ??
+            errorResponseData['Message'] ??
+            errorResponseData['error'] ??
+            errorResponseData['Exception'] ??
             'PNR creation failed with status: ${response.statusCode}';
 
-
-
-        return {
+        final errorResponse = {
           'success': false,
           'error': errorMessage,
           'response': response.body,
           'statusCode': response.statusCode,
         };
+
+        // Save booking even if PNR creation failed
+        try {
+          await saveFlyDubaiBooking(
+            adults: adults,
+            children: children,
+            infants: infants,
+            clientEmail: clientEmail,
+            clientPhone: clientPhone,
+            pnrResponse: errorResponse,
+            segmentArray: segmentArray,
+            cartData: cartData,
+            flightType: flightType,
+          );
+        } catch (saveError) {
+          print('⚠️ Failed to save booking after PNR error: $saveError');
+        }
+
+        return errorResponse;
       }
     } catch (e, stackTrace) {
       print('❌ PNR creation error: $e');
       print('Stack trace: $stackTrace');
-      return {
+      
+      final errorResponse = {
         'success': false,
         'error': 'PNR creation failed: $e',
         'stackTrace': stackTrace.toString(),
       };
+
+      // Even if PNR fails, try to save the booking
+      try {
+        await saveFlyDubaiBooking(
+          adults: adults,
+          children: children,
+          infants: infants,
+          clientEmail: clientEmail,
+          clientPhone: clientPhone,
+          pnrResponse: errorResponse,
+          segmentArray: segmentArray,
+          cartData: cartData,
+          flightType: flightType,
+        );
+      } catch (saveError) {
+        print('⚠️ Failed to save booking after PNR exception: $saveError');
+      }
+
+      return errorResponse;
     }
   }
   // Revalidate flight pricing - uses existing token, doesn't authenticate
@@ -2978,5 +3057,346 @@ class ApiServiceFlyDubai {
     }).join(' ');
 
     return cleaned;
+  }
+
+  // Save FlyDubai booking to company portal
+  Future<Map<String, dynamic>> saveFlyDubaiBooking({
+    required List<TravelerInfo> adults,
+    required List<TravelerInfo> children,
+    required List<TravelerInfo> infants,
+    required String clientEmail,
+    required String clientPhone,
+    required Map<String, dynamic> pnrResponse,
+    required List<Map<String, dynamic>> segmentArray,
+    required Map<String, dynamic> cartData,
+    required String flightType,
+  }) async {
+    try {
+      print('💾 Saving FlyDubai booking to portal...');
+
+      // Extract booking info from cart data or use defaults
+      final totalPrice = _extractTotalPriceFromCartData(cartData);
+      
+      // Prepare booking info
+      final bookingInfo = {
+        "bfname": adults.isNotEmpty ? adults[0].firstNameController.text : "",
+        "blname": adults.isNotEmpty ? adults[0].lastNameController.text : "",
+        "bemail": clientEmail,
+        "bphno": clientPhone,
+        "badd": "b",
+        "bcity": "a",
+        "final_price": totalPrice.toString(),
+        "client_email": clientEmail,
+        "client_phone": clientPhone,
+      };
+
+      // Prepare adults data
+      final adultsData = adults.map((adult) {
+        return {
+          "title": adult.titleController.text,
+          "first_name": adult.firstNameController.text,
+          "last_name": adult.lastNameController.text,
+          "dob": adult.dateOfBirthController.text,
+          "nationality": adult.nationalityCountry.value?.countryCode ?? 'PK',
+          "passport": adult.passportCnicController.text,
+          "passport_expiry": adult.passportExpiryController.text,
+          "cnic": adult.passportCnicController.text,
+        };
+      }).toList();
+
+      // Prepare children data
+      final childrenData = children.map((child) {
+        return {
+          "title": child.titleController.text,
+          "first_name": child.firstNameController.text,
+          "last_name": child.lastNameController.text,
+          "dob": child.dateOfBirthController.text,
+          "nationality": child.nationalityCountry.value?.countryCode ?? 'PK',
+          "passport": child.passportCnicController.text,
+          "passport_expiry": child.passportExpiryController.text,
+          "cnic": child.passportCnicController.text,
+        };
+      }).toList();
+
+      // Prepare infants data
+      final infantsData = infants.map((infant) {
+        return {
+          "title": infant.titleController.text,
+          "first_name": infant.firstNameController.text,
+          "last_name": infant.lastNameController.text,
+          "dob": infant.dateOfBirthController.text,
+          "nationality": infant.nationalityCountry.value?.countryCode ?? 'PK',
+          "passport": "a",
+          "passport_expiry": "a",
+          "cnic": "a",
+        };
+      }).toList();
+
+      // Prepare flights data from cart data
+      final flights = _prepareFlyDubaiFlightData(cartData, flightType);
+
+      // Determine PNR status (1 for success, 0 for failure)
+      final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
+      final pnr = pnrResponse['confirmationNumber']?.toString() ?? 
+                  pnrResponse['pnr']?.toString() ?? '';
+
+      // Prepare final request body
+      final requestBody = {
+        "booking_info": bookingInfo,
+        "adults": adultsData,
+        "children": childrenData,
+        "infants": infantsData,
+        "flights": flights,
+        "pnr": pnr,
+        "buyingPrice": totalPrice.toStringAsFixed(0),
+        "sellingPrice": totalPrice.toStringAsFixed(0),
+        "pnrStatus": pnrStatus,
+        "booking_from": "1",
+        "gds": "flydubai"
+      };
+
+      print("💾 FlyDubai Booking Request Body:");
+      print("PNR: $pnr, Status: $pnrStatus, Price: $totalPrice");
+
+      // Configure Dio
+      final dio = Dio(
+        BaseOptions(
+          baseUrl: 'https://readyflights.pk/api/',
+          headers: {
+            'Content-Type': 'application/json',
+            // Note: Token should be passed from the calling context if needed
+            // 'Authorization': 'Bearer $token',
+          },
+          responseType: ResponseType.json,
+        ),
+      );
+
+      // Make the API call
+      final response = await dio.post('flight-booking', data: requestBody);
+
+      // Handle response
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print("✅ FlyDubai booking saved successfully");
+        if (response.data is Map<String, dynamic>) {
+          return response.data;
+        } else if (response.data is String) {
+          return jsonDecode(response.data) as Map<String, dynamic>;
+        }
+        return {'status': 'success'};
+      } else {
+        print("⚠️ Failed to save FlyDubai booking: ${response.statusCode}");
+        throw Exception('Failed to save booking: ${response.statusMessage}');
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error saving FlyDubai booking: $e');
+      print('Stack trace: $stackTrace');
+      // Don't throw - just log the error
+      return {
+        'success': false,
+        'error': 'Error saving booking: ${e.toString()}',
+      };
+    }
+  }
+
+  // Helper method to extract total price from cart data
+  double _extractTotalPriceFromCartData(Map<String, dynamic> cartData) {
+    try {
+      // Try multiple paths for total price
+      final flightGroups = cartData['flightGroups'] as List?;
+      if (flightGroups != null && flightGroups.isNotEmpty) {
+        double total = 0.0;
+        for (var group in flightGroups) {
+          if (group is Map) {
+            final fareBrands = group['fareBrands'] as List?;
+            if (fareBrands != null && fareBrands.isNotEmpty) {
+              for (var fareBrand in fareBrands) {
+                if (fareBrand is Map) {
+                  final fareInfos = fareBrand['fareInfos'] as List?;
+                  if (fareInfos != null && fareInfos.isNotEmpty) {
+                    for (var fareInfo in fareInfos) {
+                      if (fareInfo is Map) {
+                        final paxFareInfos = fareInfo['paxFareInfos'] as List?;
+                        if (paxFareInfos != null) {
+                          for (var paxFare in paxFareInfos) {
+                            if (paxFare is Map) {
+                              final totalFare = (paxFare['totalFare'] as num?)?.toDouble() ?? 0.0;
+                              total += totalFare;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (total > 0) return total;
+      }
+
+      // Alternative path
+      final originDestinations = cartData['originDestinations'] as List?;
+      if (originDestinations != null && originDestinations.isNotEmpty) {
+        double total = 0.0;
+        for (var od in originDestinations) {
+          if (od is Map) {
+            final fareBrands = od['fareBrand'] as List?;
+            if (fareBrands != null) {
+              for (var fareBrand in fareBrands) {
+                if (fareBrand is Map) {
+                  final fareInfos = fareBrand['fareInfos'] as List?;
+                  if (fareInfos != null && fareInfos.isNotEmpty) {
+                    for (var fareInfo in fareInfos) {
+                      if (fareInfo is Map) {
+                        final paxFareInfos = fareInfo['paxFareInfos'] as List?;
+                        if (paxFareInfos != null) {
+                          for (var paxFare in paxFareInfos) {
+                            if (paxFare is Map) {
+                              final totalFare = (paxFare['totalFare'] as num?)?.toDouble() ?? 0.0;
+                              total += totalFare;
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+        if (total > 0) return total;
+      }
+    } catch (e) {
+      print('Error extracting total price: $e');
+    }
+    return 0.0;
+  }
+
+  // Helper method to prepare FlyDubai flight data
+  List<Map<String, dynamic>> _prepareFlyDubaiFlightData(Map<String, dynamic> cartData, String flightType) {
+    final flights = <Map<String, dynamic>>[];
+
+    try {
+      final originDestinations = cartData['originDestinations'] as List?;
+      if (originDestinations == null || originDestinations.isEmpty) {
+        return flights;
+      }
+
+      for (int i = 0; i < originDestinations.length; i++) {
+        final od = originDestinations[i];
+        if (od is! Map) continue;
+
+        final segmentDetails = od['segmentDetails'] as List?;
+        if (segmentDetails == null || segmentDetails.isEmpty) continue;
+
+        for (var segment in segmentDetails) {
+          if (segment is! Map) continue;
+
+          final origin = segment['origin']?.toString() ?? '';
+          final destination = segment['destination']?.toString() ?? '';
+          final depDate = segment['depDate']?.toString() ?? '';
+          final arrDate = segment['arrDate']?.toString() ?? '';
+          final mrktCarrier = segment['mrktCarrier']?.toString() ?? 'FZ';
+          final mrktFlightNum = segment['mrktFlightNum']?.toString() ?? '';
+          final operCarrier = segment['operCarrier']?.toString() ?? 'FZ';
+          final operFlightNum = segment['operFlightNum']?.toString() ?? '';
+
+          // Parse dates
+          DateTime? depDateTime;
+          DateTime? arrDateTime;
+          try {
+            depDateTime = DateTime.parse(depDate);
+          } catch (e) {
+            try {
+              depDateTime = DateTime.parse(depDate.split('T')[0]);
+            } catch (_) {}
+          }
+          try {
+            arrDateTime = DateTime.parse(arrDate);
+          } catch (e) {
+            try {
+              arrDateTime = DateTime.parse(arrDate.split('T')[0]);
+            } catch (_) {}
+          }
+
+          if (depDateTime == null || arrDateTime == null) continue;
+
+          final duration = arrDateTime.difference(depDateTime);
+
+          // Get cabin class from booking codes
+          String cabinClass = 'Economy';
+          String cabinCode = 'Y';
+          final bookingCodes = segment['bookingCodes'] as List?;
+          if (bookingCodes != null && bookingCodes.isNotEmpty) {
+            final firstBookingCode = bookingCodes[0];
+            if (firstBookingCode is Map) {
+              cabinCode = firstBookingCode['cabin']?.toString() ?? 'ECONOMY';
+              cabinClass = _getCabinClassName(cabinCode);
+            }
+          }
+
+          flights.add({
+            "departure": {
+              "airport": origin,
+              "city": origin,
+              "date": depDateTime.toIso8601String().split('T')[0],
+              "time": "${depDateTime.hour.toString().padLeft(2, '0')}:${depDateTime.minute.toString().padLeft(2, '0')}",
+              "terminal": "Main",
+            },
+            "arrival": {
+              "airport": destination,
+              "city": destination,
+              "date": arrDateTime.toIso8601String().split('T')[0],
+              "time": "${arrDateTime.hour.toString().padLeft(2, '0')}:${arrDateTime.minute.toString().padLeft(2, '0')}",
+              "terminal": "Main",
+            },
+            "flight_number": mrktFlightNum,
+            "airline_code": mrktCarrier,
+            "airline_name": "FlyDubai",
+            "operating_flight_number": operFlightNum,
+            "operating_airline_code": operCarrier,
+            "operating_airline_name": "FlyDubai",
+            "cabin_class": cabinClass,
+            "sub_class": cabinCode,
+            "booking_class": cabinCode,
+            "hand_baggage": "7kg",
+            "check_baggage": "20kg", // Default for FlyDubai
+            "meal": "Meal",
+            "layover": flights.length > 0 ? "Yes" : "None",
+            "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+            "duration_minutes": duration.inMinutes,
+            "type": i == 0 ? (flightType == 'roundtrip' ? "One-Way" : "One-Way") : "Return",
+            "fare_basis": "",
+            "seats_available": "",
+            "is_refundable": true,
+            "aircraft_type": "B737",
+          });
+        }
+      }
+    } catch (e, stackTrace) {
+      print('❌ Error preparing FlyDubai flight data: $e');
+      print('Stack trace: $stackTrace');
+    }
+
+    return flights;
+  }
+
+  String _getCabinClassName(String cabinCode) {
+    switch (cabinCode.toUpperCase()) {
+      case 'F':
+        return 'First Class';
+      case 'C':
+      case 'J':
+        return 'Business Class';
+      case 'W':
+      case 'S':
+        return 'Premium Economy';
+      case 'Y':
+      case 'ECONOMY':
+      default:
+        return 'Economy';
+    }
   }
 }

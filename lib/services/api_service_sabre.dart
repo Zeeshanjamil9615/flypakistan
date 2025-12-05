@@ -1068,9 +1068,9 @@ class ApiServiceSabre extends GetxService {
           ? revalidatePricing['offerItemId']
           : 'default-offer-item-id';
 
-      // Helper function to format phone number
-      String formatPhoneNumber(String phone, String countryCode) {
-        // Remove any non-digit characters
+      // Helper function to format phone number for contactInfos and SSR (just number without country code)
+      String formatPhoneNumberForContact(String phone, String countryCode) {
+        // Remove any non-digit characters and spaces
         phone = phone.replaceAll(RegExp(r'\D'), '');
 
         // Remove leading zero if present
@@ -1078,16 +1078,43 @@ class ApiServiceSabre extends GetxService {
           phone = phone.substring(1);
         }
 
-        // Return without + sign for NDC API
-        return '0$countryCode$phone';
+        // Remove country code if present at the start
+        if (phone.startsWith(countryCode)) {
+          phone = phone.substring(countryCode.length);
+        }
+
+        // Return just the phone number without country code
+        return phone;
+      }
+
+      // Helper function to format phone number in full format (0092...)
+      String formatPhoneNumberFull(String phone, String countryCode) {
+        // Remove any non-digit characters and spaces
+        phone = phone.replaceAll(RegExp(r'\D'), '');
+
+        // If already in 0092 format, return as is
+        if (phone.startsWith('00$countryCode')) {
+          return phone;
+        }
+
+        // Remove leading zero if present (single zero)
+        if (phone.startsWith('0') && !phone.startsWith('00')) {
+          phone = phone.substring(1);
+        }
+
+        // Remove country code if present at the start (without 00)
+        if (phone.startsWith(countryCode)) {
+          phone = phone.substring(countryCode.length);
+        }
+
+        // Return in format: 00 + countryCode + phone
+        return '00$countryCode$phone';
       }
 
       // Helper function to format email for SSR
       String formatEmailForSSR(String email) {
-        return email
-            .replaceAll('@', '//')
-            .replaceAll('_', '..')
-            .replaceAll('-', './');
+        // Just replace @ with //, don't modify other characters
+        return email.replaceAll('@', '//');
       }
 
       // Helper function to format date for INFT SSR
@@ -1121,7 +1148,8 @@ class ApiServiceSabre extends GetxService {
         // Format phone number properly
         final phoneCountryCode = adult.phoneCountry.value?.phoneCode ?? '92';
         final adultPhone = adult.phoneController.text.trim().isEmpty ? bookerPhone : adult.phoneController.text.trim();
-        final formattedPhoneForAPI = formatPhoneNumber(adultPhone, phoneCountryCode);
+        // Format phone as 0092... format
+        final formattedPhone = formatPhoneNumberFull(adultPhone, phoneCountryCode);
         final formattedEmailForSSR = formatEmailForSSR(email);
 
         // Contact info
@@ -1134,7 +1162,7 @@ class ApiServiceSabre extends GetxService {
           ],
           "phones": [
             {
-              "number": formattedPhoneForAPI
+              "number": formattedPhone
             }
           ]
         });
@@ -1151,19 +1179,19 @@ class ApiServiceSabre extends GetxService {
             {
               "id": "ID-1",
               "documentNumber": passportNumber,
-              "documentTypeCode": "passport",
+              "documentTypeCode": "PT",
               "issuingCountryCode": nationality,
               "placeOfIssue": nationality,
               "citizenshipCountryCode": nationality,
               "residenceCountryCode": nationality,
               "titleName": title,
-              "givenName": "$lastName $title", // REVERSED as per web structure
-              "middleName": "", // Remove dummy middle name
-              "surname": firstName, // REVERSED as per web structure
-              "suffixName": "", // Remove dummy suffix
+              "givenName": lastName, // REVERSED: lastName in givenName
+              "middleName": "",
+              "surname": firstName, // REVERSED: firstName in surname
+              "suffixName": "",
               "birthdate": dob,
               "genderCode": gender,
-              "issueDate": DateTime.now().subtract(Duration(days: 365)).toIso8601String().substring(0, 10), // One year ago
+              "issueDate": DateTime.now().subtract(Duration(days: 365)).toIso8601String().substring(0, 10),
               "expiryDate": passportExpiry,
               "hostCountryCode": nationality
             }
@@ -1189,7 +1217,7 @@ class ApiServiceSabre extends GetxService {
             "PersonName": {
               "NameNumber": "$passengerIndex.1"
             },
-            "Text": formattedPhoneForAPI
+            "Text": formattedPhone
           },
           {
             "SSR_Code": "CTCE",
@@ -1216,7 +1244,8 @@ class ApiServiceSabre extends GetxService {
         final gender = child.genderController.text.startsWith('M') ? 'M' : 'F';
 
         // Use booker's contact info for children
-        final formattedPhoneForAPI = formatPhoneNumber(bookerPhone, '92'); // Assuming booker phone country code
+        final bookerPhoneCountryCode = bookingController.bookerPhoneCountry.value?.phoneCode ?? '92';
+        final formattedPhone = formatPhoneNumberFull(bookerPhone, bookerPhoneCountryCode);
         final formattedEmailForSSR = formatEmailForSSR(bookerEmail);
 
         // Contact info
@@ -1229,7 +1258,7 @@ class ApiServiceSabre extends GetxService {
           ],
           "phones": [
             {
-              "number": formattedPhoneForAPI
+              "number": formattedPhone
             }
           ]
         });
@@ -1252,9 +1281,9 @@ class ApiServiceSabre extends GetxService {
               "citizenshipCountryCode": nationality,
               "residenceCountryCode": nationality,
               "titleName": title,
-              "givenName": "$lastName $title", // REVERSED
+              "givenName": lastName, // REVERSED: lastName in givenName (no title)
               "middleName": "",
-              "surname": firstName, // REVERSED
+              "surname": firstName, // REVERSED: firstName in surname
               "suffixName": "",
               "birthdate": dob,
               "genderCode": gender,
@@ -1282,7 +1311,7 @@ class ApiServiceSabre extends GetxService {
             "PersonName": {
               "NameNumber": "$passengerIndex.1"
             },
-            "Text": formattedPhoneForAPI
+            "Text": formattedPhone
           },
           {
             "SSR_Code": "CTCE",
@@ -1309,7 +1338,8 @@ class ApiServiceSabre extends GetxService {
         final gender = infant.genderController.text.startsWith('M') ? 'M' : 'F';
 
         // Use booker's contact info for infants
-        final formattedPhoneForAPI = formatPhoneNumber(bookerPhone, '92');
+        final bookerPhoneCountryCode = bookingController.bookerPhoneCountry.value?.phoneCode ?? '92';
+        final formattedPhone = formatPhoneNumberFull(bookerPhone, bookerPhoneCountryCode);
         final formattedEmailForSSR = formatEmailForSSR(bookerEmail);
 
         // Contact info for infant
@@ -1322,7 +1352,7 @@ class ApiServiceSabre extends GetxService {
           ],
           "phones": [
             {
-              "number": formattedPhoneForAPI
+              "number": formattedPhone
             }
           ]
         });
@@ -1346,9 +1376,9 @@ class ApiServiceSabre extends GetxService {
               "citizenshipCountryCode": nationality,
               "residenceCountryCode": nationality,
               "titleName": title,
-              "givenName": "$lastName $title", // REVERSED
+              "givenName": lastName, // REVERSED: lastName in givenName (no title)
               "middleName": "",
-              "surname": firstName, // REVERSED
+              "surname": firstName, // REVERSED: firstName in surname
               "suffixName": "",
               "birthdate": dob,
               "genderCode": gender,
@@ -1364,7 +1394,7 @@ class ApiServiceSabre extends GetxService {
           "SegmentNumber": "A",
           "PersonName": {
             "DateOfBirth": dob,
-            "Gender": "${gender}I", // Add I for infant
+            "Gender": gender, // Just M or F, not MI
             "NameNumber": "$infantCounter.1",
             "GivenName": "$firstName $title",
             "Surname": lastName
@@ -1391,7 +1421,7 @@ class ApiServiceSabre extends GetxService {
           "requestType": "STATELESS",
           "commitTransaction": true,
           "movePassengerDetails": true,
-          "initialIgnore": true
+          "intialIgnore": true  // Note: typo in web API, using "intialIgnore" not "initialIgnore"
         },
         "contactInfos": contactInfos,
         "createOrders": [
@@ -1422,7 +1452,7 @@ class ApiServiceSabre extends GetxService {
               "Ind": true
             },
             "Source": {
-              "ReceivedFrom": "ReadyFlights"
+              "ReceivedFrom": "AGENT1B2B"
             }
           }
         }
@@ -1683,6 +1713,7 @@ class ApiServiceSabre extends GetxService {
         // "total_passengers": adults.length + children.length + infants.length,
         // "booking_date": DateTime.now().toIso8601String(),
         // "flight_type": flight.legSchedules.length == 1 ? "One-Way" : "Return",
+        "gds": "sabre"
       };
 
       print("Sabre Booking Request Body:");

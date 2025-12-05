@@ -518,14 +518,15 @@ extension FlightDateTimeExtension on SabreFlightController {
 
               currentLegSchedules.add(scheduleWithDateTime);
               allStopSchedules.add(scheduleWithDateTime);
+            }
 
-              // Only add intermediate stops
-              if (currentLegSchedules.length > 1) {
-                for (int i = 0; i < currentLegSchedules.length - 1; i++) {
-                  currentLegStops.add(currentLegSchedules[i]['arrival']
-                  ['city'] ??
-                      "Unknown City");
-                }
+            // Calculate stops after all schedules are collected
+            // Only add intermediate stops (exclude the final destination)
+            if (currentLegSchedules.length > 1) {
+              for (int i = 0; i < currentLegSchedules.length - 1; i++) {
+                currentLegStops.add(currentLegSchedules[i]['arrival']
+                ['city'] ??
+                    "Unknown City");
               }
             }
 
