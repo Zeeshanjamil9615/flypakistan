@@ -874,7 +874,7 @@ class _SabreFlightBookingDetailsScreenState
                             const SizedBox(width: 12),
                             _buildAmenityChip(
                               'Checked',
-                              '${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}',
+                              '${flight.baggageAllowance.weight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${flight.baggageAllowance.unit}',
                               Icons.luggage,
                             ),
                           ],
@@ -1455,14 +1455,15 @@ class _SabreFlightBookingDetailsScreenState
               // Adult pricing
               if (bookingController.adults.isNotEmpty) ...[
                 _buildPassengerPriceSection(
-                  'Adult',
+                  'Adult (${bookingController.adults.length})',
                   {
-                    'base': flight.price * 0.7, // 70% base fare
-                    'tax': flight.price * 0.2,  // 20% taxes
-                    'fee': flight.price * 0.1,  // 10% fees
-                    'total': flight.price       // Total
+                    'base': (flight.price * 0.7) / bookingController.adults.length, // 70% base fare per adult
+                    'tax': (flight.price * 0.2) / bookingController.adults.length,  // 20% taxes per adult
+                    'fee': (flight.price * 0.1) / bookingController.adults.length,  // 10% fees per adult
+                    'total': flight.price / bookingController.adults.length       // Total per adult
                   },
                   currency,
+                  count: bookingController.adults.length,
                 ),
                 const SizedBox(height: 16),
               ],
@@ -1470,14 +1471,15 @@ class _SabreFlightBookingDetailsScreenState
               // Child pricing
               if (bookingController.children.isNotEmpty) ...[
                 _buildPassengerPriceSection(
-                  'Child',
+                  'Child (${bookingController.children.length})',
                   {
-                    'base': flight.price * 0.6, // 60% base fare
-                    'tax': flight.price * 0.2,  // 20% taxes
-                    'fee': flight.price * 0.2,  // 20% fees
-                    'total': flight.price       // Total
+                    'base': (flight.price * 0.6) / bookingController.children.length, // 60% base fare per child
+                    'tax': (flight.price * 0.2) / bookingController.children.length,  // 20% taxes per child
+                    'fee': (flight.price * 0.2) / bookingController.children.length,  // 20% fees per child
+                    'total': flight.price / bookingController.children.length       // Total per child
                   },
                   currency,
+                  count: bookingController.children.length,
                 ),
                 const SizedBox(height: 16),
               ],
@@ -1485,14 +1487,15 @@ class _SabreFlightBookingDetailsScreenState
               // Infant pricing
               if (bookingController.infants.isNotEmpty) ...[
                 _buildPassengerPriceSection(
-                  'Infant',
+                  'Infant (${bookingController.infants.length})',
                   {
-                    'base': flight.price * 0.3, // 30% base fare
-                    'tax': flight.price * 0.1,  // 10% taxes
-                    'fee': flight.price * 0.1,  // 10% fees
-                    'total': flight.price * 0.5 // 50% total
+                    'base': (flight.price * 0.3) / bookingController.infants.length, // 30% base fare per infant
+                    'tax': (flight.price * 0.1) / bookingController.infants.length,  // 10% taxes per infant
+                    'fee': (flight.price * 0.1) / bookingController.infants.length,  // 10% fees per infant
+                    'total': (flight.price * 0.5) / bookingController.infants.length // 50% total per infant
                   },
                   currency,
+                  count: bookingController.infants.length,
                 ),
                 const SizedBox(height: 16),
               ],
@@ -1545,8 +1548,9 @@ class _SabreFlightBookingDetailsScreenState
   Widget _buildPassengerPriceSection(
       String label,
       Map<String, double> price,
-      String currency,
-      ) {
+      String currency, {
+      int count = 1,
+      }) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1578,12 +1582,18 @@ class _SabreFlightBookingDetailsScreenState
             'Fees',
             '$currency ${price['fee']!.toStringAsFixed(2)}',
           ),
-          const Divider(color: Color(0xFFE2E8F0)),
-          _buildPriceRow(
-            'Subtotal',
-            '$currency ${price['total']!.toStringAsFixed(2)}',
-            isSubtotal: true,
-          ),
+            const Divider(color: Color(0xFFE2E8F0)),
+            _buildPriceRow(
+              'Per Passenger',
+              '$currency ${price['total']!.toStringAsFixed(2)}',
+              isSubtotal: true,
+            ),
+            if (count > 1)
+              _buildPriceRow(
+                'Subtotal (×$count)',
+                '$currency ${(price['total']! * count).toStringAsFixed(2)}',
+                isSubtotal: true,
+              ),
         ],
       ),
     );
@@ -1853,48 +1863,48 @@ class _SabreFlightBookingDetailsScreenState
             // Adult pricing breakdown
             if (bookingController.adults.isNotEmpty) ...[
               _buildPdfPriceRow(
-                'Adult Base Fare',
-                'PKR ${(flight.price * 0.7).toStringAsFixed(2)}',
+                'Adult (${bookingController.adults.length}) Base Fare',
+                'PKR ${((flight.price * 0.7) * bookingController.adults.length).toStringAsFixed(2)}',
               ),
               _buildPdfPriceRow(
-                'Adult Taxes',
-                'PKR ${(flight.price * 0.2).toStringAsFixed(2)}',
+                'Adult (${bookingController.adults.length}) Taxes',
+                'PKR ${((flight.price * 0.2) * bookingController.adults.length).toStringAsFixed(2)}',
               ),
               _buildPdfPriceRow(
-                'Adult Fees',
-                'PKR ${(flight.price * 0.1).toStringAsFixed(2)}',
+                'Adult (${bookingController.adults.length}) Fees',
+                'PKR ${((flight.price * 0.1) * bookingController.adults.length).toStringAsFixed(2)}',
               ),
             ],
 
             // Child pricing breakdown
             if (bookingController.children.isNotEmpty) ...[
               _buildPdfPriceRow(
-                'Child Base Fare',
-                'PKR ${(flight.price * 0.6).toStringAsFixed(2)}',
+                'Child (${bookingController.children.length}) Base Fare',
+                'PKR ${((flight.price * 0.6) * bookingController.children.length).toStringAsFixed(2)}',
               ),
               _buildPdfPriceRow(
-                'Child Taxes',
-                'PKR ${(flight.price * 0.2).toStringAsFixed(2)}',
+                'Child (${bookingController.children.length}) Taxes',
+                'PKR ${((flight.price * 0.2) * bookingController.children.length).toStringAsFixed(2)}',
               ),
               _buildPdfPriceRow(
-                'Child Fees',
-                'PKR ${(flight.price * 0.2).toStringAsFixed(2)}',
+                'Child (${bookingController.children.length}) Fees',
+                'PKR ${((flight.price * 0.2) * bookingController.children.length).toStringAsFixed(2)}',
               ),
             ],
 
             // Infant pricing breakdown
             if (bookingController.infants.isNotEmpty) ...[
               _buildPdfPriceRow(
-                'Infant Base Fare',
-                'PKR ${(flight.price * 0.3).toStringAsFixed(2)}',
+                'Infant (${bookingController.infants.length}) Base Fare',
+                'PKR ${((flight.price * 0.3) * bookingController.infants.length).toStringAsFixed(2)}',
               ),
               _buildPdfPriceRow(
-                'Infant Taxes',
-                'PKR ${(flight.price * 0.1).toStringAsFixed(2)}',
+                'Infant (${bookingController.infants.length}) Taxes',
+                'PKR ${((flight.price * 0.1) * bookingController.infants.length).toStringAsFixed(2)}',
               ),
               _buildPdfPriceRow(
-                'Infant Fees',
-                'PKR ${(flight.price * 0.1).toStringAsFixed(2)}',
+                'Infant (${bookingController.infants.length}) Fees',
+                'PKR ${((flight.price * 0.1) * bookingController.infants.length).toStringAsFixed(2)}',
               ),
             ],
 
@@ -2004,7 +2014,7 @@ class _SabreFlightBookingDetailsScreenState
                       ),
                     ),
                     pw.Text(
-                      '${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}',
+                      '${flight.baggageAllowance.weight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${flight.baggageAllowance.unit}',
                     ),
                   ],
                 ),

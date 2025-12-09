@@ -1326,42 +1326,38 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
               ),
               const SizedBox(height: 16),
 
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+              // Adult pricing
+              if (bookingController.adults.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Adult (${bookingController.adults.length})',
+                  widget.totalPrice / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length),
+                  widget.currency,
+                  bookingController.adults.length,
                 ),
-                child: Column(
-                  children: [
-                    _buildPriceRow(
-                      'Package',
-                      widget.selectedPackage.packageName,
-                    ),
-                    _buildPriceRow(
-                      'Adults',
-                      '${bookingController.adults.length} × ${widget.currency} ${(widget.totalPrice / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)).toStringAsFixed(2)}',
-                    ),
-                    if (bookingController.children.isNotEmpty)
-                      _buildPriceRow(
-                        'Children',
-                        '${bookingController.children.length} × ${widget.currency} ${(widget.totalPrice * 0.75 / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)).toStringAsFixed(2)}',
-                      ),
-                    if (bookingController.infants.isNotEmpty)
-                      _buildPriceRow(
-                        'Infants',
-                        '${bookingController.infants.length} × ${widget.currency} ${(widget.totalPrice * 0.1 / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)).toStringAsFixed(2)}',
-                      ),
-                    const Divider(color: Color(0xFFE2E8F0)),
-                    _buildPriceRow(
-                      'Subtotal',
-                      '${widget.currency} ${widget.totalPrice.toStringAsFixed(2)}',
-                      isSubtotal: true,
-                    ),
-                  ],
+                const SizedBox(height: 16),
+              ],
+
+              // Child pricing
+              if (bookingController.children.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Child (${bookingController.children.length})',
+                  (widget.totalPrice * 0.75) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length),
+                  widget.currency,
+                  bookingController.children.length,
                 ),
-              ),
+                const SizedBox(height: 16),
+              ],
+
+              // Infant pricing
+              if (bookingController.infants.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Infant (${bookingController.infants.length})',
+                  (widget.totalPrice * 0.1) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length),
+                  widget.currency,
+                  bookingController.infants.length,
+                ),
+                const SizedBox(height: 16),
+              ],
 
               const SizedBox(height: 16),
 
@@ -1402,6 +1398,60 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPassengerPriceSection(
+    String label,
+    double pricePerPassenger,
+    String currency,
+    int count,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label Price',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildPriceRow(
+            'Base Fare',
+            '$currency ${(pricePerPassenger * 0.7).toStringAsFixed(2)}',
+          ),
+          _buildPriceRow(
+            'Taxes',
+            '$currency ${(pricePerPassenger * 0.2).toStringAsFixed(2)}',
+          ),
+          _buildPriceRow(
+            'Fees',
+            '$currency ${(pricePerPassenger * 0.1).toStringAsFixed(2)}',
+          ),
+          const Divider(color: Color(0xFFE2E8F0)),
+          _buildPriceRow(
+            'Per Passenger',
+            '$currency ${pricePerPassenger.toStringAsFixed(2)}',
+            isSubtotal: true,
+          ),
+          if (count > 1)
+            _buildPriceRow(
+              'Subtotal (×$count)',
+              '$currency ${(pricePerPassenger * count).toStringAsFixed(2)}',
+              isSubtotal: true,
+            ),
+        ],
       ),
     );
   }
@@ -1664,24 +1714,51 @@ class _AirArabiaBookingConfirmationState extends State<AirArabiaBookingConfirmat
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Divider(),
-            _buildPdfPriceRow(
-              'Package Type',
-              widget.selectedPackage.packageName,
-            ),
-            _buildPdfPriceRow(
-              'Adults (${bookingController.adults.length})',
-              '${widget.currency} ${(widget.totalPrice * bookingController.adults.length / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)).toStringAsFixed(2)}',
-            ),
-            if (bookingController.children.isNotEmpty)
+            // Adult pricing breakdown
+            if (bookingController.adults.isNotEmpty) ...[
               _buildPdfPriceRow(
-                'Children (${bookingController.children.length})',
-                '${widget.currency} ${(widget.totalPrice * 0.75 * bookingController.children.length / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)).toStringAsFixed(2)}',
+                'Adult (${bookingController.adults.length}) Base Fare',
+                '${widget.currency} ${((widget.totalPrice / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.7 * bookingController.adults.length).toStringAsFixed(2)}',
               ),
-            if (bookingController.infants.isNotEmpty)
               _buildPdfPriceRow(
-                'Infants (${bookingController.infants.length})',
-                '${widget.currency} ${(widget.totalPrice * 0.1 * bookingController.infants.length / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)).toStringAsFixed(2)}',
+                'Adult (${bookingController.adults.length}) Taxes',
+                '${widget.currency} ${((widget.totalPrice / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.2 * bookingController.adults.length).toStringAsFixed(2)}',
               ),
+              _buildPdfPriceRow(
+                'Adult (${bookingController.adults.length}) Fees',
+                '${widget.currency} ${((widget.totalPrice / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.1 * bookingController.adults.length).toStringAsFixed(2)}',
+              ),
+            ],
+            // Child pricing breakdown
+            if (bookingController.children.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Child (${bookingController.children.length}) Base Fare',
+                '${widget.currency} ${(((widget.totalPrice * 0.75) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.7 * bookingController.children.length).toStringAsFixed(2)}',
+              ),
+              _buildPdfPriceRow(
+                'Child (${bookingController.children.length}) Taxes',
+                '${widget.currency} ${(((widget.totalPrice * 0.75) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.2 * bookingController.children.length).toStringAsFixed(2)}',
+              ),
+              _buildPdfPriceRow(
+                'Child (${bookingController.children.length}) Fees',
+                '${widget.currency} ${(((widget.totalPrice * 0.75) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.1 * bookingController.children.length).toStringAsFixed(2)}',
+              ),
+            ],
+            // Infant pricing breakdown
+            if (bookingController.infants.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Infant (${bookingController.infants.length}) Base Fare',
+                '${widget.currency} ${(((widget.totalPrice * 0.1) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.7 * bookingController.infants.length).toStringAsFixed(2)}',
+              ),
+              _buildPdfPriceRow(
+                'Infant (${bookingController.infants.length}) Taxes',
+                '${widget.currency} ${(((widget.totalPrice * 0.1) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.2 * bookingController.infants.length).toStringAsFixed(2)}',
+              ),
+              _buildPdfPriceRow(
+                'Infant (${bookingController.infants.length}) Fees',
+                '${widget.currency} ${(((widget.totalPrice * 0.1) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * 0.1 * bookingController.infants.length).toStringAsFixed(2)}',
+              ),
+            ],
             pw.Divider(),
             _buildPdfPriceRow(
               'Total Amount',

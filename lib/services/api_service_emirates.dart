@@ -4,6 +4,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart' as xml;
 
+import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
+import '../views/flight/search_flights/search_flight_utils/helper_functions.dart';
+
 class _EmiratesSegment {
   final String origin;
   final String destination;
@@ -48,6 +51,10 @@ class ApiServiceEmirates {
       validateStatus: (status) => status! < 500,
     ),
   );
+
+  // Airline map for airline name lookup
+  static Map<String, AirlineInfo>? _airlineMap;
+  static final Dio _dioForAirline = Dio();
 
   Future<Map<String, dynamic>> searchFlights({
     required int type,
@@ -1893,7 +1900,7 @@ Future<Map<String, dynamic>> saveEmiratesBooking({
     }).toList();
 
     // Prepare flights data from selected offers
-    final flights = _prepareEmiratesFlightData(selectedOffers);
+    final flights = await _prepareEmiratesFlightData(selectedOffers);
 
     // Determine PNR status (1 for success, 0 for failure)
     final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
@@ -1988,8 +1995,51 @@ double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
   return totalPrice > 0 ? totalPrice : 0.0;
 }
 
+  // Fetch airline data from API (similar to Sabre)
+  Future<Map<String, AirlineInfo>> _fetchAirlineData() async {
+    if (_airlineMap != null) {
+      return _airlineMap!;
+    }
+
+    Map<String, AirlineInfo> tempAirlineMap = {};
+
+    try {
+      var response = await _dioForAirline.request(
+        'https://agent1.pk/api.php?type=airlines',
+        options: Options(
+          method: 'GET',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        var data = response.data['data'];
+        for (var item in data) {
+          String logoUrl = item['logo'];
+          logoUrl = logoUrl.replaceAll(RegExp(r'^\t+'), '');
+          
+          tempAirlineMap[item['code']] = AirlineInfo(
+            item['name'],
+            logoUrl,
+          );
+        }
+        _airlineMap = tempAirlineMap;
+      }
+    } catch (e) {
+      debugPrint('Error fetching airline data: $e');
+    }
+
+    return tempAirlineMap;
+  }
+
+  // Helper method to get airline name from carrier code using API
+  Future<String> _getAirlineNameFromCode(String carrierCode) async {
+    final airlineMap = await _fetchAirlineData();
+    final airlineInfo = getAirlineInfo(carrierCode.toUpperCase(), airlineMap);
+    return airlineInfo.name;
+  }
+
 // Helper method to prepare Emirates flight data
-List<Map<String, dynamic>> _prepareEmiratesFlightData(List<Map<String, dynamic>> selectedOffers) {
+Future<List<Map<String, dynamic>>> _prepareEmiratesFlightData(List<Map<String, dynamic>> selectedOffers) async {
   final flights = <Map<String, dynamic>>[];
 
   try {
@@ -2034,6 +2084,12 @@ List<Map<String, dynamic>> _prepareEmiratesFlightData(List<Map<String, dynamic>>
             final flightNumber = _extractNodeText(flightSegment['FlightNumber']);
             final operatingCarrierCode = _extractNodeText(operatingCarrier['AirlineID']);
             final marketingCarrierCode = _extractNodeText(marketingCarrier['AirlineID']);
+            
+            // Get airline names from carrier codes using API
+            final effectiveMarketingCode = marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK';
+            final effectiveOperatingCode = operatingCarrierCode.isNotEmpty ? operatingCarrierCode : effectiveMarketingCode;
+            final marketingAirlineName = await _getAirlineNameFromCode(effectiveMarketingCode);
+            final operatingAirlineName = await _getAirlineNameFromCode(effectiveOperatingCode);
             
             // Parse dates
             DateTime? depDate;
@@ -2091,11 +2147,11 @@ List<Map<String, dynamic>> _prepareEmiratesFlightData(List<Map<String, dynamic>>
                 "terminal": _extractNodeText(arrival['Terminal']) ?? 'Main',
               },
               "flight_number": flightNumber,
-              "airline_code": marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK',
-              "airline_name": "Emirates",
+              "airline_code": effectiveMarketingCode,
+              "airline_name": marketingAirlineName,
               "operating_flight_number": flightNumber,
-              "operating_airline_code": operatingCarrierCode.isNotEmpty ? operatingCarrierCode : marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK',
-              "operating_airline_name": "Emirates",
+              "operating_airline_code": effectiveOperatingCode,
+              "operating_airline_name": operatingAirlineName,
               "cabin_class": _getCabinClassName(cabinCode),
               "sub_class": cabinCode,
               "booking_class": cabinCode,

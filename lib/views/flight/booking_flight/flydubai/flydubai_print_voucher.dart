@@ -924,7 +924,7 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                             const SizedBox(width: 12),
                             _buildAmenityChip(
                               'Checked',
-                              '${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}',
+                              '${flight.baggageAllowance.weight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${flight.baggageAllowance.unit}',
                               Icons.luggage,
                             ),
                           ],
@@ -1517,6 +1517,39 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
               ),
               const SizedBox(height: 12),
 
+              // Adult pricing
+              if (bookingController.adults.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Adult (${bookingController.adults.length})',
+                  outboundFareOption?.displayFareAmount ?? 0,
+                  outboundFlight.currency,
+                  bookingController.adults.length,
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Child pricing
+              if (bookingController.children.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Child (${bookingController.children.length})',
+                  (outboundFareOption?.displayFareAmount ?? 0) * 0.75,
+                  outboundFlight.currency,
+                  bookingController.children.length,
+                ),
+                const SizedBox(height: 16),
+              ],
+
+              // Infant pricing
+              if (bookingController.infants.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Infant (${bookingController.infants.length})',
+                  (outboundFareOption?.displayFareAmount ?? 0) * 0.1,
+                  outboundFlight.currency,
+                  bookingController.infants.length,
+                ),
+                const SizedBox(height: 16),
+              ],
+
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
@@ -1558,6 +1591,82 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPassengerPriceSection(
+    String label,
+    double pricePerPassenger,
+    String currency,
+    int count,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label Price',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildPriceRow(
+            'Per Passenger',
+            '$currency ${pricePerPassenger.toStringAsFixed(2)}',
+          ),
+          if (count > 1)
+            _buildPriceRow(
+              'Subtotal (×$count)',
+              '$currency ${(pricePerPassenger * count).toStringAsFixed(2)}',
+              isSubtotal: true,
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceRow(
+    String label,
+    String value, {
+    bool isTotal = false,
+    bool isSubtotal = false,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight:
+                  isTotal || isSubtotal ? FontWeight.w600 : FontWeight.normal,
+              color:
+                  isTotal ? const Color(0xFF1E293B) : const Color(0xFF64748B),
+            ),
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight:
+                  isTotal || isSubtotal ? FontWeight.w600 : FontWeight.normal,
+              color:
+                  isTotal ? const Color(0xFF1E293B) : const Color(0xFF374151),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -1831,15 +1940,44 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Divider(),
-            _buildPdfPriceRow(
-              'Base Fare',
-              '${outboundFlight.currency} ${outboundFareOption?.displayFareAmount.toStringAsFixed(2) ?? '0.00'}',
-            ),
-            if (returnFareOption != null)
+            // Adult pricing breakdown
+            if (bookingController.adults.isNotEmpty) ...[
               _buildPdfPriceRow(
-                'Return Base Fare',
-                '${returnFlight?.currency} ${returnFareOption.displayFareAmount.toStringAsFixed(2)}',
+                'Adult (${bookingController.adults.length})',
+                '${outboundFlight.currency} ${((outboundFareOption?.displayFareAmount ?? 0) * bookingController.adults.length).toStringAsFixed(2)}',
               ),
+            ],
+            // Child pricing breakdown
+            if (bookingController.children.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Child (${bookingController.children.length})',
+                '${outboundFlight.currency} ${(((outboundFareOption?.displayFareAmount ?? 0) * 0.75) * bookingController.children.length).toStringAsFixed(2)}',
+              ),
+            ],
+            // Infant pricing breakdown
+            if (bookingController.infants.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Infant (${bookingController.infants.length})',
+                '${outboundFlight.currency} ${(((outboundFareOption?.displayFareAmount ?? 0) * 0.1) * bookingController.infants.length).toStringAsFixed(2)}',
+              ),
+            ],
+            if (returnFareOption != null) ...[
+              if (bookingController.adults.isNotEmpty)
+                _buildPdfPriceRow(
+                  'Return Adult (${bookingController.adults.length})',
+                  '${returnFlight?.currency} ${(returnFareOption.displayFareAmount * bookingController.adults.length).toStringAsFixed(2)}',
+                ),
+              if (bookingController.children.isNotEmpty)
+                _buildPdfPriceRow(
+                  'Return Child (${bookingController.children.length})',
+                  '${returnFlight?.currency} ${((returnFareOption.displayFareAmount * 0.75) * bookingController.children.length).toStringAsFixed(2)}',
+                ),
+              if (bookingController.infants.isNotEmpty)
+                _buildPdfPriceRow(
+                  'Return Infant (${bookingController.infants.length})',
+                  '${returnFlight?.currency} ${((returnFareOption.displayFareAmount * 0.1) * bookingController.infants.length).toStringAsFixed(2)}',
+                ),
+            ],
             pw.Divider(),
             _buildPdfPriceRow(
               'Total Amount',
@@ -1953,7 +2091,7 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
                       ),
                     ),
                     pw.Text(
-                      '${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}',
+                      '${flight.baggageAllowance.weight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${flight.baggageAllowance.unit}',
                     ),
                   ],
                 ),

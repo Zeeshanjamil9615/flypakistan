@@ -4,6 +4,8 @@ import 'package:dio/dio.dart';
 import 'dart:convert';
 
 import '../views/flight/booking_flight/booking_flight_controller.dart';
+import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
+import '../views/flight/search_flights/search_flight_utils/helper_functions.dart';
 
 class ApiServiceFlyDubai {
   // FlyDubai API credentials and constants
@@ -16,6 +18,10 @@ class ApiServiceFlyDubai {
   // Access token for API calls - make it static to persist across instances
   static String? _accessToken;
   static DateTime? _tokenExpiry;
+
+  // Airline map for airline name lookup
+  static Map<String, AirlineInfo>? _airlineMap;
+  static final Dio _dioForAirline = Dio();
 
   // Authenticate with FlyDubai API
   Future<bool> authenticate() async {
@@ -3133,7 +3139,7 @@ class ApiServiceFlyDubai {
       }).toList();
 
       // Prepare flights data from cart data
-      final flights = _prepareFlyDubaiFlightData(cartData, flightType);
+      final flights = await _prepareFlyDubaiFlightData(cartData, flightType);
 
       // Determine PNR status (1 for success, 0 for failure)
       final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
@@ -3274,8 +3280,51 @@ class ApiServiceFlyDubai {
     return 0.0;
   }
 
+  // Fetch airline data from API (similar to Sabre)
+  Future<Map<String, AirlineInfo>> _fetchAirlineData() async {
+    if (_airlineMap != null) {
+      return _airlineMap!;
+    }
+
+    Map<String, AirlineInfo> tempAirlineMap = {};
+
+    try {
+      var response = await _dioForAirline.request(
+        'https://agent1.pk/api.php?type=airlines',
+        options: Options(
+          method: 'GET',
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        var data = response.data['data'];
+        for (var item in data) {
+          String logoUrl = item['logo'];
+          logoUrl = logoUrl.replaceAll(RegExp(r'^\t+'), '');
+          
+          tempAirlineMap[item['code']] = AirlineInfo(
+            item['name'],
+            logoUrl,
+          );
+        }
+        _airlineMap = tempAirlineMap;
+      }
+    } catch (e) {
+      print('Error fetching airline data: $e');
+    }
+
+    return tempAirlineMap;
+  }
+
+  // Helper method to get airline name from carrier code using API
+  Future<String> _getAirlineNameFromCode(String carrierCode) async {
+    final airlineMap = await _fetchAirlineData();
+    final airlineInfo = getAirlineInfo(carrierCode.toUpperCase(), airlineMap);
+    return airlineInfo.name;
+  }
+
   // Helper method to prepare FlyDubai flight data
-  List<Map<String, dynamic>> _prepareFlyDubaiFlightData(Map<String, dynamic> cartData, String flightType) {
+  Future<List<Map<String, dynamic>>> _prepareFlyDubaiFlightData(Map<String, dynamic> cartData, String flightType) async {
     final flights = <Map<String, dynamic>>[];
 
     try {
@@ -3302,6 +3351,10 @@ class ApiServiceFlyDubai {
           final mrktFlightNum = segment['mrktFlightNum']?.toString() ?? '';
           final operCarrier = segment['operCarrier']?.toString() ?? 'FZ';
           final operFlightNum = segment['operFlightNum']?.toString() ?? '';
+
+          // Get airline names from carrier codes using API
+          final marketingAirlineName = await _getAirlineNameFromCode(mrktCarrier);
+          final operatingAirlineName = await _getAirlineNameFromCode(operCarrier);
 
           // Parse dates
           DateTime? depDateTime;
@@ -3354,17 +3407,17 @@ class ApiServiceFlyDubai {
             },
             "flight_number": mrktFlightNum,
             "airline_code": mrktCarrier,
-            "airline_name": "FlyDubai",
+            "airline_name": marketingAirlineName,
             "operating_flight_number": operFlightNum,
             "operating_airline_code": operCarrier,
-            "operating_airline_name": "FlyDubai",
+            "operating_airline_name": operatingAirlineName,
             "cabin_class": cabinClass,
             "sub_class": cabinCode,
             "booking_class": cabinCode,
             "hand_baggage": "7kg",
             "check_baggage": "20kg", // Default for FlyDubai
             "meal": "Meal",
-            "layover": flights.length > 0 ? "Yes" : "None",
+            "layover": flights.isNotEmpty ? "Yes" : "None",
             "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
             "duration_minutes": duration.inMinutes,
             "type": i == 0 ? (flightType == 'roundtrip' ? "One-Way" : "One-Way") : "Return",

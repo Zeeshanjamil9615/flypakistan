@@ -935,7 +935,7 @@ import '../../../../../utility/app_constants.dart';
                               const SizedBox(width: 12),
                               _buildAmenityChip(
                                 'Checked',
-                                '${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}',
+                                '${flight.baggageAllowance.weight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${flight.baggageAllowance.unit}',
                                 Icons.luggage,
                               ),
                             ],
@@ -2258,7 +2258,7 @@ import '../../../../../utility/app_constants.dart';
                         ),
                       ),
                       pw.Text(
-                        '${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}',
+                        '${flight.baggageAllowance.weight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${flight.baggageAllowance.unit}',
                       ),
                     ],
                   ),

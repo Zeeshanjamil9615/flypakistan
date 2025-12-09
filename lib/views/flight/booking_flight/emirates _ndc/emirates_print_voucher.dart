@@ -818,7 +818,7 @@ class _EmiratesBookingDetailsScreenState
                             const SizedBox(width: 12),
                             _buildAmenityChip(
                               'Checked',
-                              '${selectedPackage.checkedWeight.toStringAsFixed(0)} ${selectedPackage.checkedUnit}',
+                              '${selectedPackage.checkedWeight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${selectedPackage.checkedUnit}',
                               Icons.luggage,
                             ),
                           ],
@@ -1319,42 +1319,38 @@ class _EmiratesBookingDetailsScreenState
               ),
               const SizedBox(height: 12),
 
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF8FAFC),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
+              // Adult pricing
+              if (bookingController.adults.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Adult (${bookingController.adults.length})',
+                  selectedPackage.price / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length),
+                  selectedPackage.currency,
+                  bookingController.adults.length,
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      selectedPackage.name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                        color: Color(0xFF374151),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildPriceRow(
-                      'Base Fare',
-                      '${selectedPackage.currency} ${selectedPackage.basePrice.toStringAsFixed(2)}',
-                    ),
-                    _buildPriceRow(
-                      'Taxes',
-                      '${selectedPackage.currency} ${selectedPackage.taxAmount.toStringAsFixed(2)}',
-                    ),
-                    const Divider(color: Color(0xFFE2E8F0)),
-                    _buildPriceRow(
-                      'Subtotal',
-                      '${selectedPackage.currency} ${selectedPackage.price.toStringAsFixed(2)}',
-                      isSubtotal: true,
-                    ),
-                  ],
+                const SizedBox(height: 16),
+              ],
+
+              // Child pricing
+              if (bookingController.children.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Child (${bookingController.children.length})',
+                  (selectedPackage.price * 0.75) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length),
+                  selectedPackage.currency,
+                  bookingController.children.length,
                 ),
-              ),
+                const SizedBox(height: 16),
+              ],
+
+              // Infant pricing
+              if (bookingController.infants.isNotEmpty) ...[
+                _buildPassengerPriceSection(
+                  'Infant (${bookingController.infants.length})',
+                  (selectedPackage.price * 0.1) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length),
+                  selectedPackage.currency,
+                  bookingController.infants.length,
+                ),
+                const SizedBox(height: 16),
+              ],
 
               const SizedBox(height: 16),
 
@@ -1399,6 +1395,60 @@ class _EmiratesBookingDetailsScreenState
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPassengerPriceSection(
+    String label,
+    double pricePerPassenger,
+    String currency,
+    int count,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label Price',
+            style: const TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: Color(0xFF374151),
+            ),
+          ),
+          const SizedBox(height: 8),
+          _buildPriceRow(
+            'Base Fare',
+            '$currency ${(pricePerPassenger * 0.7).toStringAsFixed(2)}',
+          ),
+          _buildPriceRow(
+            'Taxes',
+            '$currency ${(pricePerPassenger * 0.2).toStringAsFixed(2)}',
+          ),
+          _buildPriceRow(
+            'Fees',
+            '$currency ${(pricePerPassenger * 0.1).toStringAsFixed(2)}',
+          ),
+          const Divider(color: Color(0xFFE2E8F0)),
+          _buildPriceRow(
+            'Per Passenger',
+            '$currency ${pricePerPassenger.toStringAsFixed(2)}',
+            isSubtotal: true,
+          ),
+          if (count > 1)
+            _buildPriceRow(
+              'Subtotal (×$count)',
+              '$currency ${(pricePerPassenger * count).toStringAsFixed(2)}',
+              isSubtotal: true,
+            ),
+        ],
       ),
     );
   }
@@ -1683,14 +1733,27 @@ class _EmiratesBookingDetailsScreenState
               style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold),
             ),
             pw.Divider(),
-            _buildPdfPriceRow(
-              'Base Fare',
-              '${selectedPackage.currency} ${selectedPackage.basePrice.toStringAsFixed(2)}',
-            ),
-            _buildPdfPriceRow(
-              'Taxes',
-              '${selectedPackage.currency} ${selectedPackage.taxAmount.toStringAsFixed(2)}',
-            ),
+            // Adult pricing breakdown
+            if (bookingController.adults.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Adult (${bookingController.adults.length})',
+                '${selectedPackage.currency} ${((selectedPackage.price / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * bookingController.adults.length).toStringAsFixed(2)}',
+              ),
+            ],
+            // Child pricing breakdown
+            if (bookingController.children.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Child (${bookingController.children.length})',
+                '${selectedPackage.currency} ${(((selectedPackage.price * 0.75) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * bookingController.children.length).toStringAsFixed(2)}',
+              ),
+            ],
+            // Infant pricing breakdown
+            if (bookingController.infants.isNotEmpty) ...[
+              _buildPdfPriceRow(
+                'Infant (${bookingController.infants.length})',
+                '${selectedPackage.currency} ${(((selectedPackage.price * 0.1) / (bookingController.adults.length + bookingController.children.length + bookingController.infants.length)) * bookingController.infants.length).toStringAsFixed(2)}',
+              ),
+            ],
             pw.Divider(),
             _buildPdfPriceRow(
               'Total Amount',
@@ -1800,7 +1863,7 @@ class _EmiratesBookingDetailsScreenState
                       ),
                     ),
                     pw.Text(
-                      '${selectedPackage.checkedWeight.toStringAsFixed(0)} ${selectedPackage.checkedUnit}',
+                      '${selectedPackage.checkedWeight.toStringAsFixed(0).replaceAll(RegExp(r'\.0$'), '')} ${selectedPackage.checkedUnit}',
                     ),
                   ],
                 ),
