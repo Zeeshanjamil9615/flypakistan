@@ -2075,7 +2075,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                     child: Align(
                       alignment: Alignment.centerRight,
                       child: GestureDetector(
-                        onTap: () => Get.back(),
+                        onTap: _dismissLoginDialog,
                         child: const Icon(
                           Icons.close,
                           color: TColors.black,
@@ -2135,7 +2135,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: () => Get.back(),
+                      onPressed: _dismissLoginDialog,
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         side: BorderSide(
@@ -2188,6 +2188,15 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     ).whenComplete(() {
       _loginDialogVisible = false;
     });
+  }
+
+  void _dismissLoginDialog() {
+    _loginDialogVisible = false;
+    if (Get.isDialogOpen ?? false) {
+      Get.back();
+    } else if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    }
   }
 
   Future<void> _navigateToLogin() async {

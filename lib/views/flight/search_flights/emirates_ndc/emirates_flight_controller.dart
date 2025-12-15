@@ -4,6 +4,8 @@ import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_
 import 'package:ready_flights/services/api_service_emirates.dart';
 import 'package:ready_flights/views/flight/search_flights/flight_package/emirates_ndc/emirates_ndc_package.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_return_flights_page.dart';
+import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_booking_flight.dart';
+import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_multicity_flight_selection.dart';
 import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 
@@ -24,6 +26,16 @@ class EmiratesFlightController extends GetxController {
   EmiratesFarePackage? selectedOutboundPackage;
   EmiratesFlight? selectedReturnFlight;
   EmiratesFarePackage? selectedReturnPackage;
+
+  // Multi-city selections - each index corresponds to a segment
+  final RxList<EmiratesFlight?> selectedMultiCityFlights = <EmiratesFlight?>[].obs;
+  final RxList<EmiratesFarePackage?> selectedMultiCityPackages = <EmiratesFarePackage?>[].obs;
+
+  // Track current segment being selected for multi-city
+  final RxInt currentMultiCitySegment = 0.obs;
+
+  // Store flights by segment for multi-city support
+  final RxMap<int, List<EmiratesFlight>> flightsBySegment = <int, List<EmiratesFlight>>{}.obs;
 
   String? _lastSearchOrigin;
   String? _lastSearchDestination;
@@ -47,6 +59,10 @@ class EmiratesFlightController extends GetxController {
     selectedOutboundPackage = null;
     selectedReturnFlight = null;
     selectedReturnPackage = null;
+    selectedMultiCityFlights.clear();
+    selectedMultiCityPackages.clear();
+    flightsBySegment.clear();
+    currentMultiCitySegment.value = 0;
     isRoundTripSearch.value = false;
     _lastSearchOrigin = null;
     _lastSearchDestination = null;
@@ -226,6 +242,29 @@ class EmiratesFlightController extends GetxController {
         return a.departureTime.compareTo(b.departureTime);
       });
 
+      // For multicity, organize flights by segment FIRST, before any categorization
+      final bookingController = Get.find<FlightBookingController>();
+      final tripType = bookingController.tripType.value;
+      
+      if (tripType == TripType.multiCity) {
+        // For multicity, organize by segment and skip outbound/return categorization
+        _organizeFlightsBySegment(displayFlights, bookingController);
+        // Initialize multicity selection
+        initializeMultiCitySelection();
+        // For multicity, only show first segment flights initially
+        if (flightsBySegment.containsKey(0)) {
+          filteredFlights.assignAll(flightsBySegment[0]!);
+          debugPrint('✅ Multicity: Showing ${flightsBySegment[0]!.length} flights for segment 0');
+        } else {
+          filteredFlights.assignAll(displayFlights);
+        }
+        // Clear outbound/return lists for multicity
+        outboundFlights.clear();
+        returnFlights.clear();
+        return;
+      }
+
+      // For non-multicity, categorize into outbound/return
       final searchOriginUpper = searchOrigin?.toUpperCase();
       final searchDestinationUpper = searchDestination?.toUpperCase();
 
@@ -274,6 +313,9 @@ class EmiratesFlightController extends GetxController {
       debugPrint('Flights to display: ${filteredFlights.length}');
       debugPrint('Total price options stored: ${_allFlights.length}');
       debugPrint('Each flight has ${_allFlights.length} package options available');
+      if (tripType == TripType.multiCity) {
+        debugPrint('Multi-city segments: ${flightsBySegment.length}');
+      }
       debugPrint('================================\n');
 
     } catch (e, stackTrace) {
@@ -388,14 +430,22 @@ class EmiratesFlightController extends GetxController {
   void handleEmiratesFlightSelection(EmiratesFlight flight) {
     debugPrint('\n🎯 Flight selected: EK-${flight.flightNumber}');
     debugPrint('Opening package selection dialog...\n');
-    selectedOutboundFlight = flight;
-    selectedOutboundPackage = null;
-    selectedReturnFlight = null;
-    selectedReturnPackage = null;
 
     final bookingController = Get.find<FlightBookingController>();
     final tripType = bookingController.tripType.value;
     final isRoundTrip = tripType == TripType.roundTrip;
+    final isMultiCity = tripType == TripType.multiCity;
+
+    if (isMultiCity) {
+      // Handle multicity flight selection
+      handleMultiCityFlightSelection(flight, currentMultiCitySegment.value);
+      return;
+    }
+
+    selectedOutboundFlight = flight;
+    selectedOutboundPackage = null;
+    selectedReturnFlight = null;
+    selectedReturnPackage = null;
 
     Get.to(() => EmiratesPackageSelectionDialog(
           flight: flight,
@@ -694,6 +744,253 @@ class EmiratesFlightController extends GetxController {
     });
     
     debugPrint('===========================\n');
+  }
+
+  // Organize flights by segment for multicity
+  void _organizeFlightsBySegment(List<EmiratesFlight> allFlights, FlightBookingController bookingController) {
+    flightsBySegment.clear();
+    
+    debugPrint('\n🔍 Organizing ${allFlights.length} flights into segments...');
+    
+    for (int segmentIndex = 0; segmentIndex < bookingController.cityPairs.length; segmentIndex++) {
+      final cityPair = bookingController.cityPairs[segmentIndex];
+      final fromCity = cityPair.fromCity.value.toUpperCase();
+      final toCity = cityPair.toCity.value.toUpperCase();
+      
+      final segmentFlights = <EmiratesFlight>[];
+      
+      debugPrint('\n📋 Segment $segmentIndex: Looking for flights from $fromCity to $toCity');
+      
+      for (final flight in allFlights) {
+        final firstLeg = flight.legSchedules.isNotEmpty ? flight.legSchedules.first : null;
+        final lastLeg = flight.legSchedules.isNotEmpty ? flight.legSchedules.last : null;
+        
+        final firstDeparture = _extractAirportCode(firstLeg, 'departure');
+        final finalArrival = _extractAirportCode(lastLeg, 'arrival');
+        
+        debugPrint('   Flight: $firstDeparture -> $finalArrival (Match: ${firstDeparture == fromCity && finalArrival == toCity})');
+        
+        if (firstDeparture == fromCity && finalArrival == toCity) {
+          segmentFlights.add(flight);
+        }
+      }
+      
+      // Sort by price
+      segmentFlights.sort((a, b) => a.price.compareTo(b.price));
+      flightsBySegment[segmentIndex] = segmentFlights;
+      
+      debugPrint('✅ Segment $segmentIndex ($fromCity -> $toCity): ${segmentFlights.length} flights found');
+    }
+    
+    debugPrint('\n📊 Segment organization complete:\n');
+    flightsBySegment.forEach((index, flights) {
+      debugPrint('   Segment $index: ${flights.length} flights');
+    });
+  }
+
+  // Get flights for a specific segment
+  List<EmiratesFlight> getFlightsForSegment(int segmentIndex) {
+    return flightsBySegment[segmentIndex] ?? [];
+  }
+
+  // Handle multicity flight selection
+  void handleMultiCityFlightSelection(EmiratesFlight flight, int segmentIndex) {
+    debugPrint('\n🎯 Multi-city flight selected for segment $segmentIndex: EK-${flight.flightNumber}');
+    
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+    
+    // Ensure lists are properly sized
+    while (selectedMultiCityFlights.length < requiredSize) {
+      selectedMultiCityFlights.add(null);
+    }
+    while (selectedMultiCityPackages.length < requiredSize) {
+      selectedMultiCityPackages.add(null);
+    }
+    
+    // Store the flight
+    selectedMultiCityFlights[segmentIndex] = flight;
+    currentMultiCitySegment.value = segmentIndex;
+    
+    // Open package selection
+    Get.to(() => EmiratesPackageSelectionDialog(
+      flight: flight,
+      isReturnFlight: false,
+      segmentIndex: segmentIndex,
+      isMultiCity: true,
+    ));
+  }
+
+  // Handle multicity package selection
+  void handleMultiCityPackageSelection(EmiratesFlight flight, EmiratesFarePackage package, int segmentIndex) {
+    debugPrint('\n✅ Multi-city package selected for segment $segmentIndex');
+    
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+    
+    // Ensure lists are properly sized
+    while (selectedMultiCityFlights.length < requiredSize) {
+      selectedMultiCityFlights.add(null);
+    }
+    while (selectedMultiCityPackages.length < requiredSize) {
+      selectedMultiCityPackages.add(null);
+    }
+    
+    // Store the package
+    selectedMultiCityPackages[segmentIndex] = package;
+    
+    // Check if all segments are selected
+    if (isAllMultiCitySegmentsSelected) {
+      debugPrint('All segments selected, proceeding to booking');
+      _proceedToMultiCityBooking();
+    } else {
+      debugPrint('Moving to next segment');
+      proceedToNextMultiCitySegment();
+    }
+  }
+
+  // Check if all multicity segments are selected
+  bool get isAllMultiCitySegmentsSelected {
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+    
+    if (selectedMultiCityFlights.length < requiredSize || selectedMultiCityPackages.length < requiredSize) {
+      return false;
+    }
+    
+    for (int i = 0; i < requiredSize; i++) {
+      if (selectedMultiCityFlights[i] == null || selectedMultiCityPackages[i] == null) {
+        return false;
+      }
+    }
+    
+    return true;
+  }
+
+  // Get next unselected segment
+  int getNextUnselectedSegment() {
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+    
+    for (int i = 0; i < requiredSize; i++) {
+      if (i >= selectedMultiCityFlights.length || selectedMultiCityFlights[i] == null ||
+          i >= selectedMultiCityPackages.length || selectedMultiCityPackages[i] == null) {
+        return i;
+      }
+    }
+    
+    return -1; // All segments selected
+  }
+
+  // Proceed to next multicity segment
+  void proceedToNextMultiCitySegment() {
+    final nextSegment = getNextUnselectedSegment();
+    
+    if (nextSegment != -1) {
+      currentMultiCitySegment.value = nextSegment;
+      final segmentFlights = getFlightsForSegment(nextSegment);
+      
+      if (segmentFlights.isEmpty) {
+        Get.snackbar(
+          'No Flights Available',
+          'No flights found for this segment. Please try different dates or routes.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+        return;
+      }
+      
+      // Show flight selection for next segment
+      Future.delayed(const Duration(milliseconds: 300), () {
+        _showMultiCityFlightSelection(nextSegment);
+      });
+    } else {
+      _proceedToMultiCityBooking();
+    }
+  }
+
+  // Show multicity flight selection for a segment
+  void _showMultiCityFlightSelection(int segmentIndex) {
+    final bookingController = Get.find<FlightBookingController>();
+    
+    if (segmentIndex >= bookingController.cityPairs.length) {
+      debugPrint('Invalid segment index: $segmentIndex');
+      return;
+    }
+    
+    final segmentFlights = getFlightsForSegment(segmentIndex);
+    currentMultiCitySegment.value = segmentIndex;
+    
+    // Navigate to dedicated multi-city flight selection page (like AirBlue)
+    Future.microtask(() {
+      Get.off(() => EmiratesMultiCityFlightPage(
+            currentSegment: segmentIndex,
+            availableFlights: segmentFlights,
+          ));
+    });
+    
+    debugPrint('✅ Showing flight selection page for segment $segmentIndex: ${segmentFlights.length} flights');
+  }
+
+  // Proceed to multicity booking (skip review, go directly to booking form)
+  void _proceedToMultiCityBooking() {
+    debugPrint('Proceeding to multicity booking');
+    
+    final selectedFlights = selectedMultiCityFlights.where((f) => f != null).cast<EmiratesFlight>().toList();
+    final selectedPackages = selectedMultiCityPackages.where((p) => p != null).cast<EmiratesFarePackage>().toList();
+    
+    if (selectedFlights.isEmpty || selectedPackages.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please select flights for all segments',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+    
+    // Calculate total price
+    final bookingController = Get.find<FlightBookingController>();
+    final passengerCount = bookingController.adultCount.value + 
+                          bookingController.childrenCount.value + 
+                          bookingController.infantCount.value;
+    
+    double totalPrice = 0;
+    String currency = selectedPackages.first.currency;
+    
+    for (final package in selectedPackages) {
+      totalPrice += package.price * passengerCount;
+    }
+    
+    // Use first flight/package for main, rest as multicity
+    // For now, use the existing forEmirates with first flight
+    // TODO: Add proper multicity support to AirBlueBookingFlight
+    Get.to(() => AirBlueBookingFlight.forEmirates(
+      flight: selectedFlights.first,
+      selectedPackage: selectedPackages.first,
+      totalPrice: totalPrice,
+      currency: currency,
+    ));
+  }
+
+  // Initialize multicity selection
+  void initializeMultiCitySelection() {
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+    
+    while (selectedMultiCityFlights.length < requiredSize) {
+      selectedMultiCityFlights.add(null);
+    }
+    while (selectedMultiCityPackages.length < requiredSize) {
+      selectedMultiCityPackages.add(null);
+    }
+    
+    currentMultiCitySegment.value = 0;
+    
+    // Show first segment flights
+    if (flightsBySegment.containsKey(0)) {
+      filteredFlights.assignAll(flightsBySegment[0]!);
+    }
   }
 }
 

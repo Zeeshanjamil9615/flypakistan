@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 
 import '../../../../../utility/colors.dart';
+import '../../../form/flight_booking_controller.dart';
 import '../../airarabia/airarabia_flight_controller.dart';
 import '../../airarabia/airarabia_flight_model.dart';
 import '../helper_functions.dart';
@@ -161,16 +162,53 @@ class _AirArabiaFlightCardState extends State<AirArabiaFlightCard>
 
     if (segments.isEmpty) return legs;
 
+    // Check if this is multicity by getting booking controller
+    try {
+      final bookingController = Get.find<FlightBookingController>();
+      final isMultiCity = bookingController.tripType.value == TripType.multiCity;
+      
+      if (isMultiCity && bookingController.cityPairs.length > 1) {
+        // For multicity, segments are already ordered correctly by the controller
+        // Each segment represents a different cityPair, so create a leg for each segment
+        // Only group segments if they are connecting (same airport)
+        List<Map<String, dynamic>> currentLegSegments = [segments[0]];
+
+        for (int i = 1; i < segments.length; i++) {
+          final previousArrival = segments[i - 1]['arrival']?['airport']?.toString().toUpperCase() ?? '';
+          final currentDeparture = segments[i]['departure']?['airport']?.toString().toUpperCase() ?? '';
+
+          // If airports match, it's a connecting flight in the same leg
+          if (previousArrival == currentDeparture && previousArrival.isNotEmpty) {
+            currentLegSegments.add(segments[i]);
+          } else {
+            // Different leg - save current and start new one
+            legs.add(_createLegFromSegments(currentLegSegments));
+            currentLegSegments = [segments[i]];
+          }
+        }
+
+        // Add the last leg
+        if (currentLegSegments.isNotEmpty) {
+          legs.add(_createLegFromSegments(currentLegSegments));
+        }
+
+        return legs;
+      }
+    } catch (e) {
+      // If we can't get booking controller, fall through to original logic
+    }
+
+    // Original logic for non-multicity or fallback
     // Group segments by checking if arrival airport of one segment 
     // matches departure airport of next segment
     List<Map<String, dynamic>> currentLegSegments = [segments[0]];
 
     for (int i = 1; i < segments.length; i++) {
-      final previousArrival = segments[i - 1]['arrival']['airport'];
-      final currentDeparture = segments[i]['departure']['airport'];
+      final previousArrival = segments[i - 1]['arrival']?['airport']?.toString().toUpperCase() ?? '';
+      final currentDeparture = segments[i]['departure']?['airport']?.toString().toUpperCase() ?? '';
 
       // If airports match, it's a connecting flight in the same leg
-      if (previousArrival == currentDeparture) {
+      if (previousArrival == currentDeparture && previousArrival.isNotEmpty) {
         currentLegSegments.add(segments[i]);
       } else {
         // Different leg - save current and start new one

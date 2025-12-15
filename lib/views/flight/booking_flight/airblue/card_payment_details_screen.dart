@@ -50,6 +50,10 @@ class CardPaymentDetailsScreen extends StatelessWidget {
         backgroundColor: Colors.white,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.black87),
+        leading: IconButton(
+          onPressed: () => _handleBack(context),
+          icon: const Icon(Icons.arrow_back),
+        ),
         title: const Text(
           'Pay with Credit / Debit Card',
           style: TextStyle(
@@ -141,7 +145,7 @@ class CardPaymentDetailsScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton(
-                    onPressed: Get.back,
+                    onPressed: () => _handleBack(context),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       side: BorderSide(color: Colors.grey.shade300),
@@ -202,6 +206,15 @@ class CardPaymentDetailsScreen extends StatelessWidget {
         ),
       ],
     );
+  }
+
+  void _handleBack(BuildContext context) {
+    // Try popping the current route; fall back to Get if needed
+    if (Navigator.of(context).canPop()) {
+      Navigator.of(context).pop();
+    } else {
+      Get.back();
+    }
   }
 
   Future<void> _handleCardPayment(double netTotal) async {

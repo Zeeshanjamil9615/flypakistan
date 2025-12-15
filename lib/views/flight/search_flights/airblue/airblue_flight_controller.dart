@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../services/api_service_sabre.dart';
 
+import '../../booking_flight/airblue/airblue_booking_flight.dart';
 import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 import '../review_flight/airblue_review_flight.dart';
@@ -650,31 +651,48 @@ class AirBlueFlightController extends GetxController {
     // });
   }
 
-  // Proceed to multi-city review page
+  // Proceed to multi-city booking (skip review, go directly to booking form)
   void _proceedToMultiCityReview() {
-    print('DEBUG: Proceeding to multi-city review');
+    print('DEBUG: Proceeding to multi-city booking (skipping review)');
 
-    final selectedFlights = selectedMultiCityFlights.where((f) => f != null).length;
-    final selectedOptions = selectedMultiCityFareOptions.where((f) => f != null).length;
+    final selectedFlightsList = selectedMultiCityFlights.where((f) => f != null).cast<AirBlueFlight>().toList();
+    final selectedOptionsList = selectedMultiCityFareOptions.where((f) => f != null).cast<AirBlueFareOption>().toList();
 
-    print('DEBUG: Selected flights: $selectedFlights');
-    print('DEBUG: Selected options: $selectedOptions');
+    print('DEBUG: Selected flights: ${selectedFlightsList.length}');
+    print('DEBUG: Selected options: ${selectedOptionsList.length}');
 
-    Get.snackbar(
-      'Selection Complete',
-      'Flights selected: $selectedFlights. Proceeding to review.',
-      snackPosition: SnackPosition.BOTTOM,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-    );
+    if (selectedFlightsList.isEmpty || selectedOptionsList.isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please select flights for all segments',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
 
-    // Navigate to multi-city review page
-    // You'll need to create this page or modify the existing review page
-    Get.to(() => AirBlueReviewTripPage(
-      flight: selectedMultiCityFlights.where((f) => f != null).cast<AirBlueFlight>().toList().first,
-      multicityFlights: selectedMultiCityFlights.where((f) => f != null).cast<AirBlueFlight>().toList(),
-      isMulticity: true,
-      multicityFareOptions: selectedMultiCityFareOptions,
+    // Calculate total price
+    final bookingController = Get.find<FlightBookingController>();
+    final passengerCount = bookingController.adultCount.value + 
+                          bookingController.childrenCount.value + 
+                          bookingController.infantCount.value;
+    
+    double totalPrice = 0;
+    String currency = selectedOptionsList.first.currency;
+    
+    for (final option in selectedOptionsList) {
+      totalPrice += option.price * passengerCount;
+    }
+
+    // Navigate directly to booking form (skip review screen)
+    Get.to(() => AirBlueBookingFlight(
+      flight: selectedFlightsList.first,
+      multicityFlights: selectedFlightsList,
+      outboundFareOption: selectedOptionsList.first,
+      multicityFareOptions: selectedOptionsList,
+      totalPrice: totalPrice,
+      currency: currency,
     ));
   }
 

@@ -451,17 +451,20 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
 
     // Call APIs in parallel
     final futures = [
-      _callEmiratesApi(
-        type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
-        origin: origin,
-        destination: destination,
-        depDate: formattedDates,
-        adult: adultCount.value,
-        child: childrenCount.value,
-        infant: infantCount.value,
-        cabin: travelClass.value,
-        multiCitySegments: emiratesMultiCitySegments,
-      ),
+      // Emirates: skip multi-city for now (backend revalidation issues).
+      // To re-enable multicity, remove the tripType check below.
+      if (tripType.value != TripType.multiCity)
+        _callEmiratesApi(
+          type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
+          origin: origin,
+          destination: destination,
+          depDate: formattedDates,
+          adult: adultCount.value,
+          child: childrenCount.value,
+          infant: infantCount.value,
+          cabin: travelClass.value,
+          multiCitySegments: emiratesMultiCitySegments,
+        ),
       _callSabreApi(
         type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
         origin: origin,
@@ -496,17 +499,19 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
       ),
     ];
 
-    // FlyDubai API (via FlyDubai controller) - SINGLE CALL, NO DUPLICATES
-    futures.add(_callFlyDubaiApi(
-      type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
-      origin: origin,
-      destination: destination,
-      depDate: formattedDates,
-      adult: adultCount.value,
-      child: childrenCount.value,
-      infant: infantCount.value,
-      cabin: travelClass.value,
-    ));
+      // FlyDubai: skip multi-city for now (backend revalidation issues).
+      // To re-enable multicity, remove the tripType check below.
+      if (tripType.value != TripType.multiCity)
+        futures.add(_callFlyDubaiApi(
+          type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
+          origin: origin,
+          destination: destination,
+          depDate: formattedDates,
+          adult: adultCount.value,
+          child: childrenCount.value,
+          infant: infantCount.value,
+          cabin: travelClass.value,
+        ));
 
     // Add PIA API call based on trip type
     if (tripType.value == TripType.multiCity && cityPairs.isNotEmpty) {

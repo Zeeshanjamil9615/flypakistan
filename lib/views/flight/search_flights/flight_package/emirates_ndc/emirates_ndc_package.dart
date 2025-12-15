@@ -426,6 +426,16 @@ class EmiratesPackageSelectionDialog extends StatelessWidget {
       final bookingController = Get.find<FlightBookingController>();
       final tripType = bookingController.tripType.value;
       final bool isRoundTrip = tripType == TripType.roundTrip;
+      final bool isMultiCity = tripType == TripType.multiCity;
+
+      // Handle multicity package selection (with price revalidation)
+      if (isMultiCity) {
+        final pricedPackage = await _pricePackage(package);
+        isLoading.value = false;
+        Get.back();
+        emiratesController.handleMultiCityPackageSelection(flight, pricedPackage, segmentIndex);
+        return;
+      }
 
       if (isRoundTrip && !isReturnFlight) {
         // Store outbound package and prompt for return selection

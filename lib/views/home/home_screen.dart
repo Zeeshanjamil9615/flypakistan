@@ -129,24 +129,65 @@ class CustomerServiceSection extends StatelessWidget {
 
   final String mobileNumber = "923007240421";
 
-  Future<void> launchWhatsApp() async {
-    String message = "Ready FLights ";
-    final url = "https://wa.me/$mobileNumber?text=${Uri.encodeComponent(message)}";
+  Future<void> launchWhatsApp(BuildContext context) async {
+    try {
+      String message = "Ready FLights ";
+      final url = Uri.parse("https://wa.me/$mobileNumber?text=${Uri.encodeComponent(message)}");
 
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
-    } else {
-      throw 'Could not launch $url';
+      final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
+      
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not launch WhatsApp. Please make sure WhatsApp is installed.'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not launch WhatsApp. Please try again.'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
-  Future<void> launchCall() async {
-    final url = "tel:$mobileNumber";
-
-    if (await canLaunchUrl(Uri.parse(url))) {
-      await launchUrl(Uri.parse(url));
-    } else {
-      throw 'Could not launch $url';
+  Future<void> launchCall(BuildContext context) async {
+    try {
+      final url = Uri.parse("tel:$mobileNumber");
+      // Try to launch directly - canLaunchUrl can be unreliable for tel: URLs
+      final launched = await launchUrl(
+        url,
+        mode: LaunchMode.platformDefault,
+      );
+      
+      // If launchUrl returns false, show error
+      if (!launched && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not open phone dialer. Please check your device settings.'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      // Only show error on real exception, not on simulator limitations
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: const Text('Could not open phone dialer. Please try on a real device.'),
+            backgroundColor: Colors.red.withOpacity(0.8),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -190,7 +231,7 @@ class CustomerServiceSection extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => launchCall(),
+                  onPressed: () => launchCall(context),
                   icon: const Icon(Icons.phone, size: AppConstants.smallIconSize),
                   label: const Text('Call'),
                   style: ElevatedButton.styleFrom(
@@ -207,7 +248,7 @@ class CustomerServiceSection extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => launchWhatsApp(),
+                  onPressed: () => launchWhatsApp(context),
                   icon: Icon(MdiIcons.whatsapp, size: AppConstants.smallIconSize),
                   label: const Text('WhatsApp'),
                   style: ElevatedButton.styleFrom(
