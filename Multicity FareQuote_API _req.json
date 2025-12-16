@@ -1,0 +1,127 @@
+{
+  "fareQuoteRequest": {
+    "passengers": {
+      "passenger": [
+        {
+          "passengerID": 1,
+          "DOB": "",
+          "PTCID": 1
+        }
+      ]
+    },
+    "bookingCurrency": "***",
+    "GUID": "",
+    "bookingIATA": "05091989",
+    "subChannel": "",
+    "pointOfSale": "***",
+    "originDestinations": {
+      "originDestination": [
+        {
+          "paxFareDetails": {
+            "fare": [
+              {
+                "cabin": "",
+                "pax": [
+                  1
+                ]
+              }
+            ]
+          },
+          "id": 1,
+          "arrivalTime": "2024-03-10T19:00:00",
+          "depDateTime": "2024-03-10T16:20:00",
+          "origin": "KWI",
+          "legDetails": {
+            "legDetail": [
+              {
+                "marketingFlt": {
+                  "flightNum": "060",
+                  "carrierCode": "FZ"
+                },
+                "depDateTime": "2024-03-10T16:20:00",
+                "origin": "KWI",
+                "operatingFlt": {
+                  "flightNum": "060",
+                  "carrierCode": "FZ"
+                },
+                "destination": "DXB"
+              }
+            ]
+          },
+          "destination": "DXB"
+        },
+        {
+          "paxFareDetails": {
+            "fare": [
+              {
+                "cabin": "",
+                "pax": [
+                  1
+                ]
+              }
+            ]
+          },
+          "id": 2,
+          "arrivalTime": "2024-03-20T11:00:00",
+          "depDateTime": "2024-03-20T12:10:00",
+          "origin": "DXB",
+          "legDetails": {
+            "legDetail": [
+              {
+                "marketingFlt": {
+                  "flightNum": "0041",
+                  "carrierCode": "FZ"
+                },
+                "depDateTime": "2024-03-20T11:00:00",
+                "origin": "DXB",
+                "operatingFlt": {
+                  "flightNum": "0041",
+                  "carrierCode": "FZ"
+                },
+                "destination": "MCT"
+              }
+            ]
+          },
+          "destination": "MCT"
+        },
+        {
+          "paxFareDetails": {
+            "fare": [
+              {
+                "cabin": "",
+                "pax": [
+                  1
+                ]
+              }
+            ]
+          },
+          "id": 3,
+          "arrivalTime": "2024-03-30T07:05:00",
+          "depDateTime": "2024-03-30T06:10:00",
+          "origin": "DXB",
+          "legDetails": {
+            "legDetail": [
+              {
+                "marketingFlt": {
+                  "flightNum": "053",
+                  "carrierCode": "FZ"
+                },
+                "depDateTime": "2024-03-30T06:10:00",
+                "origin": "DXB",
+                "operatingFlt": {
+                  "flightNum": "053",
+                  "carrierCode": "FZ"
+                },
+                "destination": "KWI"
+              }
+            ]
+          },
+          "destination": "KWI"
+        }
+      ]
+    },
+    "channel": "OTA",
+    "bookingCountryCode": "AE",
+    "promoCode": ""
+  }
+}

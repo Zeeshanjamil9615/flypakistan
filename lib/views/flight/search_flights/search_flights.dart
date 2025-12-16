@@ -554,11 +554,42 @@ Widget _buildSkeletonLine({required double widthFactor}) {
       );
     }
 
-    for (final FlydubaiFlight flight in flyDubaiController.filteredOutboundFlights) {
-      addFlight(
-        flight: flight,
-        builder: () => FlyDubaiFlightCard(flight: flight, showReturnFlight: false),
-      );
+    // Handle FlyDubai flights - check if multi-city
+    final flightBookingController = Get.find<FlightBookingController>();
+    final isMultiCity = flightBookingController.tripType.value == TripType.multiCity;
+    
+    if (isMultiCity) {
+      // For multi-city, show flights for the current segment (segment 0 initially)
+      final currentSegment = flyDubaiController.currentMultiCitySegment.value;
+      print('🔍 Building unified flight items - Multi-city mode');
+      print('  Current segment: $currentSegment');
+      print('  Total city pairs: ${flightBookingController.cityPairs.length}');
+      
+      final segmentFlights = flyDubaiController.getFlightsForSegment(currentSegment);
+      print('  Flights returned for segment $currentSegment: ${segmentFlights.length}');
+      
+      if (segmentFlights.isEmpty) {
+        print('  ⚠️ No FlyDubai flights found for segment $currentSegment');
+      } else {
+        print('  ✅ Adding ${segmentFlights.length} FlyDubai flights to unified list');
+      }
+      
+      for (final FlydubaiFlight flight in segmentFlights) {
+        addFlight(
+          flight: flight,
+          builder: () => FlyDubaiFlightCard(flight: flight, showReturnFlight: false),
+        );
+      }
+    } else {
+      // For one-way and return, use existing logic
+      print('🔍 Building unified flight items - One-way/Return mode');
+      print('  FlyDubai outbound flights: ${flyDubaiController.filteredOutboundFlights.length}');
+      for (final FlydubaiFlight flight in flyDubaiController.filteredOutboundFlights) {
+        addFlight(
+          flight: flight,
+          builder: () => FlyDubaiFlightCard(flight: flight, showReturnFlight: false),
+        );
+      }
     }
 
     for (final PIAFlight flight in piaController.filteredFlights) {

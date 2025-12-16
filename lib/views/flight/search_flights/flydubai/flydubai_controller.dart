@@ -1,15 +1,19 @@
 // controllers/flydubai_flight_controller.dart
 
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/views/flight/search_flights/flydubai/flydubai_model.dart';
 import 'dart:developer' as developer;
 
 import '../../../../services/api_service_flydubai.dart';
+import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 import '../flight_package/flydubai/flydubai_package.dart';
 import '../sabre/sabre_flight_models.dart';
+import '../../booking_flight/airblue/airblue_booking_flight.dart';
 import 'flydubai_extras_controller.dart';
+import 'flydubai_multicity_flight_selection.dart';
 
 class FlydubaiFlightController extends GetxController {
   // Use the separate API service
@@ -31,11 +35,21 @@ class FlydubaiFlightController extends GetxController {
   final RxMap<String, List<FlydubaiFlightFare>> fareOptionsByLFID =
       <String, List<FlydubaiFlightFare>>{}.obs;
 
+  // Store flights by segment for multi-city support
+  final RxMap<int, List<FlydubaiFlight>> flightsBySegment = <int, List<FlydubaiFlight>>{}.obs;
+
   // Selected flights for round trip
   FlydubaiFlight? selectedOutboundFlight;
   FlydubaiFlightFare? selectedOutboundFareOption;
   FlydubaiFlight? selectedReturnFlight;
   FlydubaiFlightFare? selectedReturnFareOption;
+
+  // Multi-city selections - each index corresponds to a segment
+  final RxList<FlydubaiFlight?> selectedMultiCityFlights = <FlydubaiFlight?>[].obs;
+  final RxList<FlydubaiFlightFare?> selectedMultiCityFareOptions = <FlydubaiFlightFare?>[].obs;
+
+  // Track current segment being selected for multi-city
+  final RxInt currentMultiCitySegment = 0.obs;
 
   // Observable selected flight for UI updates
   final Rx<FlydubaiFlight?> selectedFlight = Rx<FlydubaiFlight?>(null);
@@ -77,6 +91,7 @@ class FlydubaiFlightController extends GetxController {
     filteredOutboundFlights.clear();
     filteredReturnFlights.clear();
     fareOptionsByLFID.clear();
+    flightsBySegment.clear();
     errorMessage.value = '';
 
     // Clear selected flights too
@@ -84,6 +99,11 @@ class FlydubaiFlightController extends GetxController {
     selectedOutboundFareOption = null;
     selectedReturnFlight = null;
     selectedReturnFareOption = null;
+
+    // Clear multi-city selections
+    selectedMultiCityFlights.clear();
+    selectedMultiCityFareOptions.clear();
+    currentMultiCitySegment.value = 0;
 
     // Clear search parameters
     _searchOrigin = null;
@@ -193,10 +213,19 @@ class FlydubaiFlightController extends GetxController {
       developer.log('FlyDubai API Result Keys: ${result.keys}');
 
       // Process the result
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      developer.log('📥 Processing FlyDubai API result');
+      developer.log('  Result keys: ${result.keys}');
+      developer.log('  Success: ${result['success']}');
+      developer.log('  Trip type: $type (${type == 0 ? "One-way" : type == 1 ? "Round-trip" : "Multi-city"})');
+      
       if (result.containsKey('error')) {
         setErrorMessage(result['error']);
-        developer.log('FlyDubai API Error: ${result['error']}');
+        developer.log('  ❌ FlyDubai API Error: ${result['error']}');
       } else if (result.containsKey('flights') && result['success'] == true) {
+        developer.log('  ✅ Valid response received');
+        developer.log('  📦 Flights data type: ${result['flights'].runtimeType}');
+        
         // Parse the response with search parameters for validation
         await parseApiResponse(
           result['flights'],
@@ -204,17 +233,28 @@ class FlydubaiFlightController extends GetxController {
           expectedDestination: cleanDestination,
           tripType: type,
         );
+        
+        if (type == 2) {
+          // Multi-city summary
+          developer.log('  📊 Multi-city summary:');
+          for (int i = 0; i < flightsBySegment.length; i++) {
+            final count = flightsBySegment[i]?.length ?? 0;
+            developer.log('    Segment $i: $count flights');
+          }
+        } else {
         developer.log(
-          'FlyDubai outbound flights loaded: ${filteredOutboundFlights.length}',
+            '  FlyDubai outbound flights loaded: ${filteredOutboundFlights.length}',
         );
         developer.log(
-          'FlyDubai return flights loaded: ${filteredReturnFlights.length}',
+            '  FlyDubai return flights loaded: ${filteredReturnFlights.length}',
         );
+        }
       } else {
         setErrorMessage('Invalid FlyDubai API response format');
-        developer.log(
-          'Invalid FlyDubai API response structure: ${result.keys}',
-        );
+        developer.log('  ❌ Invalid FlyDubai API response structure');
+        developer.log('  Available keys: ${result.keys}');
+        developer.log('  Has flights key: ${result.containsKey('flights')}');
+        developer.log('  Success value: ${result['success']}');
       }
     } catch (e) {
       developer.log('FlyDubai Controller search error: $e');
@@ -245,11 +285,35 @@ class FlydubaiFlightController extends GetxController {
         return;
       }
 
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       developer.log('=== PARSING FLYDUBAI API RESPONSE ===');
+      developer.log('  Trip Type parameter: $tripType (${tripType == 0 ? "One-way" : tripType == 1 ? "Round-trip" : tripType == 2 ? "Multi-city" : "Unknown"})');
+      developer.log('  Expected Origin: $expectedOrigin');
+      developer.log('  Expected Destination: $expectedDestination');
+      
+      // Check response structure
+      developer.log('  Response keys: ${response?.keys}');
+      final retrieveResult = response?['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+      if (retrieveResult != null) {
+        developer.log('  RetrieveResult keys: ${retrieveResult.keys}');
+        developer.log('  Has SegmentDetails: ${retrieveResult.containsKey('SegmentDetails')}');
+        developer.log('  Has LegDetails: ${retrieveResult.containsKey('LegDetails')}');
+        if (retrieveResult.containsKey('SegmentDetails')) {
+          final segDetails = retrieveResult['SegmentDetails']?['SegmentDetail'];
+          if (segDetails != null) {
+            final count = segDetails is List ? segDetails.length : 1;
+            developer.log('  SegmentDetails count: $count');
+            if (segDetails is List && segDetails.isNotEmpty) {
+              developer.log('  First SegmentDetail: LFID=${segDetails[0]['LFID']}, Origin=${segDetails[0]['Origin']}, Destination=${segDetails[0]['Destination']}');
+            }
+          }
+        }
+      }
 
       final flydubaiResponse = FlydubaiResponse.fromJson(response);
 
       if (!flydubaiResponse.success) {
+        developer.log('  ❌ FlyDubai response parsing failed: ${flydubaiResponse.errorMessage}');
         setErrorMessage(
           flydubaiResponse.errorMessage ?? 'Failed to parse response',
         );
@@ -257,8 +321,18 @@ class FlydubaiFlightController extends GetxController {
       }
 
       developer.log(
-        'Found ${flydubaiResponse.flightSegments.length} flight segments',
+        '  ✅ Found ${flydubaiResponse.flightSegments.length} flight segments',
       );
+      
+      // Debug: Log all parsed segments
+      developer.log('  📋 Parsed segments details:');
+      for (int i = 0; i < flydubaiResponse.flightSegments.length; i++) {
+        final seg = flydubaiResponse.flightSegments[i];
+        developer.log('    Segment $i: LFID=${seg.lfid}, Origin=${seg.origin}, Destination=${seg.destination}, Date=${seg.departureDateTime.toIso8601String().substring(0, 10)}, Fares=${seg.fareTypes.length}');
+        if (seg.origin.isEmpty || seg.destination.isEmpty) {
+          developer.log('      ⚠️ WARNING: Segment $i has empty origin/destination!');
+        }
+      }
 
       // Create airline map for FlyDubai
       final airlineMap = {
@@ -268,7 +342,159 @@ class FlydubaiFlightController extends GetxController {
         ),
       };
 
-      // Process all segments and separate outbound/return
+      // For multi-city, organize flights by segment FIRST
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      developer.log('🔀 Checking trip type routing...');
+      developer.log('  tripType value: $tripType');
+      developer.log('  tripType == 2: ${tripType == 2}');
+      
+      if (tripType == 2) {
+        developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        developer.log('=== PROCESSING MULTI-CITY FLIGHTS ===');
+        developer.log('Total flight segments from API: ${flydubaiResponse.flightSegments.length}');
+        
+        // Get city pairs from booking controller
+        final bookingController = Get.find<FlightBookingController>();
+        final cityPairs = bookingController.cityPairs;
+        
+        developer.log('📋 City pairs count: ${cityPairs.length}');
+        for (int i = 0; i < cityPairs.length; i++) {
+          final pair = cityPairs[i];
+          developer.log('  City Pair $i: ${pair.fromCity.value} -> ${pair.toCity.value} on ${pair.departureDate.value}');
+        }
+        
+        // Initialize flightsBySegment for each city pair
+        for (int i = 0; i < cityPairs.length; i++) {
+          flightsBySegment[i] = [];
+          developer.log('  Initialized flightsBySegment[$i]');
+        }
+        
+        int processedCount = 0;
+        int skippedNoFareCount = 0;
+        int skippedNoMatchCount = 0;
+        int errorCount = 0;
+        
+        // Process all segments and match them to city pairs
+        for (var segment in flydubaiResponse.flightSegments) {
+          try {
+            developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+            developer.log('🔍 Processing segment LFID: ${segment.lfid}');
+            developer.log('  Route: ${segment.origin} -> ${segment.destination}');
+            developer.log('  Date: ${segment.departureDateTime}');
+            developer.log('  Fare types count: ${segment.fareTypes.length}');
+
+            // Check if segment has valid fare data
+            if (segment.fareTypes.isEmpty) {
+              skippedNoFareCount++;
+              developer.log('  ⚠️ Skipping segment ${segment.lfid} - no fare data');
+              continue;
+            }
+
+            // Find matching city pair segment
+            int? matchingSegmentIndex;
+            final segmentDate = DateTime(
+              segment.departureDateTime.year,
+              segment.departureDateTime.month,
+              segment.departureDateTime.day,
+            );
+            
+            developer.log('  🔎 Searching for matching city pair...');
+            developer.log('  Segment date (date only): ${segmentDate.toIso8601String().substring(0, 10)}');
+            
+            for (int i = 0; i < cityPairs.length; i++) {
+              final cityPair = cityPairs[i];
+              final cityPairDate = DateTime(
+                cityPair.departureDateTime.value.year,
+                cityPair.departureDateTime.value.month,
+                cityPair.departureDateTime.value.day,
+              );
+              
+              developer.log('    Checking city pair $i:');
+              developer.log('      Expected: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
+              developer.log('      Actual: ${segment.origin} -> ${segment.destination}');
+              developer.log('      Expected date: ${cityPairDate.toIso8601String().substring(0, 10)}');
+              developer.log('      Actual date: ${segmentDate.toIso8601String().substring(0, 10)}');
+              developer.log('      Origin match: ${segment.origin == cityPair.fromCity.value}');
+              developer.log('      Destination match: ${segment.destination == cityPair.toCity.value}');
+              developer.log('      Date match: ${segmentDate.isAtSameMomentAs(cityPairDate)}');
+              
+              if (segment.origin == cityPair.fromCity.value &&
+                  segment.destination == cityPair.toCity.value &&
+                  segmentDate.isAtSameMomentAs(cityPairDate)) {
+                matchingSegmentIndex = i;
+                developer.log('    ✅ MATCH FOUND! Segment ${segment.lfid} matches city pair $i');
+                break;
+              } else {
+                developer.log('    ❌ No match for city pair $i');
+              }
+            }
+
+            if (matchingSegmentIndex == null) {
+              skippedNoMatchCount++;
+              developer.log('  ⚠️ No matching city pair found for segment ${segment.lfid}');
+              developer.log('  Segment details: ${segment.origin} -> ${segment.destination} on ${segmentDate.toIso8601String().substring(0, 10)}');
+              continue;
+            }
+
+            // Create flight with actual segment data
+            developer.log('  ✈️ Creating FlydubaiFlight object...');
+            final flight = FlydubaiFlight.fromFlightSegment(
+              segment,
+              airlineMap,
+              response,
+              expectedOrigin: cityPairs[matchingSegmentIndex].fromCity.value,
+              expectedDestination: cityPairs[matchingSegmentIndex].toCity.value,
+            );
+
+            // Store fare options by LFID (use segment index in key for multi-city)
+            final fareKey = 'segment_${matchingSegmentIndex}_${segment.lfid}';
+            fareOptionsByLFID[fareKey] = segment.fareTypes;
+            developer.log('  💾 Stored fare options with key: $fareKey');
+
+            // Add to segment-specific list
+            flightsBySegment[matchingSegmentIndex]!.add(flight);
+            processedCount++;
+            developer.log(
+              '  ✅ Added MULTI-CITY flight for segment $matchingSegmentIndex: ${flight.airlineCode} ${flight.flightSegment.flightNumber} - ${flight.flightSegment.origin} to ${flight.flightSegment.destination} - PKR ${flight.price}',
+            );
+          } catch (e, stackTrace) {
+            errorCount++;
+            developer.log('  ❌ Error processing segment ${segment.lfid}: $e');
+            developer.log('  Stack trace: $stackTrace');
+            continue;
+          }
+        }
+        
+        developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        developer.log('📊 MULTI-CITY PROCESSING SUMMARY:');
+        developer.log('  Total segments from API: ${flydubaiResponse.flightSegments.length}');
+        developer.log('  Successfully processed: $processedCount');
+        developer.log('  Skipped (no fare data): $skippedNoFareCount');
+        developer.log('  Skipped (no city pair match): $skippedNoMatchCount');
+        developer.log('  Errors: $errorCount');
+        
+        // Sort flights in each segment by price
+        for (int i = 0; i < cityPairs.length; i++) {
+          flightsBySegment[i]?.sort((a, b) => a.price.compareTo(b.price));
+          final count = flightsBySegment[i]?.length ?? 0;
+          developer.log('  📦 Segment $i: $count flights stored');
+          if (count > 0) {
+            developer.log('    First flight: ${flightsBySegment[i]!.first.flightSegment.origin} -> ${flightsBySegment[i]!.first.flightSegment.destination}');
+            developer.log('    Last flight: ${flightsBySegment[i]!.last.flightSegment.origin} -> ${flightsBySegment[i]!.last.flightSegment.destination}');
+          }
+        }
+        
+        // Initialize multi-city selection
+        developer.log('  🔄 Initializing multi-city selection...');
+        initializeMultiCitySelection();
+        developer.log('  ✅ Multi-city initialization complete');
+      } else {
+        developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        developer.log('=== PROCESSING ONE-WAY/RETURN FLIGHTS ===');
+        developer.log('  Trip type: ${tripType == 0 ? "One-way" : tripType == 1 ? "Round-trip" : "Unknown ($tripType)"}');
+        developer.log('  Processing ${flydubaiResponse.flightSegments.length} segments');
+        
+        // Process all segments and separate outbound/return (existing logic)
       for (var segment in flydubaiResponse.flightSegments) {
         try {
           developer.log('Processing segment LFID: ${segment.lfid}');
@@ -326,6 +552,7 @@ class FlydubaiFlightController extends GetxController {
         } catch (e) {
           developer.log('❌ Error processing segment ${segment.lfid}: $e');
           continue;
+          }
         }
       }
 
@@ -437,6 +664,27 @@ class FlydubaiFlightController extends GetxController {
     FlydubaiFlight flight, {
     bool isReturnFlight = false,
   }) {
+    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    developer.log('🎯 handleFlydubaiFlightSelection called');
+    developer.log('  Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
+    developer.log('  isReturnFlight: $isReturnFlight');
+    
+    // Check if we're in multi-city mode
+    final bookingController = Get.find<FlightBookingController>();
+    final isMultiCity = bookingController.tripType.value == TripType.multiCity;
+    
+    developer.log('  isMultiCity: $isMultiCity');
+    developer.log('  currentMultiCitySegment: ${currentMultiCitySegment.value}');
+    
+    if (isMultiCity) {
+      // For multi-city, use the multi-city handler
+      developer.log('  🔀 Routing to multi-city handler');
+      final segmentIndex = currentMultiCitySegment.value;
+      handleMultiCityFlightSelection(flight, segmentIndex);
+      return;
+    }
+    
+    // For one-way/return, use existing logic
     if (isReturnFlight) {
       selectedReturnFlight = flight;
       developer.log(
@@ -474,8 +722,28 @@ class FlydubaiFlightController extends GetxController {
   }
 
   // Get fare options for a selected flight
-  List<FlydubaiFlightFare> getFareOptionsForFlight(FlydubaiFlight flight) {
-    return fareOptionsByLFID[flight.rph] ?? [];
+  List<FlydubaiFlightFare> getFareOptionsForFlight(FlydubaiFlight flight, {int? segmentIndex}) {
+    // For multi-city, use segment-specific key
+    if (segmentIndex != null) {
+      final multiCityKey = 'segment_${segmentIndex}_${flight.flightSegment.lfid}';
+      developer.log('🔍 getFareOptionsForFlight (multi-city):');
+      developer.log('  Segment index: $segmentIndex');
+      developer.log('  Flight LFID: ${flight.flightSegment.lfid}');
+      developer.log('  Looking for key: $multiCityKey');
+      developer.log('  Available keys: ${fareOptionsByLFID.keys.where((k) => k.startsWith('segment_')).toList()}');
+      
+      final options = fareOptionsByLFID[multiCityKey] ?? [];
+      developer.log('  Found ${options.length} fare options');
+      return options;
+    }
+    
+    // For one-way/return, use standard LFID key
+    final options = fareOptionsByLFID[flight.rph] ?? [];
+    if (options.isEmpty) {
+      developer.log('⚠️ No fare options found for flight RPH: ${flight.rph}');
+      developer.log('  Available keys: ${fareOptionsByLFID.keys.toList()}');
+    }
+    return options;
   }
 
   // Apply filters method - works on both outbound and return flights
@@ -952,88 +1220,153 @@ class FlydubaiFlightController extends GetxController {
     print('═══════════════════════════════════════════════════════');
 
     try {
-      // Build segments for outbound flight
-      if (selectedOutboundFlight != null && selectedOutboundFareOption != null) {
-        print('📍 Building Outbound Segment:');
-        print('   - Flight: ${selectedOutboundFlight!.airlineCode} ${selectedOutboundFlight!.flightSegment.flightNumber}');
-        print('   - LFID: ${selectedOutboundFlight!.flightSegment.lfid}');
-        print('   - Fare: ${selectedOutboundFareOption!.fareTypeName}');
-        print('   - Fare ID: ${selectedOutboundFareOption!.fareId}');
+      // Check if this is a multi-city booking
+      final selectedMultiCityFlightsList = selectedMultiCityFlights
+          .where((f) => f != null)
+          .cast<FlydubaiFlight>()
+          .toList();
+      final selectedMultiCityFareOptionsList = selectedMultiCityFareOptions
+          .where((f) => f != null)
+          .cast<FlydubaiFlightFare>()
+          .toList();
+
+      final isMultiCity = selectedMultiCityFlightsList.isNotEmpty && 
+                          selectedMultiCityFareOptionsList.isNotEmpty &&
+                          selectedMultiCityFlightsList.length == selectedMultiCityFareOptionsList.length;
+
+      if (isMultiCity) {
+        print('🌍 Building segments for MULTI-CITY booking (${selectedMultiCityFlightsList.length} segments)');
         
-        final fareId = selectedOutboundFareOption!.fareId;
-        final outboundMeta = _buildSegmentMeta(selectedOutboundFlight!);
+        // Build segments for each multi-city flight
+        for (int i = 0; i < selectedMultiCityFlightsList.length; i++) {
+          final flight = selectedMultiCityFlightsList[i];
+          final fareOption = selectedMultiCityFareOptionsList[i];
+          
+          print('📍 Building Multi-City Segment $i:');
+          print('   - Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
+          print('   - LFID: ${flight.flightSegment.lfid}');
+          print('   - Route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
+          print('   - Fare: ${fareOption.fareTypeName}');
+          print('   - Fare ID: ${fareOption.fareId}');
+          
+          final fareId = fareOption.fareId;
+          final segmentMeta = _buildSegmentMeta(flight);
 
-        // Get extras data from extras controller
-        final baggageExtras = _buildBaggageExtras(
-          extrasController.selectedBaggage,
-          outboundMeta,
-        );
-        final mealExtras = _buildMealExtras(
-          extrasController.selectedMeals,
-          outboundMeta,
-        );
-        final seatExtras = _buildSeatExtras(
-          extrasController.selectedSeats,
-          outboundMeta,
-        );
+          // Get extras data from extras controller
+          // Note: For multi-city, extras might need to be per-segment, but for now using the same extras
+          final baggageExtras = _buildBaggageExtras(
+            extrasController.selectedBaggage,
+            segmentMeta,
+          );
+          final mealExtras = _buildMealExtras(
+            extrasController.selectedMeals,
+            segmentMeta,
+          );
+          final seatExtras = _buildSeatExtras(
+            extrasController.selectedSeats,
+            segmentMeta,
+          );
 
-        print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-        print('   - Meal extras: ${mealExtras.length}');
-        print('   - Seat extras: ${seatExtras.length}');
+          print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
+          print('   - Meal extras: ${mealExtras.length}');
+          print('   - Seat extras: ${seatExtras.length}');
 
-        segments.add({
-          'pax': 1, // First passenger
-          'fareID': fareId,
-          'extra': {
-            'baggage': baggageExtras,
-            'meal': mealExtras,
-            'seat': seatExtras
-          }
-        });
-        
-        print('   ✅ Outbound segment added');
-      }
+          segments.add({
+            'pax': 1, // First passenger
+            'fareID': fareId,
+            'extra': {
+              'baggage': baggageExtras,
+              'meal': mealExtras,
+              'seat': seatExtras
+            }
+          });
+          
+          print('   ✅ Multi-city segment $i added');
+        }
+      } else {
+        // Build segments for outbound flight (one-way or round-trip)
+        if (selectedOutboundFlight != null && selectedOutboundFareOption != null) {
+          print('📍 Building Outbound Segment:');
+          print('   - Flight: ${selectedOutboundFlight!.airlineCode} ${selectedOutboundFlight!.flightSegment.flightNumber}');
+          print('   - LFID: ${selectedOutboundFlight!.flightSegment.lfid}');
+          print('   - Fare: ${selectedOutboundFareOption!.fareTypeName}');
+          print('   - Fare ID: ${selectedOutboundFareOption!.fareId}');
+          
+          final fareId = selectedOutboundFareOption!.fareId;
+          final outboundMeta = _buildSegmentMeta(selectedOutboundFlight!);
 
-      // Build segments for return flight
-      if (selectedReturnFlight != null && selectedReturnFareOption != null) {
-        print('📍 Building Return Segment:');
-        print('   - Flight: ${selectedReturnFlight!.airlineCode} ${selectedReturnFlight!.flightSegment.flightNumber}');
-        print('   - LFID: ${selectedReturnFlight!.flightSegment.lfid}');
-        print('   - Fare: ${selectedReturnFareOption!.fareTypeName}');
-        print('   - Fare ID: ${selectedReturnFareOption!.fareId}');
-        
-        final fareId = selectedReturnFareOption!.fareId;
-        final returnMeta = _buildSegmentMeta(selectedReturnFlight!);
+          // Get extras data from extras controller
+          final baggageExtras = _buildBaggageExtras(
+            extrasController.selectedBaggage,
+            outboundMeta,
+          );
+          final mealExtras = _buildMealExtras(
+            extrasController.selectedMeals,
+            outboundMeta,
+          );
+          final seatExtras = _buildSeatExtras(
+            extrasController.selectedSeats,
+            outboundMeta,
+          );
 
-        // Get extras data from extras controller (you might want separate handling for return flight)
-        final baggageExtras = _buildBaggageExtras(
-          extrasController.selectedBaggage,
-          returnMeta,
-        );
-        final mealExtras = _buildMealExtras(
-          extrasController.selectedMeals,
-          returnMeta,
-        );
-        final seatExtras = _buildSeatExtras(
-          extrasController.selectedSeats,
-          returnMeta,
-        );
+          print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
+          print('   - Meal extras: ${mealExtras.length}');
+          print('   - Seat extras: ${seatExtras.length}');
 
-        print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-        print('   - Meal extras: ${mealExtras.length}');
-        print('   - Seat extras: ${seatExtras.length}');
+          segments.add({
+            'pax': 1, // First passenger
+            'fareID': fareId,
+            'extra': {
+              'baggage': baggageExtras,
+              'meal': mealExtras,
+              'seat': seatExtras
+            }
+          });
+          
+          print('   ✅ Outbound segment added');
+        }
 
-        segments.add({
-          'pax': 1, // First passenger
-          'fareID': fareId,
-          'extra': {
-            'baggage': baggageExtras,
-            'meal': mealExtras,
-            'seat': seatExtras
-          }
-        });
-        
-        print('   ✅ Return segment added');
+        // Build segments for return flight
+        if (selectedReturnFlight != null && selectedReturnFareOption != null) {
+          print('📍 Building Return Segment:');
+          print('   - Flight: ${selectedReturnFlight!.airlineCode} ${selectedReturnFlight!.flightSegment.flightNumber}');
+          print('   - LFID: ${selectedReturnFlight!.flightSegment.lfid}');
+          print('   - Fare: ${selectedReturnFareOption!.fareTypeName}');
+          print('   - Fare ID: ${selectedReturnFareOption!.fareId}');
+          
+          final fareId = selectedReturnFareOption!.fareId;
+          final returnMeta = _buildSegmentMeta(selectedReturnFlight!);
+
+          // Get extras data from extras controller (you might want separate handling for return flight)
+          final baggageExtras = _buildBaggageExtras(
+            extrasController.selectedBaggage,
+            returnMeta,
+          );
+          final mealExtras = _buildMealExtras(
+            extrasController.selectedMeals,
+            returnMeta,
+          );
+          final seatExtras = _buildSeatExtras(
+            extrasController.selectedSeats,
+            returnMeta,
+          );
+
+          print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
+          print('   - Meal extras: ${mealExtras.length}');
+          print('   - Seat extras: ${seatExtras.length}');
+
+          segments.add({
+            'pax': 1, // First passenger
+            'fareID': fareId,
+            'extra': {
+              'baggage': baggageExtras,
+              'meal': mealExtras,
+              'seat': seatExtras
+            }
+          });
+          
+          print('   ✅ Return segment added');
+        }
       }
       
       print('📋 Total segments built: ${segments.length}');
@@ -1178,6 +1511,548 @@ class FlydubaiFlightController extends GetxController {
     }
 
     return seats;
+  }
+
+  // ==================== MULTI-CITY METHODS ====================
+
+  // Initialize multi-city flight selection
+  void initializeMultiCitySelection() {
+    final bookingController = Get.find<FlightBookingController>();
+    final segmentCount = bookingController.cityPairs.length;
+
+    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    developer.log('🔄 initializeMultiCitySelection called');
+    developer.log('  Segment count: $segmentCount');
+
+    // Clear and initialize lists with correct size
+    selectedMultiCityFlights.clear();
+    selectedMultiCityFareOptions.clear();
+
+    // Add null placeholders for each segment
+    for (int i = 0; i < segmentCount; i++) {
+      selectedMultiCityFlights.add(null);
+      selectedMultiCityFareOptions.add(null);
+    }
+
+    // Start from segment 0
+    currentMultiCitySegment.value = 0;
+
+    developer.log('  ✅ Initialized lists with ${selectedMultiCityFlights.length} segments each');
+    developer.log('  📍 Current segment set to: 0');
+    developer.log('  📊 Flights available per segment:');
+    for (int i = 0; i < segmentCount; i++) {
+      final count = flightsBySegment[i]?.length ?? 0;
+      developer.log('    Segment $i: $count flights');
+    }
+  }
+
+  // Get flights for a specific segment
+  List<FlydubaiFlight> getFlightsForSegment(int segmentIndex) {
+    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    developer.log('🔍 getFlightsForSegment called for segment $segmentIndex');
+    
+    final bookingController = Get.find<FlightBookingController>();
+    final totalSegments = bookingController.cityPairs.length;
+
+    developer.log('  Total city pairs: $totalSegments');
+    
+    if (segmentIndex >= totalSegments) {
+      developer.log('  ❌ Invalid segment index: $segmentIndex (max: ${totalSegments - 1})');
+      return [];
+    }
+
+    final cityPair = bookingController.cityPairs[segmentIndex];
+    developer.log('  City pair $segmentIndex: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
+    developer.log('  Expected date: ${cityPair.departureDate.value}');
+
+    // Get flights from the segment-specific storage
+    final segmentFlights = flightsBySegment[segmentIndex] ?? [];
+    
+    developer.log('  📦 Flights in flightsBySegment[$segmentIndex]: ${segmentFlights.length}');
+    developer.log('  📊 Total segments in flightsBySegment: ${flightsBySegment.length}');
+    developer.log('  📋 Available segment keys: ${flightsBySegment.keys.toList()}');
+
+    if (segmentFlights.isNotEmpty) {
+      developer.log('  ✅ Returning ${segmentFlights.length} flights from segment storage');
+      for (int i = 0; i < segmentFlights.length; i++) {
+        final flight = segmentFlights[i];
+        developer.log('    Flight $i: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination} (PKR ${flight.price})');
+      }
+      return segmentFlights;
+    }
+    
+    developer.log('  ⚠️ No flights found in segment storage, trying fallback...');
+
+    // Fallback: try to match flights by route (cityPair already defined above)
+    final fromCity = cityPair.fromCity.value;
+    final toCity = cityPair.toCity.value;
+    final departureDate = DateTime(
+      cityPair.departureDateTime.value.year,
+      cityPair.departureDateTime.value.month,
+      cityPair.departureDateTime.value.day,
+    );
+
+    developer.log('Fallback route matching for segment $segmentIndex');
+    developer.log('Route: $fromCity -> $toCity on ${departureDate.toIso8601String().substring(0, 10)}');
+
+    // Combine all flights from all segments for fallback search
+    final allFlights = <FlydubaiFlight>[];
+    for (var flights in flightsBySegment.values) {
+      allFlights.addAll(flights);
+    }
+
+    // Filter flights that match this segment
+    final matchingFlights = allFlights.where((flight) {
+      try {
+        final flightOrigin = flight.flightSegment.origin;
+        final flightDestination = flight.flightSegment.destination;
+        final flightDate = DateTime(
+          flight.flightSegment.departureDateTime.year,
+          flight.flightSegment.departureDateTime.month,
+          flight.flightSegment.departureDateTime.day,
+        );
+
+        final matches = flightOrigin == fromCity &&
+            flightDestination == toCity &&
+            flightDate.isAtSameMomentAs(departureDate);
+
+        if (matches) {
+          developer.log('Found matching flight via fallback: $flightOrigin -> $flightDestination');
+        }
+
+        return matches;
+      } catch (e) {
+        return false;
+      }
+    }).toList();
+
+    developer.log('Found ${matchingFlights.length} matching flights for segment $segmentIndex via fallback');
+    return matchingFlights;
+  }
+
+  // Check if all multi-city segments are selected
+  bool get isAllMultiCitySegmentsSelected {
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+
+    if (selectedMultiCityFlights.length < requiredSize ||
+        selectedMultiCityFareOptions.length < requiredSize) {
+      return false;
+    }
+
+    for (int i = 0; i < requiredSize; i++) {
+      if (selectedMultiCityFlights[i] == null ||
+          selectedMultiCityFareOptions[i] == null) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  // Get the next segment that needs to be selected
+  int getNextUnselectedSegment() {
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSegments = bookingController.cityPairs.length;
+
+    for (int i = 0; i < requiredSegments; i++) {
+      bool flightMissing = i >= selectedMultiCityFlights.length ||
+          selectedMultiCityFlights[i] == null;
+      bool fareOptionMissing = i >= selectedMultiCityFareOptions.length ||
+          selectedMultiCityFareOptions[i] == null;
+
+      if (flightMissing || fareOptionMissing) {
+        return i;
+      }
+    }
+
+    return -1; // All segments selected
+  }
+
+  // Handle multi-city flight selection
+  void handleMultiCityFlightSelection(FlydubaiFlight flight, int segmentIndex) {
+    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    developer.log('🎯 handleMultiCityFlightSelection called');
+    developer.log('  Segment index: $segmentIndex');
+    developer.log('  Flight LFID: ${flight.flightSegment.lfid}');
+    developer.log('  Flight RPH: ${flight.rph}');
+    developer.log('  Flight route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
+
+    // Ensure the lists are properly sized
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+
+    while (selectedMultiCityFlights.length < requiredSize) {
+      selectedMultiCityFlights.add(null);
+    }
+    while (selectedMultiCityFareOptions.length < requiredSize) {
+      selectedMultiCityFareOptions.add(null);
+    }
+
+    // Store the flight IMMEDIATELY
+    selectedMultiCityFlights[segmentIndex] = flight;
+    currentMultiCitySegment.value = segmentIndex;
+
+    developer.log('  ✅ Flight stored for segment $segmentIndex');
+    
+    // Verify fare options exist before opening dialog
+    final fareKey = 'segment_${segmentIndex}_${flight.flightSegment.lfid}';
+    final fareOptions = fareOptionsByLFID[fareKey] ?? [];
+    developer.log('  🔍 Checking fare options before opening dialog:');
+    developer.log('    Fare key: $fareKey');
+    developer.log('    Fare options found: ${fareOptions.length}');
+    if (fareOptions.isEmpty) {
+      developer.log('    ⚠️ WARNING: No fare options found for key $fareKey');
+      developer.log('    Available keys: ${fareOptionsByLFID.keys.where((k) => k.startsWith('segment_')).toList()}');
+    }
+
+    // Open package selection dialog
+    developer.log('  📦 Opening package selection dialog...');
+    developer.log('    Dialog parameters: isMultiCity=true, segmentIndex=$segmentIndex');
+    Get.dialog(
+      FlyDubaiPackageSelectionDialog(
+        flight: flight,
+        isReturnFlight: false,
+        isMultiCity: true,
+        segmentIndex: segmentIndex,
+      ),
+      barrierDismissible: false,
+    );
+  }
+
+  // Handle multi-city package selection
+  void handleMultiCityPackageSelection(
+    FlydubaiFlightFare fareOption,
+    int segmentIndex,
+  ) {
+    final bookingController = Get.find<FlightBookingController>();
+    final requiredSize = bookingController.cityPairs.length;
+
+    developer.log('handleMultiCityPackageSelection called with segment $segmentIndex');
+
+    // Ensure the fare options list is properly sized
+    while (selectedMultiCityFareOptions.length < requiredSize) {
+      selectedMultiCityFareOptions.add(null);
+    }
+
+    // Store the fare option
+    selectedMultiCityFareOptions[segmentIndex] = fareOption;
+
+    developer.log('Package selected for segment $segmentIndex');
+    developer.log('Package fare type: ${fareOption.fareTypeName}');
+
+    // Force trigger the reactive update
+    selectedMultiCityFlights.refresh();
+    selectedMultiCityFareOptions.refresh();
+
+    // Small delay to ensure reactive updates are processed
+    Future.delayed(const Duration(milliseconds: 100), () {
+      // Check if all segments are selected
+      if (isAllMultiCitySegmentsSelected) {
+        developer.log('All segments selected, proceeding to review');
+        _proceedToMultiCityReview();
+      } else {
+        developer.log('Moving to next segment');
+        proceedToNextMultiCitySegment();
+      }
+    });
+  }
+
+  // Proceed to next multi-city segment
+  void proceedToNextMultiCitySegment() {
+    developer.log('proceedToNextMultiCitySegment called');
+
+    final nextSegment = getNextUnselectedSegment();
+    developer.log('Next segment to select: $nextSegment');
+
+    if (nextSegment != -1) {
+      currentMultiCitySegment.value = nextSegment;
+
+      // Get flights for the next segment
+      final segmentFlights = getFlightsForSegment(nextSegment);
+      developer.log('Found ${segmentFlights.length} flights for segment $nextSegment');
+
+      if (segmentFlights.isEmpty) {
+        developer.log('No flights found for segment $nextSegment');
+        Get.snackbar(
+          'No Flights Available',
+          'No flights found for this segment. Please try different dates or routes.',
+          snackPosition: SnackPosition.BOTTOM,
+        );
+
+        // Try to find the next available segment
+        bool foundNextSegment = false;
+        final bookingController = Get.find<FlightBookingController>();
+        for (int i = nextSegment + 1;
+            i < bookingController.cityPairs.length;
+            i++) {
+          final testFlights = getFlightsForSegment(i);
+          if (testFlights.isNotEmpty) {
+            currentMultiCitySegment.value = i;
+            _showMultiCityFlightSelection(i);
+            foundNextSegment = true;
+            break;
+          }
+        }
+
+        if (!foundNextSegment) {
+          // No more segments with flights, proceed to review
+          _proceedToMultiCityReview();
+        }
+      } else {
+        developer.log('Showing flight selection for segment $nextSegment');
+        Future.delayed(const Duration(milliseconds: 300), () {
+          _showMultiCityFlightSelection(nextSegment);
+        });
+      }
+    } else {
+      developer.log('All segments processed, proceeding to review');
+      _proceedToMultiCityReview();
+    }
+  }
+
+  // Show multi-city flight selection for a segment
+  void _showMultiCityFlightSelection(int segmentIndex) {
+    final bookingController = Get.find<FlightBookingController>();
+
+    if (segmentIndex >= bookingController.cityPairs.length) {
+      developer.log('Invalid segment index: $segmentIndex');
+      return;
+    }
+
+    final cityPair = bookingController.cityPairs[segmentIndex];
+    final segmentFlights = getFlightsForSegment(segmentIndex);
+
+    developer.log('_showMultiCityFlightSelection for segment $segmentIndex');
+    developer.log('Route: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
+    developer.log('Available flights for segment: ${segmentFlights.length}');
+
+    // Update current segment before showing selection
+    currentMultiCitySegment.value = segmentIndex;
+
+    // Close any open dialogs first
+    if (Get.isDialogOpen == true) {
+      Get.back();
+    }
+
+    // Navigate to multi-city flight selection page
+    Future.microtask(() {
+      Get.off(() => FlyDubaiMultiCityFlightPage(
+            currentSegment: segmentIndex,
+            availableFlights: segmentFlights,
+          ));
+    });
+  }
+
+  // Proceed to multi-city review/booking
+  // Add multi-city flights to cart
+  Future<Map<String, dynamic>> addMultiCityFlightsToCart() async {
+    try {
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      developer.log('🛒 ADDING MULTI-CITY FLIGHTS TO CART');
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+      final selectedFlights = selectedMultiCityFlights
+          .where((f) => f != null)
+          .cast<FlydubaiFlight>()
+          .toList();
+      final selectedFareOptions = selectedMultiCityFareOptions
+          .where((f) => f != null)
+          .cast<FlydubaiFlightFare>()
+          .toList();
+
+      if (selectedFlights.isEmpty || selectedFareOptions.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No flights selected for multi-city cart',
+        };
+      }
+
+      if (selectedFlights.length != selectedFareOptions.length) {
+        return {
+          'success': false,
+          'error': 'Mismatch between selected flights and fare options',
+        };
+      }
+
+      final List<String> bookingIds = [];
+
+      // Add all multi-city segments to booking IDs
+      for (int i = 0; i < selectedFlights.length; i++) {
+        final flight = selectedFlights[i];
+        final fareOption = selectedFareOptions[i];
+        
+        developer.log('📍 Processing Multi-City Segment $i:');
+        developer.log('   - Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
+        developer.log('   - LFID: ${flight.flightSegment.lfid}');
+        developer.log('   - Route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
+        developer.log('   - Selected Fare: ${fareOption.fareTypeName}');
+        
+        final fareIndex = _getFareIndex(flight, fareOption);
+        final bookingId = '${flight.flightSegment.lfid}_$fareIndex';
+        bookingIds.add(bookingId);
+        developer.log('   ✅ Segment $i Booking ID: $bookingId');
+      }
+
+      if (bookingIds.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No booking IDs generated for multi-city cart',
+        };
+      }
+
+      // Use first flight's raw data for cart (all flights should have similar structure)
+      final flightData = selectedFlights.first.rawData;
+
+      if (flightData == null) {
+        return {
+          'success': false,
+          'error': 'No flight data available for multi-city cart',
+        };
+      }
+
+      developer.log('📤 Calling addToCart API with ${bookingIds.length} segments');
+      final result = await apiService.addToCart(
+        bookingIds: bookingIds,
+        flightData: flightData,
+      );
+
+      if (result['success'] == true) {
+        developer.log('✅ Multi-city flights added to cart successfully');
+        
+        // Store cart data AND security GUID for booking process
+        _cartData = result['data'];
+        final securityGuid = result['securityGuid'];
+        
+        if (securityGuid != null) {
+          _cartData?['SecurityGuid'] = securityGuid;
+        }
+        
+        developer.log('Security GUID for PNR: $securityGuid');
+      } else {
+        developer.log('❌ Failed to add multi-city flights to cart: ${result['error']}');
+      }
+
+      return result;
+    } catch (e) {
+      developer.log('❌ Add multi-city to cart error: $e');
+      return {
+        'success': false,
+        'error': 'Failed to add multi-city flights to cart: $e',
+      };
+    }
+  }
+
+  void _proceedToMultiCityReview() async {
+    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    developer.log('🚀 PROCEEDING TO MULTI-CITY REVIEW');
+    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    final selectedFlights = selectedMultiCityFlights
+        .where((f) => f != null)
+        .cast<FlydubaiFlight>()
+        .toList();
+    final selectedFareOptions = selectedMultiCityFareOptions
+        .where((f) => f != null)
+        .cast<FlydubaiFlightFare>()
+        .toList();
+
+    if (selectedFlights.isEmpty || selectedFareOptions.isEmpty) {
+      developer.log('❌ No flights selected for multi-city booking');
+      Get.snackbar(
+        'Selection Incomplete',
+        'Please select flights for all segments',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    if (selectedFlights.length != selectedFareOptions.length) {
+      developer.log('❌ Mismatch: ${selectedFlights.length} flights but ${selectedFareOptions.length} fare options');
+      Get.snackbar(
+        'Selection Error',
+        'Mismatch between flights and packages',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+      return;
+    }
+
+    developer.log('✅ All ${selectedFlights.length} segments selected');
+    for (int i = 0; i < selectedFlights.length; i++) {
+      developer.log(
+        '  Segment $i: ${selectedFlights[i].flightSegment.origin} -> ${selectedFlights[i].flightSegment.destination} (${selectedFareOptions[i].fareTypeName})',
+      );
+    }
+
+    // Show loading indicator
+    Get.dialog(
+      const Center(child: CircularProgressIndicator()),
+      barrierDismissible: false,
+    );
+
+    try {
+      // Add all multi-city flights to cart
+      developer.log('🛒 Adding multi-city flights to cart...');
+      final cartResult = await addMultiCityFlightsToCart();
+
+      Get.back(); // Close loading dialog
+
+      if (cartResult['success'] != true) {
+        developer.log('❌ Failed to add flights to cart: ${cartResult['error']}');
+        Get.snackbar(
+          'Error',
+          'Failed to add flights to cart: ${cartResult['error'] ?? "Unknown error"}',
+          snackPosition: SnackPosition.BOTTOM,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+        );
+        return;
+      }
+
+      developer.log('✅ Multi-city flights added to cart successfully');
+      
+      // Calculate total price
+      double totalPrice = 0.0;
+      for (int i = 0; i < selectedFareOptions.length; i++) {
+        totalPrice += selectedFareOptions[i].baseFareAmountIncludingTax;
+      }
+
+      developer.log('💰 Total price: $totalPrice ${selectedFlights.first.currency}');
+
+      // Navigate to booking form
+      // Use first flight as primary, but pass all flights and fare options
+      // Note: AirBlueBookingFlight.forFlyDubai doesn't support multi-city yet,
+      // so we'll use the first flight and pass the rest via cartData
+      developer.log('📋 Navigating to booking form...');
+      Get.to(
+        () => AirBlueBookingFlight.forFlyDubai(
+          flight: selectedFlights.first,
+          returnFlight: selectedFlights.length > 1 ? selectedFlights[1] : null,
+          outboundFare: selectedFareOptions.first,
+          returnFare: selectedFareOptions.length > 1 ? selectedFareOptions[1] : null,
+          totalPrice: totalPrice,
+          currency: selectedFlights.first.currency,
+          cartData: _cartData,
+        ),
+      );
+    } catch (e, stackTrace) {
+      Get.back(); // Close loading dialog
+      developer.log('❌ Error in _proceedToMultiCityReview: $e');
+      developer.log('Stack trace: $stackTrace');
+      Get.snackbar(
+        'Error',
+        'Failed to proceed to booking: $e',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+    }
   }
 }
 

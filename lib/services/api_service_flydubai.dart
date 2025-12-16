@@ -128,12 +128,22 @@ class ApiServiceFlyDubai {
 
       if (type == 2 && multiCitySegments != null && multiCitySegments.isNotEmpty) {
         // Multi-city search
-        print('Processing multi-city search with ${multiCitySegments.length} segments');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('🌍 Processing multi-city search');
+        print('  Multi-city segments received: ${multiCitySegments.length}');
+        for (int i = 0; i < multiCitySegments.length; i++) {
+          print('    Segment $i: ${multiCitySegments[i]}');
+        }
         searchParams = _buildMultiCityRequest(
           segments: multiCitySegments,
           passengers: adult + child + infant,
           cabin: cabin,
         );
+        print('  ✅ Multi-city request built successfully');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('📤 MULTI-CITY REQUEST JSON:');
+        print(JsonEncoder.withIndent('  ').convert(searchParams));
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       } else if (type == 1) {
         // Round-trip search
         print('Processing round-trip search');
@@ -229,8 +239,93 @@ class ApiServiceFlyDubai {
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
-        print("++++++++++++++++++Fly Dubai Response ++++++++++++++++++");
-        printJsonPretty(responseData);
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+        print("✅ FlyDubai API Response (Status 200)");
+        print("Trip Type: ${_getTripTypeName(type)}");
+        
+        // Extract essential information from response
+        final retrieveResult = responseData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+        if (retrieveResult != null) {
+          // Check exceptions
+          final exceptions = retrieveResult['Exceptions']?['ExceptionInformation.Exception'];
+          if (exceptions != null) {
+            final exceptionList = exceptions is List ? exceptions : [exceptions];
+            if (exceptionList.isNotEmpty) {
+              final firstException = exceptionList.first;
+              print("  Exception Level: ${firstException['ExceptionLevel']}");
+              print("  Exception Description: ${firstException['ExceptionDescription']}");
+            }
+          }
+          
+          // Flight segments summary
+          final flightSegments = retrieveResult['FlightSegments']?['FlightSegment'];
+          if (flightSegments != null) {
+            final segmentsList = flightSegments is List ? flightSegments : [flightSegments];
+            print("  📊 Flight Segments: ${segmentsList.length} total");
+            
+            // Show first 5 segments summary
+            final maxSegmentsToShow = segmentsList.length > 5 ? 5 : segmentsList.length;
+            for (int i = 0; i < maxSegmentsToShow; i++) {
+              final seg = segmentsList[i];
+              if (seg is Map) {
+                final lfid = seg['LFID'];
+                final depDate = seg['DepartureDate'];
+                final arrDate = seg['ArrivalDate'];
+                final legCount = seg['LegCount'];
+                final fareTypes = seg['FareTypes']?['FareType'];
+                final fareCount = fareTypes != null ? (fareTypes is List ? fareTypes.length : 1) : 0;
+                print("    Segment $i: LFID=$lfid, Dep=$depDate, Arr=$arrDate, Legs=$legCount, Fares=$fareCount");
+              }
+            }
+            if (segmentsList.length > 5) {
+              print("    ... and ${segmentsList.length - 5} more segments");
+            }
+          } else {
+            print("  ⚠️ No FlightSegments found in response");
+          }
+          
+          // LegDetails summary
+          final legDetails = retrieveResult['LegDetails']?['LegDetail'];
+          if (legDetails != null) {
+            final legList = legDetails is List ? legDetails : [legDetails];
+            print("  ✈️ Leg Details: ${legList.length} legs");
+            for (int i = 0; i < (legList.length > 3 ? 3 : legList.length); i++) {
+              final leg = legList[i];
+              if (leg is Map) {
+                print("    Leg $i: ${leg['Origin']} -> ${leg['Destination']}, Flight ${leg['FlightNum']}, Date: ${leg['DepartureDate']}");
+              }
+            }
+            if (legList.length > 3) {
+              print("    ... and ${legList.length - 3} more legs");
+            }
+          }
+          
+          // SegmentDetails summary (for multi-city)
+          final segmentDetails = retrieveResult['SegmentDetails']?['SegmentDetail'];
+          if (segmentDetails != null) {
+            final segDetailList = segmentDetails is List ? segmentDetails : [segmentDetails];
+            print("  🗺️ Segment Details: ${segDetailList.length} segments");
+            for (int i = 0; i < (segDetailList.length > 3 ? 3 : segDetailList.length); i++) {
+              final seg = segDetailList[i];
+              if (seg is Map) {
+                print("    Seg $i: ${seg['Origin']} -> ${seg['Destination']}, LFID=${seg['LFID']}, Date: ${seg['DepartureDate']}");
+              }
+            }
+            if (segDetailList.length > 3) {
+              print("    ... and ${segDetailList.length - 3} more segment details");
+            }
+          }
+          
+          // Currency
+          final currency = retrieveResult['CurrencyOfFareQuote'];
+          if (currency != null) {
+            print("  💰 Currency: $currency");
+          }
+        } else {
+          print("  ⚠️ No RetrieveFareQuoteDateRangeResult found in response");
+        }
+        
+        print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         return {
           'success': true,
           'flights': responseData,
@@ -884,13 +979,25 @@ class ApiServiceFlyDubai {
     required int passengers,
     required String cabin,
   }) {
-    print('Building multi-city request with ${segments.length} segments');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('🏗️ Building multi-city request');
+    print('  Total segments: ${segments.length}');
+    print('  Passengers: $passengers');
+    print('  Cabin: $cabin');
 
     final List<Map<String, dynamic>> fareQuoteDetails = [];
 
-    for (var segment in segments) {
+    for (int i = 0; i < segments.length; i++) {
+      final segment = segments[i];
+      print('  ──────────────────────────────────────');
+      print('  Segment $i:');
+      print('    From: ${segment['from']}');
+      print('    To: ${segment['to']}');
+      print('    Date: ${segment['date']}');
+      
       final departureDate = DateTime.parse(segment['date']!);
-      print('Adding segment: ${segment['from']} -> ${segment['to']} on ${segment['date']}');
+      print('    Parsed date: ${departureDate.toIso8601String()}');
+      print('    Date range: ${departureDate.toIso8601String().substring(0, 10)}T00:00:00 to ${departureDate.toIso8601String().substring(0, 10)}T23:59:59');
 
       fareQuoteDetails.add({
         "Origin": segment['from'],
@@ -909,7 +1016,10 @@ class ApiServiceFlyDubai {
         },
         "FareTypeCategory": "1"
       });
+      print('    ✅ Segment $i added to request');
     }
+    
+    print('  Total fareQuoteDetails: ${fareQuoteDetails.length}');
 
     return {
       "RetrieveFareQuoteDateRange": {

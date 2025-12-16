@@ -16,6 +16,8 @@ import '../../../booking_flight/airblue/airblue_booking_flight.dart';
 class FlyDubaiPackageSelectionDialog extends StatelessWidget {
   final FlydubaiFlight flight;
   final bool isReturnFlight;
+  final bool isMultiCity;
+  final int? segmentIndex;
   final RxBool isLoading = false.obs;
 
   // Cache for margin data and calculated prices
@@ -26,6 +28,8 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
     super.key,
     required this.flight,
     required this.isReturnFlight,
+    this.isMultiCity = false,
+    this.segmentIndex,
   });
 
   final flyDubaiController = Get.find<FlydubaiFlightController>();
@@ -34,6 +38,14 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('🏗️ FlyDubaiPackageSelectionDialog.build()');
+    print('  isMultiCity: $isMultiCity');
+    print('  segmentIndex: $segmentIndex');
+    print('  Flight LFID: ${flight.flightSegment.lfid}');
+    print('  Flight RPH: ${flight.rph}');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    
     // Pre-fetch margin data when dialog opens
     _prefetchMarginData();
     flightBookingController = Get.find<FlightBookingController>();
@@ -70,13 +82,25 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
 
   Future<void> _prefetchMarginData() async {
     try {
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('💰 _prefetchMarginData called');
+      print('  isMultiCity: $isMultiCity');
+      print('  segmentIndex: $segmentIndex');
+      print('  Flight LFID: ${flight.flightSegment.lfid}');
+      
       if (marginData.value.isEmpty) {
         final apiService = Get.find<ApiServiceSabre>();
         marginData.value = await apiService.getMargin(flight.airlineCode, flight.airlineName);
       }
 
       // Pre-calculate prices for all fare options
-      final fareOptions = flyDubaiController.getFareOptionsForFlight(flight);
+      final fareOptions = flyDubaiController.getFareOptionsForFlight(
+        flight,
+        segmentIndex: isMultiCity ? segmentIndex : null,
+      );
+      
+      print('  Fare options in prefetch: ${fareOptions.length}');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       for (var option in fareOptions) {
         final String packageKey = '${option.cabin}-${option.fareTypeName}';
 
@@ -100,7 +124,20 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
 
   Widget _buildPackagesList() {
     // Get fare options for the selected flight
-    final List<FlydubaiFlightFare> fareOptions = flyDubaiController.getFareOptionsForFlight(flight);
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    print('📦 _buildPackagesList called');
+    print('  isMultiCity: $isMultiCity');
+    print('  segmentIndex: $segmentIndex');
+    print('  Flight LFID: ${flight.flightSegment.lfid}');
+    print('  Flight RPH: ${flight.rph}');
+    
+    final List<FlydubaiFlightFare> fareOptions = flyDubaiController.getFareOptionsForFlight(
+      flight,
+      segmentIndex: isMultiCity ? segmentIndex : null,
+    );
+    
+    print('  Fare options retrieved: ${fareOptions.length}');
+    print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
     // Handle empty state
     if (fareOptions.isEmpty) {
@@ -145,7 +182,10 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
         package.baseFareAmountIncludingTax;
 
     // Determine if this is the cheapest option
-    final List<FlydubaiFlightFare> allOptions = flyDubaiController.getFareOptionsForFlight(flight);
+    final List<FlydubaiFlightFare> allOptions = flyDubaiController.getFareOptionsForFlight(
+      flight,
+      segmentIndex: isMultiCity ? segmentIndex : null,
+    );
     final sortedOptions = List<FlydubaiFlightFare>.from(allOptions);
     sortedOptions.sort((a, b) => (finalPrices['${a.cabin}-${a.fareTypeName}']?.value ?? a.baseFareAmountIncludingTax).compareTo(finalPrices['${b.cabin}-${b.fareTypeName}']?.value ?? b.baseFareAmountIncludingTax));
     final isCheapest = sortedOptions.isNotEmpty && package == sortedOptions.first;
@@ -521,7 +561,10 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
 
       // Get all fare options for this flight
       final List<FlydubaiFlightFare> fareOptions =
-      flyDubaiController.getFareOptionsForFlight(flight);
+      flyDubaiController.getFareOptionsForFlight(
+        flight,
+        segmentIndex: isMultiCity ? segmentIndex : null,
+      );
 
       print('Available Fare Options: ${fareOptions.length}');
       for (int i = 0; i < fareOptions.length; i++) {
@@ -569,6 +612,19 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
         }
       } else {
         print('⏭️ Skipping revalidation for return flight (will add both to cart together)');
+      }
+
+      // Handle multi-city selection
+      if (isMultiCity && segmentIndex != null) {
+        Get.back(); // Close the package selection dialog
+        
+        // Store multi-city selection
+        flyDubaiController.handleMultiCityPackageSelection(
+          selectedFareOption,
+          segmentIndex!,
+        );
+        
+        return;
       }
 
       // Check if this is a one-way flight or we need to select a return flight

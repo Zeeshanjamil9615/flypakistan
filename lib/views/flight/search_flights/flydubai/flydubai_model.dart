@@ -183,12 +183,46 @@ class FlydubaiFlightSegment {
       DateTime arrivalDateTime = DateTime.now().add(Duration(hours: 3));
 
       // Try to find matching segment in SegmentDetails
-      final segmentDetails = fullResponse['SegmentDetails']?['SegmentDetail'];
       final lfid = (json['LFID'] as num?)?.toInt();
+      
+      if (kDebugMode) {
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('🔍 Parsing segment LFID: $lfid');
+        print('  FullResponse type: ${fullResponse.runtimeType}');
+        print('  FullResponse keys: ${fullResponse.keys}');
+        print('  FullResponse has SegmentDetails key: ${fullResponse.containsKey('SegmentDetails')}');
+        print('  FullResponse has LegDetails key: ${fullResponse.containsKey('LegDetails')}');
+      }
+      
+      final segmentDetails = fullResponse['SegmentDetails']?['SegmentDetail'];
+      
+      if (kDebugMode) {
+        print('  SegmentDetails found: ${segmentDetails != null}');
+        if (segmentDetails != null) {
+          print('  SegmentDetails type: ${segmentDetails.runtimeType}');
+          if (segmentDetails is List) {
+            print('  SegmentDetails count: ${segmentDetails.length}');
+            if (segmentDetails.isNotEmpty) {
+              print('  First SegmentDetail keys: ${segmentDetails[0].keys}');
+              print('  First SegmentDetail LFID: ${segmentDetails[0]['LFID']}');
+            }
+          } else if (segmentDetails is Map) {
+            print('  Single SegmentDetail keys: ${segmentDetails.keys}');
+            print('  Single SegmentDetail LFID: ${segmentDetails['LFID']}');
+          }
+        } else {
+          print('  ⚠️ SegmentDetails is null - checking alternative paths...');
+          // Try alternative path
+          final altPath = fullResponse['RetrieveFareQuoteDateRangeResult']?['SegmentDetails']?['SegmentDetail'];
+          print('  Alternative path (RetrieveFareQuoteDateRangeResult.SegmentDetails): ${altPath != null}');
+        }
+      }
 
       if (segmentDetails is List) {
+        bool found = false;
         for (var segment in segmentDetails) {
-          if ((segment['LFID'] as num?)?.toInt() == lfid) {
+          final segmentLfid = (segment['LFID'] as num?)?.toInt();
+          if (segmentLfid == lfid) {
             origin = segment['Origin']?.toString() ?? '';
             destination = segment['Destination']?.toString() ?? '';
             flightNumber = segment['FlightNum']?.toString() ?? '';
@@ -200,12 +234,143 @@ class FlydubaiFlightSegment {
             if (segment['ArrivalDate'] != null) {
               arrivalDateTime = DateTime.parse(segment['ArrivalDate'].toString());
             }
+            
+            if (kDebugMode) {
+              print('  ✅ Found segment in SegmentDetails: $origin -> $destination');
+            }
+            found = true;
             break;
+          }
+        }
+        
+        if (!found && kDebugMode) {
+          print('  ⚠️ Segment LFID $lfid not found in SegmentDetails');
+          if (segmentDetails.isNotEmpty) {
+            print('  Available LFIDs: ${segmentDetails.map((s) => (s['LFID'] as num?)?.toInt()).toList()}');
+          }
+        }
+      } else if (segmentDetails is Map) {
+        // Handle single segment case
+        final segmentLfid = (segmentDetails['LFID'] as num?)?.toInt();
+        if (segmentLfid == lfid) {
+          origin = segmentDetails['Origin']?.toString() ?? '';
+          destination = segmentDetails['Destination']?.toString() ?? '';
+          flightNumber = segmentDetails['FlightNum']?.toString() ?? '';
+
+          if (segmentDetails['DepartureDate'] != null) {
+            departureDateTime = DateTime.parse(segmentDetails['DepartureDate'].toString());
+          }
+          if (segmentDetails['ArrivalDate'] != null) {
+            arrivalDateTime = DateTime.parse(segmentDetails['ArrivalDate'].toString());
+          }
+          
+          if (kDebugMode) {
+            print('  ✅ Found segment in SegmentDetails (single): $origin -> $destination');
           }
         }
       }
 
-      // Fallback to json data if segment details not found
+      // Fallback: Use dates from FlightSegment if SegmentDetails lookup failed
+      if (origin.isEmpty || destination.isEmpty) {
+        if (kDebugMode) {
+          print('  ⚠️ Using fallback - checking FlightSegment dates and LegDetails');
+        }
+        
+        // Use dates from the FlightSegment itself
+        if (json['DepartureDate'] != null) {
+          departureDateTime = DateTime.parse(json['DepartureDate'].toString());
+        }
+        if (json['ArrivalDate'] != null) {
+          arrivalDateTime = DateTime.parse(json['ArrivalDate'].toString());
+        }
+        
+        // Try to get from FlightLegDetails first (inside the segment)
+        final flightLegDetails = json['FlightLegDetails']?['FlightLegDetail'];
+        if (flightLegDetails != null) {
+          if (kDebugMode) {
+            print('  Checking FlightLegDetails...');
+          }
+          final legList = flightLegDetails is List ? flightLegDetails : [flightLegDetails];
+          // Get PFIDs from FlightLegDetails
+          final pfids = <int>[];
+          for (var leg in legList) {
+            final pfid = (leg['PFID'] as num?)?.toInt();
+            if (pfid != null) {
+              pfids.add(pfid);
+            }
+          }
+          if (kDebugMode && pfids.isNotEmpty) {
+            print('  Found PFIDs: $pfids');
+          }
+          
+          // Now try to match in top-level LegDetails using PFID
+          final legDetails = fullResponse['LegDetails']?['LegDetail'];
+          if (legDetails != null) {
+            final legList2 = legDetails is List ? legDetails : [legDetails];
+            for (var pfid in pfids) {
+              for (var leg in legList2) {
+                final legPfid = (leg['PFID'] as num?)?.toInt();
+                if (legPfid == pfid) {
+                  // Match found! Extract origin/destination
+                  if (origin.isEmpty) {
+                    origin = leg['Origin']?.toString() ?? '';
+                  }
+                  if (destination.isEmpty) {
+                    destination = leg['Destination']?.toString() ?? '';
+                  }
+                  if (flightNumber.isEmpty) {
+                    flightNumber = leg['FlightNum']?.toString() ?? '';
+                  }
+                  if (kDebugMode && (origin.isNotEmpty || destination.isNotEmpty)) {
+                    print('  ✅ Found from LegDetails (PFID $pfid): $origin -> $destination');
+                  }
+                  break;
+                }
+              }
+              if (origin.isNotEmpty && destination.isNotEmpty) break;
+            }
+          }
+        }
+        
+        // Final fallback: Try direct LegDetails match by date
+        if ((origin.isEmpty || destination.isEmpty) && fullResponse['LegDetails'] != null) {
+          final legDetails = fullResponse['LegDetails']?['LegDetail'];
+          if (legDetails != null) {
+            final legList = legDetails is List ? legDetails : [legDetails];
+            for (var leg in legList) {
+              final legDate = leg['DepartureDate']?.toString();
+              if (legDate != null) {
+                try {
+                  final legDateTime = DateTime.parse(legDate);
+                  if (legDateTime.year == departureDateTime.year &&
+                      legDateTime.month == departureDateTime.month &&
+                      legDateTime.day == departureDateTime.day) {
+                    if (origin.isEmpty) {
+                      origin = leg['Origin']?.toString() ?? '';
+                    }
+                    if (destination.isEmpty) {
+                      destination = leg['Destination']?.toString() ?? '';
+                    }
+                    if (flightNumber.isEmpty) {
+                      flightNumber = leg['FlightNum']?.toString() ?? '';
+                    }
+                    if (kDebugMode && (origin.isNotEmpty || destination.isNotEmpty)) {
+                      print('  ✅ Found from LegDetails (date match): $origin -> $destination');
+                    }
+                    break;
+                  }
+                } catch (e) {
+                  if (kDebugMode) {
+                    print('  Error parsing leg date: $e');
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // Final fallback
       if (origin.isEmpty) {
         origin = json['Origin']?.toString() ?? 'N/A';
       }
@@ -214,6 +379,10 @@ class FlydubaiFlightSegment {
       }
       if (flightNumber.isEmpty) {
         flightNumber = json['FlightNum']?.toString() ?? 'N/A';
+      }
+      
+      if (kDebugMode) {
+        print('  Final segment: $origin -> $destination on ${departureDateTime.toIso8601String().substring(0, 10)}');
       }
 
       return FlydubaiFlightSegment(

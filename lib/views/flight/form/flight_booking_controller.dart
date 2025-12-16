@@ -499,19 +499,17 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
       ),
     ];
 
-      // FlyDubai: skip multi-city for now (backend revalidation issues).
-      // To re-enable multicity, remove the tripType check below.
-      if (tripType.value != TripType.multiCity)
-        futures.add(_callFlyDubaiApi(
-          type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
-          origin: origin,
-          destination: destination,
-          depDate: formattedDates,
-          adult: adultCount.value,
-          child: childrenCount.value,
-          infant: infantCount.value,
-          cabin: travelClass.value,
-        ));
+      // Call FlyDubai API for all trip types including multi-city
+      futures.add(_callFlyDubaiApi(
+        type: tripType.value == TripType.multiCity ? 2 : (tripType.value == TripType.roundTrip ? 1 : 0),
+        origin: origin,
+        destination: destination,
+        depDate: formattedDates,
+        adult: adultCount.value,
+        child: childrenCount.value,
+        infant: infantCount.value,
+        cabin: travelClass.value,
+      ));
 
     // Add PIA API call based on trip type
     if (tripType.value == TripType.multiCity && cityPairs.isNotEmpty) {
@@ -711,7 +709,12 @@ final EmiratesFlightController emiratesController = Get.put(EmiratesFlightContro
 
       // Process result
       if (result['success'] == true && result.containsKey('flights')) {
-        flydubaiController.loadFlights(result, fromCity.value, toCity.value, tripType.value == TripType.roundTrip ? 1 : 0);
+        // Determine trip type: 0 = one-way, 1 = round-trip, 2 = multi-city
+        final flyDubaiTripType = tripType.value == TripType.multiCity 
+            ? 2 
+            : (tripType.value == TripType.roundTrip ? 1 : 0);
+        debugPrint('FlyDubai loadFlights called with tripType: $flyDubaiTripType (${tripType.value == TripType.multiCity ? "Multi-city" : tripType.value == TripType.roundTrip ? "Round-trip" : "One-way"})');
+        flydubaiController.loadFlights(result, fromCity.value, toCity.value, flyDubaiTripType);
         debugPrint('FlyDubai flights loaded successfully');
       } else {
         final error = result['error'] ?? 'Unknown FlyDubai API error';
