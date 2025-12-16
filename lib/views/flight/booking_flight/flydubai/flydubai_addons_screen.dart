@@ -9,6 +9,7 @@ import '../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/flydubai/flydubai_model.dart';
 import '../../search_flights/flydubai/flydubai_extras_controller.dart';
+import '../../search_flights/flydubai/flydubai_controller.dart';
 import '../booking_flight_controller.dart';
 import 'flydubai_payment_screen.dart';
 
@@ -105,29 +106,29 @@ class _FlyDubaiAddOnsScreenState extends State<FlyDubaiAddOnsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            _buildAddOnTile(
+            Obx(() => _buildAddOnTile(
               title: 'Choose your seats',
               subtitle: _seatSummary(),
               icon: Icons.event_seat,
               actionLabel: 'Select',
               onTap: _openSeatSelector,
-            ),
+            )),
             const SizedBox(height: 12),
-            _buildAddOnTile(
+            Obx(() => _buildAddOnTile(
               title: 'Choose your baggage',
               subtitle: _baggageSummary(),
               icon: Icons.luggage,
               actionLabel: 'Select',
               onTap: _openBaggageSelector,
-            ),
+            )),
             const SizedBox(height: 12),
-            _buildAddOnTile(
+            Obx(() => _buildAddOnTile(
               title: 'Choose your meal',
               subtitle: _mealSummary(),
               icon: Icons.restaurant,
               actionLabel: 'Select',
               onTap: _openMealSelector,
-            ),
+            )),
           ],
         ),
       ),
@@ -652,6 +653,7 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
         child: Column(
           children: [
             _buildHeader('Add Extra Baggage'),
+            _buildSegmentSelectorForBaggage(),
             _buildPassengerChips(),
             Expanded(
               child: _buildBaggageList(),
@@ -675,11 +677,68 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
     );
+  }
+
+  Widget _buildSegmentSelectorForBaggage() {
+    final segments = widget.controller.getSegmentCodes();
+    final isMultiCity = segments.length > 1;
+    
+    if (isMultiCity) {
+      try {
+        final flyController = Get.find<FlydubaiFlightController>();
+        final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+            .where((f) => f != null)
+            .cast<FlydubaiFlight>()
+            .toList();
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: DropdownButtonFormField<String>(
+            value: _segmentCode,
+            decoration: InputDecoration(
+              labelText: 'Select Flight Segment',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: TColors.primary.withOpacity(0.1),
+            ),
+            items: segments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final segmentCode = entry.value;
+              String displayText = 'Segment ${index + 1}';
+              
+              if (index < selectedMultiCityFlightsList.length) {
+                final segmentFlight = selectedMultiCityFlightsList[index];
+                final origin = segmentFlight.flightSegment.origin;
+                final destination = segmentFlight.flightSegment.destination;
+                displayText = 'Segment ${index + 1}: $origin → $destination';
+              }
+              
+              return DropdownMenuItem<String>(
+                value: segmentCode,
+                child: Text(displayText),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  _segmentCode = newValue;
+                });
+              }
+            },
+          ),
+        );
+      } catch (e) {
+        return const SizedBox.shrink();
+      }
+    }
+    return const SizedBox.shrink();
   }
 
   Widget _buildPassengerChips() {
@@ -760,9 +819,12 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
             ),
           ),
           const SizedBox(height: 16),
-          // Baggage options - filtered and sorted
+          // Baggage options - filtered and sorted (pass segment code for multi-city to get correct fare type)
+          // Use Obx to watch availableBaggage, and rebuild when segment changes via setState
           Obx(() {
-            final filteredBaggage = widget.controller.getFilteredAndSortedBaggageOptions();
+            // Access availableBaggage to make Obx reactive to it
+            final _ = widget.controller.availableBaggage.length;
+            final filteredBaggage = widget.controller.getFilteredAndSortedBaggageOptions(segmentCode: _segmentCode);
             
             if (filteredBaggage.isEmpty) {
               return const Center(
@@ -989,7 +1051,7 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
-        onPressed: () => Get.back(),
+        onPressed: () => Navigator.pop(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: TColors.primary,
           minimumSize: const Size.fromHeight(44),
@@ -1016,6 +1078,7 @@ class FlyDubaiMealSelector extends StatefulWidget {
 class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
   int _selectedPassengerIndex = 0;
   late String _segmentCode;
+  late String _legCode;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
 
@@ -1024,6 +1087,9 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
     super.initState();
     final segments = widget.controller.getSegmentCodes();
     _segmentCode = segments.isNotEmpty ? segments.first : '0';
+    // Get leg codes for the selected segment
+    final legCodes = widget.controller.getLegCodesForSegment(_segmentCode);
+    _legCode = legCodes.isNotEmpty ? legCodes.first : _segmentCode;
     if (widget.controller.passengerIds.isNotEmpty) {
       _selectedPassengerIndex = 0;
     } else {
@@ -1053,6 +1119,7 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
           children: [
             _buildHeader('Add Meal'),
             _buildSegmentSelector(),
+            _buildLegSelector(),
             Expanded(
               child: _buildMealList(),
             ),
@@ -1078,7 +1145,7 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
       ),
@@ -1086,6 +1153,67 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
   }
 
   Widget _buildSegmentSelector() {
+    final segments = widget.controller.getSegmentCodes();
+    final isMultiCity = segments.length > 1;
+    
+    // For multi-city, show dropdown to select segment
+    if (isMultiCity) {
+      // Get flight info for each segment
+      try {
+        final flyController = Get.find<FlydubaiFlightController>();
+        final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+            .where((f) => f != null)
+            .cast<FlydubaiFlight>()
+            .toList();
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: DropdownButtonFormField<String>(
+            value: _segmentCode,
+            decoration: InputDecoration(
+              labelText: 'Select Flight Segment',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: TColors.primary.withOpacity(0.1),
+            ),
+            items: segments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final segmentCode = entry.value;
+              String displayText = 'Segment ${index + 1}';
+              
+              // Try to get flight info for this segment
+              if (index < selectedMultiCityFlightsList.length) {
+                final segmentFlight = selectedMultiCityFlightsList[index];
+                final origin = segmentFlight.flightSegment.origin;
+                final destination = segmentFlight.flightSegment.destination;
+                displayText = 'Segment ${index + 1}: $origin → $destination';
+              }
+              
+              return DropdownMenuItem<String>(
+                value: segmentCode,
+                child: Text(displayText),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  _segmentCode = newValue;
+                  // Update leg code when segment changes
+                  final legCodes = widget.controller.getLegCodesForSegment(_segmentCode);
+                  _legCode = legCodes.isNotEmpty ? legCodes.first : _segmentCode;
+                });
+              }
+            },
+          ),
+        );
+      } catch (e) {
+        // Fallback if error
+      }
+    }
+    
+    // For single segment (one-way or round-trip), show static text
     final flight = widget.controller.selectedFlight.value;
     String origin = '';
     String destination = '';
@@ -1125,6 +1253,50 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
     );
   }
 
+  Widget _buildLegSelector() {
+    final legCodes = widget.controller.getLegCodesForSegment(_segmentCode);
+    final hasMultipleLegs = legCodes.length > 1;
+    
+    if (!hasMultipleLegs) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: DropdownButtonFormField<String>(
+        value: _legCode,
+        decoration: InputDecoration(
+          labelText: 'Select Flight Leg',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+          fillColor: TColors.primary.withOpacity(0.1),
+        ),
+        items: legCodes.map((legCode) {
+          final legInfo = widget.controller.getLegInfo(legCode);
+          final origin = legInfo['origin'] ?? '';
+          final destination = legInfo['destination'] ?? '';
+          final displayText = origin.isNotEmpty && destination.isNotEmpty
+              ? '$origin → $destination'
+              : 'Leg ${legCodes.indexOf(legCode) + 1}';
+          
+          return DropdownMenuItem<String>(
+            value: legCode,
+            child: Text(displayText),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          if (newValue != null) {
+            setState(() {
+              _legCode = newValue;
+            });
+          }
+        },
+      ),
+    );
+  }
+
   Widget _buildMealList() {
     if (widget.controller.passengerIds.isEmpty ||
         _selectedPassengerIndex < 0 ||
@@ -1136,7 +1308,7 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
 
     final passengerId = widget.controller.passengerIds[_selectedPassengerIndex];
     final selectedMeal = widget.controller.getSelectedMealForPassenger(
-      _segmentCode,
+      _legCode,
       passengerId,
     );
 
@@ -1172,7 +1344,7 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
             children: [
               IconButton(
                 icon: const Icon(Icons.arrow_back),
-                onPressed: () => Get.back(),
+                onPressed: () => Navigator.pop(context),
                 padding: EdgeInsets.zero,
                 constraints: const BoxConstraints(),
               ),
@@ -1238,7 +1410,7 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
                   meal: meal,
                   isSelected: isSelected,
                   onAdd: () {
-                    final key = 'seg$_segmentCode|$passengerId';
+                    final key = 'leg$_legCode|$passengerId';
                     widget.controller.selectMeal(key, meal);
                     setState(() {});
                   },
@@ -1408,7 +1580,7 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
-        onPressed: () => Get.back(),
+        onPressed: () => Navigator.pop(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: TColors.primary,
           minimumSize: const Size.fromHeight(50),
@@ -1442,12 +1614,16 @@ class FlyDubaiSeatSelector extends StatefulWidget {
 class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
   int _selectedPassengerIndex = 0;
   late String _segmentCode;
+  late String _legCode;
 
   @override
   void initState() {
     super.initState();
     final segments = widget.controller.getSegmentCodes();
     _segmentCode = segments.isNotEmpty ? segments.first : '0';
+    // Get leg codes for the selected segment
+    final legCodes = widget.controller.getLegCodesForSegment(_segmentCode);
+    _legCode = legCodes.isNotEmpty ? legCodes.first : _segmentCode;
     if (widget.controller.passengerIds.isNotEmpty) {
       _selectedPassengerIndex = 0;
     } else {
@@ -1470,6 +1646,8 @@ class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
         child: Column(
           children: [
             _buildHeader('Select Seat'),
+            _buildSegmentSelectorForSeat(),
+            _buildLegSelectorForSeat(),
             _buildPassengerChips(),
             Expanded(
               child: _buildSeatMap(),
@@ -1493,9 +1671,113 @@ class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            onPressed: () => Get.back(),
+            onPressed: () => Navigator.pop(context),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSegmentSelectorForSeat() {
+    final segments = widget.controller.getSegmentCodes();
+    final isMultiCity = segments.length > 1;
+    
+    if (isMultiCity) {
+      try {
+        final flyController = Get.find<FlydubaiFlightController>();
+        final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+            .where((f) => f != null)
+            .cast<FlydubaiFlight>()
+            .toList();
+        
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: DropdownButtonFormField<String>(
+            value: _segmentCode,
+            decoration: InputDecoration(
+              labelText: 'Select Flight Segment',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              filled: true,
+              fillColor: TColors.primary.withOpacity(0.1),
+            ),
+            items: segments.asMap().entries.map((entry) {
+              final index = entry.key;
+              final segmentCode = entry.value;
+              String displayText = 'Segment ${index + 1}';
+              
+              if (index < selectedMultiCityFlightsList.length) {
+                final segmentFlight = selectedMultiCityFlightsList[index];
+                final origin = segmentFlight.flightSegment.origin;
+                final destination = segmentFlight.flightSegment.destination;
+                displayText = 'Segment ${index + 1}: $origin → $destination';
+              }
+              
+              return DropdownMenuItem<String>(
+                value: segmentCode,
+                child: Text(displayText),
+              );
+            }).toList(),
+            onChanged: (String? newValue) {
+              if (newValue != null) {
+                setState(() {
+                  _segmentCode = newValue;
+                  // Update leg code when segment changes
+                  final legCodes = widget.controller.getLegCodesForSegment(_segmentCode);
+                  _legCode = legCodes.isNotEmpty ? legCodes.first : _segmentCode;
+                });
+              }
+            },
+          ),
+        );
+      } catch (e) {
+        return const SizedBox.shrink();
+      }
+    }
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildLegSelectorForSeat() {
+    final legCodes = widget.controller.getLegCodesForSegment(_segmentCode);
+    final hasMultipleLegs = legCodes.length > 1;
+    
+    if (!hasMultipleLegs) {
+      return const SizedBox.shrink();
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: DropdownButtonFormField<String>(
+        value: _legCode,
+        decoration: InputDecoration(
+          labelText: 'Select Flight Leg',
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          filled: true,
+          fillColor: TColors.primary.withOpacity(0.1),
+        ),
+        items: legCodes.map((legCode) {
+          final legInfo = widget.controller.getLegInfo(legCode);
+          final origin = legInfo['origin'] ?? '';
+          final destination = legInfo['destination'] ?? '';
+          final displayText = origin.isNotEmpty && destination.isNotEmpty
+              ? '$origin → $destination'
+              : 'Leg ${legCodes.indexOf(legCode) + 1}';
+          
+          return DropdownMenuItem<String>(
+            value: legCode,
+            child: Text(displayText),
+          );
+        }).toList(),
+        onChanged: (String? newValue) {
+          if (newValue != null) {
+            setState(() {
+              _legCode = newValue;
+            });
+          }
+        },
       ),
     );
   }
@@ -1540,7 +1822,7 @@ class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
 
     final passengerId = widget.controller.passengerIds[_selectedPassengerIndex];
     final selectedSeat = widget.controller.getSelectedSeatForPassenger(
-      _segmentCode,
+      _legCode,
       passengerId,
     );
 
@@ -1700,7 +1982,7 @@ class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
           GestureDetector(
             onTap: isAvailable
                 ? () {
-                    final key = 'seg$_segmentCode|$passengerId';
+                    final key = 'leg$_legCode|$passengerId';
                     final seatToSelect = {
                       'id': apiSeat?['id'] ?? 'SEAT_$seatNumber',
                       'seatNumber': seatNumber,
@@ -1776,7 +2058,7 @@ class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: ElevatedButton(
-        onPressed: () => Get.back(),
+        onPressed: () => Navigator.pop(context),
         style: ElevatedButton.styleFrom(
           backgroundColor: TColors.primary,
           minimumSize: const Size.fromHeight(44),

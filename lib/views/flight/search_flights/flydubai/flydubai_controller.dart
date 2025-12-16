@@ -1252,19 +1252,43 @@ class FlydubaiFlightController extends GetxController {
           final fareId = fareOption.fareId;
           final segmentMeta = _buildSegmentMeta(flight);
 
-          // Get extras data from extras controller
-          // Note: For multi-city, extras might need to be per-segment, but for now using the same extras
+          // Get extras data from extras controller - filter by segment LFID for multi-city
+          final segmentLfid = flight.flightSegment.lfid.toString();
+          final filteredBaggage = _filterExtrasBySegment(extrasController.selectedBaggage, segmentLfid);
+          
+          print('   🔍 Baggage filtering debug for segment $segmentLfid:');
+          print('      - All baggage keys: ${extrasController.selectedBaggage.keys.toList()}');
+          print('      - Looking for keys starting with: seg$segmentLfid|');
+          // Meals and seats use leg codes, need to filter by all legs in this segment
+          final filteredMeals = _filterExtrasByLegForSegment(extrasController.selectedMeals, segmentLfid, flight);
+          final filteredSeats = _filterExtrasByLegForSegment(extrasController.selectedSeats, segmentLfid, flight);
+          
+          print('   🔍 Filtering extras for segment $segmentLfid:');
+          print('      - Total baggage in controller: ${extrasController.selectedBaggage.length}');
+          print('      - Baggage keys: ${extrasController.selectedBaggage.keys.toList()}');
+          print('      - Looking for: seg$segmentLfid|');
+          print('      - Filtered baggage: ${filteredBaggage.length}');
+          if (filteredBaggage.isNotEmpty) {
+            print('      - Filtered baggage keys: ${filteredBaggage.keys.toList()}');
+          }
+          print('      - Total meals in controller: ${extrasController.selectedMeals.length}');
+          print('      - Filtered meals: ${filteredMeals.length}');
+          print('      - Total seats in controller: ${extrasController.selectedSeats.length}');
+          print('      - Filtered seats: ${filteredSeats.length}');
+          
           final baggageExtras = _buildBaggageExtras(
-            extrasController.selectedBaggage,
+            filteredBaggage,
             segmentMeta,
           );
           final mealExtras = _buildMealExtras(
-            extrasController.selectedMeals,
+            filteredMeals,
             segmentMeta,
+            flight,
           );
           final seatExtras = _buildSeatExtras(
-            extrasController.selectedSeats,
+            filteredSeats,
             segmentMeta,
+            flight,
           );
 
           print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
@@ -1303,10 +1327,12 @@ class FlydubaiFlightController extends GetxController {
           final mealExtras = _buildMealExtras(
             extrasController.selectedMeals,
             outboundMeta,
+            selectedOutboundFlight!,
           );
           final seatExtras = _buildSeatExtras(
             extrasController.selectedSeats,
             outboundMeta,
+            selectedOutboundFlight!,
           );
 
           print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
@@ -1345,10 +1371,12 @@ class FlydubaiFlightController extends GetxController {
           final mealExtras = _buildMealExtras(
             extrasController.selectedMeals,
             returnMeta,
+            selectedReturnFlight!,
           );
           final seatExtras = _buildSeatExtras(
             extrasController.selectedSeats,
             returnMeta,
+            selectedReturnFlight!,
           );
 
           print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
@@ -1381,6 +1409,98 @@ class FlydubaiFlightController extends GetxController {
     return segments;
   }
 
+  // Helper method to filter extras by segment code
+  Map<String, dynamic> _filterExtrasBySegment(RxMap<String, dynamic> allExtras, String segmentLfid) {
+    final filtered = <String, dynamic>{};
+    print('   🔍 _filterExtrasBySegment called:');
+    print('      - Looking for segment LFID: $segmentLfid');
+    print('      - Total extras in map: ${allExtras.length}');
+    print('      - All keys: ${allExtras.keys.toList()}');
+    
+    for (final entry in allExtras.entries) {
+      final key = entry.key;
+      // Key format: seg{segmentCode}|p{passengerId}
+      final expectedPrefix = 'seg$segmentLfid|';
+      if (key.startsWith(expectedPrefix)) {
+        filtered[key] = entry.value;
+        print('      ✅ Matched key: $key');
+      } else {
+        print('      ❌ Key "$key" does not start with "$expectedPrefix"');
+      }
+    }
+    
+    print('      - Filtered count: ${filtered.length}');
+    return filtered;
+  }
+
+  // Helper method to filter meals/seats by leg code (for segments with stops)
+  // Keys are stored as: legseg{segmentCode}_leg{pfid}|p{passengerId}
+  Map<String, dynamic> _filterExtrasByLegForSegment(RxMap<String, dynamic> allExtras, String segmentLfid, FlydubaiFlight flight) {
+    final filtered = <String, dynamic>{};
+    
+    // Get all leg codes for this segment from the extras controller
+    try {
+      final flyController = Get.find<FlydubaiFlightController>();
+      final extrasController = Get.find<FlydubaiExtrasController>();
+      final legCodes = extrasController.getLegCodesForSegment(segmentLfid);
+      
+      // Keys are stored as: leg{legCode}|p{passengerId}
+      // where legCode is from getLegCodesForSegment (format: seg{segmentCode}_leg{pfid})
+      for (final entry in allExtras.entries) {
+        final key = entry.key;
+        // Check if this key matches any leg code for this segment
+        for (final legCode in legCodes) {
+          // Key format: leg{legCode}|p{passengerId}
+          if (key.startsWith('leg$legCode|')) {
+            filtered[key] = entry.value;
+            break; // Found a match, no need to check other legs
+          }
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error filtering extras by leg: $e');
+      // Fallback: try to match by PFID directly from flight data
+      final legCodes = <String>[];
+      try {
+        final rawData = flight.rawData;
+        final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+        final flightSegments = retrieveResult?['FlightSegments']?['FlightSegment'];
+        final flightSegmentList = flightSegments is List ? flightSegments : (flightSegments != null ? [flightSegments] : []);
+        
+        for (final seg in flightSegmentList) {
+          if ((seg['LFID'] as num?)?.toInt() == int.tryParse(segmentLfid)) {
+            final flightLegDetails = seg['FlightLegDetails']?['FlightLegDetail'];
+            final legList = flightLegDetails is List ? flightLegDetails : (flightLegDetails != null ? [flightLegDetails] : []);
+            
+            for (final legRef in legList) {
+              final pfid = (legRef['PFID'] as num?)?.toInt();
+              if (pfid != null) {
+                final legCode = 'seg${segmentLfid}_leg$pfid';
+                legCodes.add(legCode);
+              }
+            }
+            break;
+          }
+        }
+      } catch (e2) {
+        print('⚠️ Error in fallback leg code extraction: $e2');
+      }
+      
+      // Try to match with extracted leg codes
+      for (final entry in allExtras.entries) {
+        final key = entry.key;
+        for (final legCode in legCodes) {
+          if (key.startsWith('leg$legCode|')) {
+            filtered[key] = entry.value;
+            break;
+          }
+        }
+      }
+    }
+    
+    return filtered;
+  }
+
   Map<String, dynamic> _buildSegmentMeta(FlydubaiFlight flight) {
     final int lfid = flight.flightSegment.lfid;
     final departureDateTime = flight.flightSegment.departureDateTime;
@@ -1390,12 +1510,31 @@ class FlydubaiFlightController extends GetxController {
       flight.rawData,
       lfid,
     );
+    
+    // Get leg count from flight segment
+    int legCount = 1;
+    try {
+      final rawData = flight.rawData;
+      final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+      final flightSegments = retrieveResult?['FlightSegments']?['FlightSegment'];
+      final flightSegmentList = flightSegments is List ? flightSegments : (flightSegments != null ? [flightSegments] : []);
+      
+      for (final seg in flightSegmentList) {
+        if (seg is Map && (seg['LFID'] as num?)?.toInt() == lfid) {
+          legCount = (seg['LegCount'] as num?)?.toInt() ?? 1;
+          break;
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error extracting leg count: $e');
+    }
 
     final departureDateOnly = departureIso.split('T').first;
 
     return {
       'lfid': lfid,
       'physicalFlightId': physicalFlightId,
+      'legCount': legCount,
       'departureDateTime': departureIso,
       'departureDateMidnight': '${departureDateOnly}T00:00:00',
     };
@@ -1439,42 +1578,114 @@ class FlydubaiFlightController extends GetxController {
 
 // Helper methods to build extras in the correct format
   String _buildBaggageExtras(
-    RxMap<String, dynamic> selectedBaggage,
+    Map<String, dynamic> selectedBaggage,
     Map<String, dynamic> segmentMeta,
   ) {
     if (selectedBaggage.isEmpty) return '';
 
     try {
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID
+      // For baggage, use PFID 0 for segments with multiple legs, or first leg PFID for single leg
       final baggage = selectedBaggage.values.first;
       final code = baggage['id']?.toString() ?? 'BAGB';
       final amount = baggage['charge']?.toString() ?? '0';
       final currency = baggage['currency']?.toString() ?? 'PKR';
       final description = baggage['description']?.toString() ?? 'Baggage';
+      
+      // Check if segment has multiple legs - if so, use PFID 0 for baggage
+      // Otherwise use first leg's PFID
+      final legCount = segmentMeta['legCount'] as int? ?? 1;
+      final baggagePfid = legCount > 1 ? 0 : (segmentMeta['physicalFlightId'] ?? 0);
 
-      return '$code!!${segmentMeta['lfid']}!!${segmentMeta['departureDateMidnight']}!!$amount!!$currency!!$description!!${segmentMeta['physicalFlightId']}';
+      return '$code!!${segmentMeta['lfid']}!!${segmentMeta['departureDateMidnight']}!!$amount!!$currency!!$description!!$baggagePfid';
     } catch (e) {
+      print('⚠️ Error building baggage extras: $e');
       return '';
     }
   }
 
   List<String> _buildMealExtras(
-    RxMap<String, dynamic> selectedMeals,
+    Map<String, dynamic> selectedMeals,
     Map<String, dynamic> segmentMeta,
+    FlydubaiFlight flight,
   ) {
     final List<String> meals = [];
 
     if (selectedMeals.isEmpty) return meals;
 
     try {
+      // Get the first leg PFID for this segment
+      // API only allows meals on the first leg of a segment, not on connecting legs
+      final firstLegPfid = segmentMeta['physicalFlightId'] as int? ?? 0;
+      final legCount = segmentMeta['legCount'] as int? ?? 1;
+      
+      print('   🍽️ Building meals for segment with $legCount leg(s)');
+      print('   📍 First leg PFID: $firstLegPfid');
+      
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID
-      for (final meal in selectedMeals.values) {
+      // Keys are in format: legseg{segmentCode}_leg{pfid}|p{passengerId}
+      for (final entry in selectedMeals.entries) {
+        final key = entry.key;
+        final meal = entry.value;
+        
+        // Extract PFID from key: legseg{segmentCode}_leg{pfid}|p{passengerId}
+        int? pfid;
+        String? departureDate;
+        
+        if (key.contains('_leg')) {
+          final parts = key.split('_leg');
+          if (parts.length >= 2) {
+            final pfidStr = parts[1].split('|').first;
+            pfid = int.tryParse(pfidStr);
+            
+            if (pfid == null) {
+              print('   ⚠️ Failed to parse PFID from meal key: $key, pfidStr: $pfidStr');
+              continue;
+            }
+            
+            // IMPORTANT: API only allows meals on the first leg of a segment
+            // Skip meals for connecting legs (legs other than the first)
+            if (legCount > 1 && pfid != firstLegPfid) {
+              print('   ⏭️ Skipping meal for connecting leg PFID: $pfid (meals only allowed on first leg PFID: $firstLegPfid)');
+              continue;
+            }
+            
+            print('   ✅ Extracted meal PFID: $pfid from key: $key');
+            
+            // Get departure date for this specific leg from flight data
+            departureDate = _getLegDepartureDate(flight, pfid);
+            if (departureDate == null && pfid != null) {
+              print('   ⚠️ Could not get departure date for PFID: $pfid');
+            }
+          } else {
+            print('   ⚠️ Meal key format incorrect: $key (expected legseg{segmentCode}_leg{pfid}|p{passengerId})');
+            continue;
+          }
+        } else {
+          print('   ⚠️ Meal key does not contain _leg: $key');
+          continue;
+        }
+        
+        // Use first leg PFID for meals (API requirement)
+        final finalPfid = firstLegPfid;
+        
+        // For meals, API requires midnight format (YYYY-MM-DDT00:00:00)
+        // Use segment departure date (first leg date) for all meals
+        final mealDepartureDate = segmentMeta['departureDateMidnight'];
+        
+        print('   📅 Meal date: $mealDepartureDate (using segment first leg date)');
+        
         final code = meal['id']?.toString() ?? 'MLIN';
         final amount = meal['charge']?.toString() ?? '0';
         final currency = meal['currency']?.toString() ?? 'PKR';
         final description = meal['description']?.toString() ?? meal['name']?.toString() ?? 'Meal';
 
-        meals.add('$code!!${segmentMeta['lfid']}!!${segmentMeta['departureDateMidnight']}!!$amount!!$currency!!$description!!${segmentMeta['physicalFlightId']}');
+        meals.add('$code!!${segmentMeta['lfid']}!!$mealDepartureDate!!$amount!!$currency!!$description!!$finalPfid');
+        print('   ✅ Added meal: $code for PFID: $finalPfid, Date: $mealDepartureDate');
+      }
+      
+      if (legCount > 1 && selectedMeals.length > meals.length) {
+        print('   ⚠️ Note: ${selectedMeals.length - meals.length} meal(s) skipped (meals only allowed on first leg for multi-leg segments)');
       }
     } catch (e) {
       print('Error building meal extras: $e');
@@ -1484,8 +1695,9 @@ class FlydubaiFlightController extends GetxController {
   }
 
   List<String> _buildSeatExtras(
-    RxMap<String, dynamic> selectedSeats,
+    Map<String, dynamic> selectedSeats,
     Map<String, dynamic> segmentMeta,
+    FlydubaiFlight flight,
   ) {
     final List<String> seats = [];
 
@@ -1493,24 +1705,101 @@ class FlydubaiFlightController extends GetxController {
 
     try {
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID!!RowNumber!!SeatNumber
-      for (final seat in selectedSeats.values) {
+      // Keys are in format: legseg{segmentCode}_leg{pfid}|p{passengerId}
+      for (final entry in selectedSeats.entries) {
+        final key = entry.key;
+        final seat = entry.value;
+        
+        // Extract PFID from key: legseg{segmentCode}_leg{pfid}|p{passengerId}
+        int? pfid;
+        String? departureDate;
+        
+        if (key.contains('_leg')) {
+          final parts = key.split('_leg');
+          if (parts.length >= 2) {
+            final pfidStr = parts[1].split('|').first;
+            pfid = int.tryParse(pfidStr);
+            
+            // Get departure date for this specific leg from flight data
+            departureDate = _getLegDepartureDate(flight, pfid);
+          }
+        }
+        
+        // Fallback to segment PFID and date if leg-specific not found
+        final finalPfid = pfid ?? segmentMeta['physicalFlightId'];
+        // For seats, use actual departure time from leg if available
+        // If leg-specific date not found, use from seat data or segment
+        String departure = departureDate ?? 
+                          (seat['departureDate']?.toString().isNotEmpty == true
+                              ? seat['departureDate'].toString()
+                              : segmentMeta['departureDateTime']);
+        
+        // Ensure departure date has proper format
+        // For seats, API accepts both midnight format and actual time
+        // Use actual time if available from leg, otherwise use segment departure time
+        if (!departure.contains('T')) {
+          departure = '${departure}T00:00:00';
+        } else {
+          // If we have actual departure time from leg, use it; otherwise use midnight
+          // The API should accept both formats
+          final timePart = departure.split('T')[1];
+          if (!timePart.contains(':') || timePart == '00:00:00') {
+            // If it's midnight or missing time, keep as is or use segment time
+            if (departureDate == null) {
+              // No leg-specific date, use segment departure time
+              departure = segmentMeta['departureDateTime'];
+            }
+          }
+        }
+        
         final code = seat['serviceCode']?.toString();
         final amount = seat['charge']?.toString() ?? '0';
         final currency = seat['currency']?.toString() ?? 'PKR';
         final row = seat['rowNumber']?.toString() ?? '';
         final seatNumber = seat['seatNumber']?.toString() ?? '';
         final comment = 'Seat $seatNumber';
-        final departure = seat['departureDate']?.toString().isNotEmpty == true
-            ? seat['departureDate'].toString()
-            : segmentMeta['departureDateTime'];
 
-        seats.add('${code ?? 'SPST'}!!${segmentMeta['lfid']}!!$departure!!$amount!!$currency!!$comment!!${segmentMeta['physicalFlightId']}!!$row!!$seatNumber');
+        seats.add('${code ?? 'SPST'}!!${segmentMeta['lfid']}!!$departure!!$amount!!$currency!!$comment!!$finalPfid!!$row!!$seatNumber');
       }
     } catch (e) {
       print('Error building seat extras: $e');
     }
 
     return seats;
+  }
+  
+  // Helper method to get departure date for a specific leg (PFID)
+  // Returns date in format: YYYY-MM-DDTHH:mm:ss (actual departure time)
+  String? _getLegDepartureDate(FlydubaiFlight flight, int? pfid) {
+    if (pfid == null) return null;
+    
+    try {
+      final rawData = flight.rawData;
+      final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+      final legDetails = retrieveResult?['LegDetails']?['LegDetail'];
+      
+      if (legDetails != null) {
+        final legList = legDetails is List ? legDetails : [legDetails];
+        for (final leg in legList) {
+          if (leg is Map) {
+            final legPfid = (leg['PFID'] as num?)?.toInt();
+            if (legPfid == pfid) {
+              final depDate = leg['DepartureDate']?.toString();
+              if (depDate != null && depDate.isNotEmpty) {
+                // Return the actual departure date/time as-is
+                // For meals: API accepts midnight format (T00:00:00)
+                // For seats: API might need actual time, but midnight also works
+                return depDate;
+              }
+            }
+          }
+        }
+      }
+    } catch (e) {
+      print('⚠️ Error getting leg departure date: $e');
+    }
+    
+    return null;
   }
 
   // ==================== MULTI-CITY METHODS ====================

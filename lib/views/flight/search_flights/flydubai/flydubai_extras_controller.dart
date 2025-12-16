@@ -96,31 +96,36 @@ class FlydubaiExtrasController extends GetxController {
       selectedFlight.value = flight;
       selectedFare.value = fare;
 
-      // Generate booking IDs. For round-trip, include both outbound and return.
-      final List<String> ids = [];
+      // Generate booking IDs only if not already set (for multi-city, they're set in loadExtras)
+      if (bookingIds.isEmpty) {
+        // Generate booking IDs. For round-trip, include both outbound and return.
+        final List<String> ids = [];
 
-      // If this is return-leg extras, try to add outbound bookingId first
-      if (isReturnFlight) {
-        try {
-          final flyController = Get.find<FlydubaiFlightController>();
-          final outboundFlight = flyController.selectedOutboundFlight;
-          final outboundFare = flyController.selectedOutboundFareOption;
-          if (outboundFlight != null && outboundFare != null) {
-            final outboundFareIndex = _getFareIndex(outboundFlight, outboundFare);
-            final outboundId = '${outboundFlight.flightSegment.lfid}_$outboundFareIndex';
-            ids.add(outboundId);
+        // If this is return-leg extras, try to add outbound bookingId first
+        if (isReturnFlight) {
+          try {
+            final flyController = Get.find<FlydubaiFlightController>();
+            final outboundFlight = flyController.selectedOutboundFlight;
+            final outboundFare = flyController.selectedOutboundFareOption;
+            if (outboundFlight != null && outboundFare != null) {
+              final outboundFareIndex = _getFareIndex(outboundFlight, outboundFare);
+              final outboundId = '${outboundFlight.flightSegment.lfid}_$outboundFareIndex';
+              ids.add(outboundId);
+            }
+          } catch (e) {
+            // Silent error handling
           }
-        } catch (e) {
-          // Silent error handling
         }
+
+        // Always add current leg bookingId (outbound for one-way, return for round-trip)
+        final currentFareIndex = _getFareIndex(flight, fare);
+        final currentId = '${flight.flightSegment.lfid}_$currentFareIndex';
+        ids.add(currentId);
+
+        bookingIds.value = ids;
+      } else {
+        debugPrint('✅ Using pre-set booking IDs for multi-city: ${bookingIds.value}');
       }
-
-      // Always add current leg bookingId (outbound for one-way, return for round-trip)
-      final currentFareIndex = _getFareIndex(flight, fare);
-      final currentId = '${flight.flightSegment.lfid}_$currentFareIndex';
-      ids.add(currentId);
-
-      bookingIds.value = ids;
 
       // Set base price
       basePrice.value = flight.price;
@@ -406,15 +411,15 @@ class FlydubaiExtrasController extends GetxController {
     return selectedBaggage[key];
   }
 
-// Get selected meal for specific passenger
-  Map<String, dynamic>? getSelectedMealForPassenger(String segmentCode, String passengerId) {
-    final key = 'seg$segmentCode|$passengerId';
+// Get selected meal for specific passenger (now supports leg codes)
+  Map<String, dynamic>? getSelectedMealForPassenger(String legCode, String passengerId) {
+    final key = 'leg$legCode|$passengerId';
     return selectedMeals[key];
   }
 
-// Get selected seat for specific passenger
-  Map<String, dynamic>? getSelectedSeatForPassenger(String segmentCode, String passengerId) {
-    final key = 'seg$segmentCode|$passengerId';
+// Get selected seat for specific passenger (now supports leg codes)
+  Map<String, dynamic>? getSelectedSeatForPassenger(String legCode, String passengerId) {
+    final key = 'leg$legCode|$passengerId';
     return selectedSeats[key];
   }
 
@@ -455,14 +460,301 @@ class FlydubaiExtrasController extends GetxController {
 
 
   List<String> getSegmentCodes() {
+    // Check if this is a multi-city booking
+    try {
+      final flyController = Get.find<FlydubaiFlightController>();
+      final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+          .where((f) => f != null)
+          .cast<FlydubaiFlight>()
+          .toList();
+      final selectedMultiCityFareOptionsList = flyController.selectedMultiCityFareOptions
+          .where((f) => f != null)
+          .cast<FlydubaiFlightFare>()
+          .toList();
+
+      final isMultiCity = selectedMultiCityFlightsList.isNotEmpty && 
+                          selectedMultiCityFareOptionsList.isNotEmpty &&
+                          selectedMultiCityFlightsList.length == selectedMultiCityFareOptionsList.length;
+
+      if (isMultiCity) {
+        // Return LFIDs for all multi-city segments
+        debugPrint('🌍 getSegmentCodes: Returning ${selectedMultiCityFlightsList.length} multi-city segments');
+        return selectedMultiCityFlightsList
+            .map((flight) => flight.flightSegment.lfid.toString())
+            .toList();
+      }
+    } catch (e) {
+      debugPrint('⚠️ Error checking multi-city in getSegmentCodes: $e');
+    }
+
+    // For one-way or round-trip, return single segment
     final flight = selectedFlight.value;
     if (flight == null) return ['0'];
+    
+    // For round-trip, check if there's a return flight
+    try {
+      final flyController = Get.find<FlydubaiFlightController>();
+      final returnFlight = flyController.selectedReturnFlight;
+      if (returnFlight != null) {
+        return [
+          flight.flightSegment.lfid.toString(),
+          returnFlight.flightSegment.lfid.toString(),
+        ];
+      }
+    } catch (e) {
+      // Silent error handling
+    }
+    
     return [flight.flightSegment.lfid.toString()];
+  }
+
+  /// Gets leg codes (PFIDs) for a specific segment
+  /// Returns list of leg codes in format: "seg{segmentCode}_leg{legIndex}" or PFID
+  List<String> getLegCodesForSegment(String segmentCode) {
+    try {
+      final flyController = Get.find<FlydubaiFlightController>();
+      final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+          .where((f) => f != null)
+          .cast<FlydubaiFlight>()
+          .toList();
+
+      final isMultiCity = selectedMultiCityFlightsList.isNotEmpty;
+
+      FlydubaiFlight? targetFlight;
+      
+      if (isMultiCity) {
+        // Find the flight for this segment
+        final segmentLfid = int.tryParse(segmentCode);
+        if (segmentLfid != null) {
+          for (final flight in selectedMultiCityFlightsList) {
+            if (flight.flightSegment.lfid == segmentLfid) {
+              targetFlight = flight;
+              break;
+            }
+          }
+        }
+      } else {
+        // For one-way/return, use selected flight
+        targetFlight = selectedFlight.value;
+      }
+
+      if (targetFlight == null) {
+        // Fallback: return segment code as single leg
+        return [segmentCode];
+      }
+
+      // Extract leg codes from legSchedules
+      // Try to get PFIDs from raw data first
+      final legCodes = <String>[];
+      try {
+        final rawData = targetFlight.rawData;
+        final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+        final flightSegments = retrieveResult?['FlightSegments']?['FlightSegment'];
+        final flightSegmentList = flightSegments is List ? flightSegments : (flightSegments != null ? [flightSegments] : []);
+        
+        // Find matching segment
+        Map<String, dynamic>? matchingSegment;
+        final segmentLfid = int.tryParse(segmentCode);
+        for (final seg in flightSegmentList) {
+          if ((seg['LFID'] as num?)?.toInt() == segmentLfid) {
+            matchingSegment = seg as Map<String, dynamic>;
+            break;
+          }
+        }
+        
+        if (matchingSegment != null) {
+          // Get PFIDs from FlightLegDetails
+          final flightLegDetails = matchingSegment['FlightLegDetails']?['FlightLegDetail'];
+          final legList = flightLegDetails is List ? flightLegDetails : (flightLegDetails != null ? [flightLegDetails] : []);
+          
+          for (final legRef in legList) {
+            final pfid = (legRef['PFID'] as num?)?.toInt();
+            if (pfid != null) {
+              legCodes.add('seg${segmentCode}_leg$pfid');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error extracting PFIDs from raw data: $e');
+      }
+      
+      // Fallback: use legSchedules with index if no PFIDs found
+      if (legCodes.isEmpty && targetFlight.legSchedules.isNotEmpty) {
+        for (int i = 0; i < targetFlight.legSchedules.length; i++) {
+          legCodes.add('seg${segmentCode}_leg$i');
+        }
+      }
+
+      // If no legs found, return segment code as single leg
+      if (legCodes.isEmpty) {
+        return [segmentCode];
+      }
+
+      return legCodes;
+    } catch (e) {
+      debugPrint('⚠️ Error getting leg codes for segment $segmentCode: $e');
+      return [segmentCode]; // Fallback
+    }
+  }
+
+  /// Gets leg information for display (origin -> destination)
+  Map<String, String> getLegInfo(String legCode) {
+    try {
+      // Parse leg code: "seg{segmentCode}_leg{pfid}" or "seg{segmentCode}_leg{index}"
+      final parts = legCode.split('_leg');
+      if (parts.length != 2) return {'origin': '', 'destination': ''};
+
+      final segmentCode = parts[0].replaceFirst('seg', '');
+      final legIdentifier = parts[1];
+
+      final flyController = Get.find<FlydubaiFlightController>();
+      final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+          .where((f) => f != null)
+          .cast<FlydubaiFlight>()
+          .toList();
+
+      final isMultiCity = selectedMultiCityFlightsList.isNotEmpty;
+
+      FlydubaiFlight? targetFlight;
+      
+      if (isMultiCity) {
+        final segmentLfid = int.tryParse(segmentCode);
+        if (segmentLfid != null) {
+          for (final flight in selectedMultiCityFlightsList) {
+            if (flight.flightSegment.lfid == segmentLfid) {
+              targetFlight = flight;
+              break;
+            }
+          }
+        }
+      } else {
+        targetFlight = selectedFlight.value;
+      }
+
+      if (targetFlight == null || targetFlight.legSchedules.isEmpty) {
+        return {'origin': '', 'destination': ''};
+      }
+
+      // Try to find leg by PFID or index
+      int? legIndex;
+      if (legIdentifier.contains(RegExp(r'^\d+$'))) {
+        // It's a PFID or index, try to find matching leg from raw data first
+        try {
+          final rawData = targetFlight.rawData;
+          final retrieveResult = rawData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+          final flightSegments = retrieveResult?['FlightSegments']?['FlightSegment'];
+          final flightSegmentList = flightSegments is List ? flightSegments : (flightSegments != null ? [flightSegments] : []);
+          
+          final segmentLfid = int.tryParse(segmentCode);
+          Map<String, dynamic>? matchingSegment;
+          for (final seg in flightSegmentList) {
+            if ((seg['LFID'] as num?)?.toInt() == segmentLfid) {
+              matchingSegment = seg as Map<String, dynamic>;
+              break;
+            }
+          }
+          
+          if (matchingSegment != null) {
+            final flightLegDetails = matchingSegment['FlightLegDetails']?['FlightLegDetail'];
+            final legList = flightLegDetails is List ? flightLegDetails : (flightLegDetails != null ? [flightLegDetails] : []);
+            
+            final pfid = int.tryParse(legIdentifier);
+            if (pfid != null) {
+              for (int i = 0; i < legList.length; i++) {
+                final legRef = legList[i];
+                final legPfid = (legRef['PFID'] as num?)?.toInt();
+                if (legPfid == pfid) {
+                  legIndex = i;
+                  break;
+                }
+              }
+            }
+          }
+        } catch (e) {
+          debugPrint('⚠️ Error finding leg by PFID: $e');
+        }
+        
+        // Fallback: try to find by index in legSchedules
+        if (legIndex == null) {
+          legIndex = int.tryParse(legIdentifier);
+        }
+      } else {
+        // It's an index
+        legIndex = int.tryParse(legIdentifier);
+      }
+
+      if (legIndex == null || legIndex < 0 || legIndex >= targetFlight.legSchedules.length) {
+        return {'origin': '', 'destination': ''};
+      }
+
+      final leg = targetFlight.legSchedules[legIndex];
+      final schedules = leg['schedules'] as List?;
+      if (schedules != null && schedules.isNotEmpty) {
+        final firstSchedule = schedules[0] as Map<String, dynamic>?;
+        final lastSchedule = schedules[schedules.length - 1] as Map<String, dynamic>?;
+        
+        final origin = firstSchedule?['departure']?['airport']?.toString() ?? '';
+        final destination = lastSchedule?['arrival']?['airport']?.toString() ?? '';
+        
+        return {'origin': origin, 'destination': destination};
+      }
+
+      return {'origin': '', 'destination': ''};
+    } catch (e) {
+      debugPrint('⚠️ Error getting leg info for $legCode: $e');
+      return {'origin': '', 'destination': ''};
+    }
   }
 
   /// Gets the fare baggage code based on fare type name
   /// Returns: 'BAGB' (20kg), 'BAGL' (30kg), 'BAGX' (40kg), or null (no baggage/LITE)
-  String? getFareBaggageCode() {
+  String? getFareBaggageCode({String? segmentCode}) {
+    // For multi-city, get fare for the specific segment
+    if (segmentCode != null) {
+      try {
+        final flyController = Get.find<FlydubaiFlightController>();
+        final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+            .where((f) => f != null)
+            .cast<FlydubaiFlight>()
+            .toList();
+        final selectedMultiCityFareOptionsList = flyController.selectedMultiCityFareOptions
+            .where((f) => f != null)
+            .cast<FlydubaiFlightFare>()
+            .toList();
+
+        final isMultiCity = selectedMultiCityFlightsList.isNotEmpty && 
+                            selectedMultiCityFareOptionsList.isNotEmpty &&
+                            selectedMultiCityFlightsList.length == selectedMultiCityFareOptionsList.length;
+
+        if (isMultiCity) {
+          // Find the segment index by LFID
+          final segmentLfid = int.tryParse(segmentCode);
+          if (segmentLfid != null) {
+            for (int i = 0; i < selectedMultiCityFlightsList.length; i++) {
+              if (selectedMultiCityFlightsList[i].flightSegment.lfid == segmentLfid) {
+                final fare = selectedMultiCityFareOptionsList[i];
+                final fareTypeName = fare.fareTypeName.toUpperCase();
+                switch (fareTypeName) {
+                  case 'VALUE':
+                    return 'BAGB'; // 20kg
+                  case 'FLEX':
+                    return 'BAGL'; // 30kg
+                  case 'BUSINESS':
+                    return 'BAGX'; // 40kg
+                  case 'LITE':
+                  default:
+                    return null; // No baggage included
+                }
+              }
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('⚠️ Error getting fare baggage code for segment: $e');
+      }
+    }
+
+    // Fallback to default fare
     final fare = selectedFare.value;
     if (fare == null) return null;
     
@@ -487,29 +779,38 @@ class FlydubaiExtrasController extends GetxController {
   /// - If fare has BAGL (30kg): show only BUPZ (10kg upgrade)
   /// - If fare has BAGB (20kg): show only BUPL or BUPX (10kg or 20kg upgrade)
   /// - Otherwise (no baggage): show BAGB, BAGL, or BAGX (20kg, 30kg, 40kg allowance)
-  List<dynamic> getFilteredBaggageOptions() {
-    final fareBagCode = getFareBaggageCode();
+  List<dynamic> getFilteredBaggageOptions({String? segmentCode}) {
+    final fareBagCode = getFareBaggageCode(segmentCode: segmentCode);
     final allBaggage = availableBaggage;
     
+    debugPrint('🔍 getFilteredBaggageOptions called with segmentCode: $segmentCode');
+    debugPrint('   Fare baggage code: $fareBagCode');
+    debugPrint('   Total available baggage: ${allBaggage.length}');
+    
+    List<dynamic> filtered;
     if (fareBagCode == 'BAGL') {
       // Show only BUPZ (10kg upgrade)
-      return allBaggage.where((bag) {
+      filtered = allBaggage.where((bag) {
         final code = bag['id']?.toString() ?? '';
         return code == 'BUPZ';
       }).toList();
+      debugPrint('   Filtering for BAGL (30kg included): showing ${filtered.length} options (BUPZ only)');
     } else if (fareBagCode == 'BAGB') {
       // Show only BUPL or BUPX (10kg or 20kg upgrade)
-      return allBaggage.where((bag) {
+      filtered = allBaggage.where((bag) {
         final code = bag['id']?.toString() ?? '';
         return code == 'BUPL' || code == 'BUPX';
       }).toList();
+      debugPrint('   Filtering for BAGB (20kg included): showing ${filtered.length} options (BUPL/BUPX only)');
     } else {
       // Show BAGB, BAGL, or BAGX (20kg, 30kg, 40kg allowance)
-      return allBaggage.where((bag) {
+      filtered = allBaggage.where((bag) {
         final code = bag['id']?.toString() ?? '';
         return code == 'BAGB' || code == 'BAGL' || code == 'BAGX';
       }).toList();
+      debugPrint('   Filtering for no baggage (LITE): showing ${filtered.length} options (BAGB/BAGL/BAGX)');
     }
+    return filtered;
   }
 
   /// Extracts weight from baggage description
@@ -523,8 +824,8 @@ class FlydubaiExtrasController extends GetxController {
   }
 
   /// Gets filtered and sorted baggage options
-  List<dynamic> getFilteredAndSortedBaggageOptions() {
-    final filtered = getFilteredBaggageOptions();
+  List<dynamic> getFilteredAndSortedBaggageOptions({String? segmentCode}) {
+    final filtered = getFilteredBaggageOptions(segmentCode: segmentCode);
     
     // Filter out items with quantity 0 or invalid (matching web logic)
     final validBaggage = filtered.where((bag) {
@@ -743,19 +1044,74 @@ class FlydubaiExtrasController extends GetxController {
   }) async {
     reset();
     
-    selectedFlight.value = flight;
-    selectedFare.value = fare;
-    this.cartData = cartData;
-    adultPassengers.value = adult;
-    childPassengers.value = child;
-    infantPassengers.value = infant;
-    basePrice.value = flight.price;
-    currency.value = flight.currency;
-    
-    _initializePassengerIds();
-    
-    final isReturn = returnFlight != null;
-    await loadFlightExtras(flight, fare, isReturn);
+    // Check if this is a multi-city booking
+    final flyController = Get.find<FlydubaiFlightController>();
+    final selectedMultiCityFlightsList = flyController.selectedMultiCityFlights
+        .where((f) => f != null)
+        .cast<FlydubaiFlight>()
+        .toList();
+    final selectedMultiCityFareOptionsList = flyController.selectedMultiCityFareOptions
+        .where((f) => f != null)
+        .cast<FlydubaiFlightFare>()
+        .toList();
+
+    final isMultiCity = selectedMultiCityFlightsList.isNotEmpty && 
+                        selectedMultiCityFareOptionsList.isNotEmpty &&
+                        selectedMultiCityFlightsList.length == selectedMultiCityFareOptionsList.length;
+
+    if (isMultiCity) {
+      // Load extras for all multi-city segments
+      debugPrint('🌍 Loading extras for MULTI-CITY booking (${selectedMultiCityFlightsList.length} segments)');
+      
+      selectedFlight.value = selectedMultiCityFlightsList.first; // Use first flight for display
+      selectedFare.value = selectedMultiCityFareOptionsList.first;
+      this.cartData = cartData;
+      adultPassengers.value = adult;
+      childPassengers.value = child;
+      infantPassengers.value = infant;
+      
+      // Calculate total base price from all segments
+      double totalPrice = 0.0;
+      for (final fareOption in selectedMultiCityFareOptionsList) {
+        totalPrice += fareOption.baseFareAmountIncludingTax;
+      }
+      basePrice.value = totalPrice;
+      currency.value = selectedMultiCityFlightsList.first.currency;
+      
+      _initializePassengerIds();
+      
+      // Generate booking IDs for all multi-city segments
+      final List<String> bookingIdsList = [];
+      for (int i = 0; i < selectedMultiCityFlightsList.length; i++) {
+        final multiCityFlight = selectedMultiCityFlightsList[i];
+        final multiCityFare = selectedMultiCityFareOptionsList[i];
+        final fareIndex = _getFareIndex(multiCityFlight, multiCityFare);
+        final bookingId = '${multiCityFlight.flightSegment.lfid}_$fareIndex';
+        bookingIdsList.add(bookingId);
+        debugPrint('  📍 Multi-city segment $i: $bookingId (${multiCityFlight.flightSegment.origin} -> ${multiCityFlight.flightSegment.destination})');
+      }
+      
+      bookingIds.value = bookingIdsList;
+      
+      // Load extras using the first flight's rawData (all flights should have similar structure)
+      // The booking IDs will include all segments, so the API will return options for all flights
+      await loadFlightExtras(selectedMultiCityFlightsList.first, selectedMultiCityFareOptionsList.first, false);
+    } else {
+      // One-way or round-trip
+      selectedFlight.value = flight;
+      selectedFare.value = fare;
+      this.cartData = cartData;
+      adultPassengers.value = adult;
+      childPassengers.value = child;
+      infantPassengers.value = infant;
+      basePrice.value = flight.price;
+      currency.value = flight.currency;
+      
+      _initializePassengerIds();
+      
+      final isReturn = returnFlight != null;
+      await loadFlightExtras(flight, fare, isReturn);
+    }
   }
 
   void reset() {

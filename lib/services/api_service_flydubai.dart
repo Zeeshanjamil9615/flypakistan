@@ -558,10 +558,13 @@ class ApiServiceFlyDubai {
         cartData: cartData,
         securityGuid: securityGuid, // Pass the security GUID
       );
-      // print("the token is $_accessToken");
-      // print('PNR Request Body:');
-      // printJsonPretty(requestBody);
-      // print("the token is $_accessToken");
+      
+      // Print full PNR request for debugging
+      print('═══════════════════════════════════════════════════════');
+      print('📋 FULL PNR REQUEST BODY');
+      print('═══════════════════════════════════════════════════════');
+      printJsonPretty(requestBody);
+      print('═══════════════════════════════════════════════════════');
 
 
       final response = await http.post(
@@ -1855,6 +1858,31 @@ class ApiServiceFlyDubai {
         "Segments": segments,
         "Payments": []
       };
+      
+      // Print detailed segment information
+      print('═══════════════════════════════════════════════════════');
+      print('📊 PNR REQUEST DETAILS');
+      print('═══════════════════════════════════════════════════════');
+      print('Total Passengers: ${passengers.length}');
+      print('Total Segments: ${segments.length}');
+      for (int i = 0; i < segments.length; i++) {
+        final seg = segments[i];
+        print('  Segment $i:');
+        print('    PersonOrgID: ${seg['PersonOrgID']}');
+        print('    FareInformationID: ${seg['FareInformationID']}');
+        print('    SpecialServices: ${(seg['SpecialServices'] as List).length} items');
+        for (int j = 0; j < (seg['SpecialServices'] as List).length; j++) {
+          final svc = (seg['SpecialServices'] as List)[j];
+          print('      Service $j: CodeType=${svc['CodeType']}, PFID=${svc['PhysicalFlightID']}, Date=${svc['DepartureDate']}, LFID=${svc['LogicalFlightID']}');
+        }
+        print('    Seats: ${(seg['Seats'] as List).length} items');
+        for (int j = 0; j < (seg['Seats'] as List).length; j++) {
+          final seat = (seg['Seats'] as List)[j];
+          print('      Seat $j: Seat=${seat['SeatSelected']}, PFID=${seat['PhysicalFlightID']}, Date=${seat['DepartureDate']}, LFID=${seat['LogicalFlightID']}');
+        }
+      }
+      print('═══════════════════════════════════════════════════════');
+      
     } catch (e, stackTrace) {
       print('Error building PNR request: $e');
       print('Stack trace: $stackTrace');
@@ -1959,19 +1987,35 @@ class ApiServiceFlyDubai {
 
       // Handle meals
       if (extra['meal'] is List) {
+        print('   🍽️ Building ${(extra['meal'] as List).length} meals for passenger $paxId');
         for (final meal in extra['meal'] as List) {
           if (meal != null && meal.toString().isNotEmpty) {
             final mealItems = meal.toString().split('!!');
             if (mealItems.length >= 7) {
-              final depDate = mealItems[2].contains('T')
+              final codeType = mealItems[0];
+              final lfid = int.tryParse(mealItems[1]) ?? 0;
+              final pfid = int.tryParse(mealItems[6]) ?? 0;
+              String depDate = mealItems[2].contains('T')
                   ? mealItems[2]
                   : "${mealItems[2]}T00:00:00";
+              
+              // For meals, API requires midnight format (YYYY-MM-DDT00:00:00)
+              // Even though we have actual departure time, meals must use midnight format
+              // Extract just the date part and set time to 00:00:00
+              if (depDate.contains('T')) {
+                final datePart = depDate.split('T').first;
+                depDate = '${datePart}T00:00:00';
+              } else {
+                depDate = '${depDate}T00:00:00';
+              }
+              
+              print('      📍 Meal: $codeType, LFID: $lfid, PFID: $pfid, Date: $depDate (midnight format)');
 
               services.add({
                 "ServiceID": 1,
-                "CodeType": mealItems[0],
+                "CodeType": codeType,
                 "SSRCategory": 121,
-                "LogicalFlightID": int.tryParse(mealItems[1]) ?? 0,
+                "LogicalFlightID": lfid,
                 "DepartureDate": depDate,
                 "Amount": double.tryParse(mealItems[3]) ?? 0.0,
                 "OverrideAmount": false,
@@ -1981,45 +2025,21 @@ class ApiServiceFlyDubai {
                 "ChargeComment": mealItems[5],
                 "PersonOrgID": -paxId,
                 "AlreadyAdded": false,
-                "PhysicalFlightID": int.tryParse(mealItems[6]) ?? 0,
+                "PhysicalFlightID": pfid,
                 "secureHash": ""
               });
+            } else {
+              print('      ⚠️ Meal data incomplete: ${mealItems.length} items (expected 7)');
             }
           }
         }
+        final mealCount = services.where((s) => s['SSRCategory'] == 121).length;
+        print('   ✅ Built $mealCount meal entries');
       }
 
-      // Handle seats as chargeable SSR (SPST)
-      if (extra['seat'] is List) {
-        for (final seat in extra['seat'] as List) {
-          if (seat != null && seat.toString().isNotEmpty) {
-            final seatItems = seat.toString().split('!!');
-            if (seatItems.length >= 9) {
-              final depDate = seatItems[2].contains('T')
-                  ? seatItems[2]
-                  : "${seatItems[2]}T00:00:00";
-
-              services.add({
-                "ServiceID": 1,
-                "CodeType": seatItems[0],
-                "SSRCategory": 0,
-                "LogicalFlightID": int.tryParse(seatItems[1]) ?? 0,
-                "DepartureDate": depDate,
-                "Amount": double.tryParse(seatItems[3]) ?? 0.0,
-                "OverrideAmount": false,
-                "CurrencyCode": seatItems[4],
-                "Commissionable": false,
-                "Refundable": false,
-                "ChargeComment": seatItems[5],
-                "PersonOrgID": -paxId,
-                "AlreadyAdded": false,
-                "PhysicalFlightID": int.tryParse(seatItems[6]) ?? 0,
-                "secureHash": ""
-              });
-            }
-          }
-        }
-      }
+      // NOTE: Seats should NOT be added to SpecialServices
+      // Seats are handled separately in the Seats array
+      // Only baggage and meals go in SpecialServices
     } catch (e) {
       print('Error building special services: $e');
     }
@@ -2033,24 +2053,46 @@ class ApiServiceFlyDubai {
     try {
       // Handle seats
       if (extra['seat'] is List) {
+        print('   🔍 Building ${(extra['seat'] as List).length} seats for passenger $paxId');
         for (final seat in extra['seat'] as List) {
           if (seat != null && seat.toString().isNotEmpty) {
             final seatItems = seat.toString().split('!!');
             if (seatItems.length >= 9) {
+              // Format departure date properly (ensure it has time component)
+              String depDate = seatItems[2];
+              final lfid = int.tryParse(seatItems[1]) ?? 0;
+              final pfid = int.tryParse(seatItems[6]) ?? 0;
+              final seatNumber = seatItems[8];
+              
+              print('      📍 Seat: $seatNumber, LFID: $lfid, PFID: $pfid, Date: $depDate');
+              
+              if (depDate.contains('T')) {
+                // If it's just date with T00:00:00, try to get actual time from leg details
+                if (depDate.endsWith('T00:00:00')) {
+                  // Keep midnight format - API might accept it
+                  // But if we have actual time, use it
+                }
+              } else {
+                depDate = '${depDate}T00:00:00';
+              }
+              
               seats.add({
                 "PersonOrgID": -paxId,
-                "LogicalFlightID": int.tryParse(seatItems[1]) ?? 0,
-                "PhysicalFlightID": int.tryParse(seatItems[6]) ?? 0,
-                "DepartureDate": seatItems[2],
-                "SeatSelected": seatItems[8],
+                "LogicalFlightID": lfid,
+                "PhysicalFlightID": pfid,
+                "DepartureDate": depDate,
+                "SeatSelected": seatNumber,
                 "RowNumber": seatItems[7]
               });
+            } else {
+              print('      ⚠️ Seat data incomplete: ${seatItems.length} items (expected 9)');
             }
           }
         }
+        print('   ✅ Built ${seats.length} seat entries');
       }
     } catch (e) {
-      print('Error building seats: $e');
+      print('❌ Error building seats: $e');
     }
 
     return seats;
