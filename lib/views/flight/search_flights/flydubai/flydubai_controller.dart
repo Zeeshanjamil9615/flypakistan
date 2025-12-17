@@ -448,8 +448,53 @@ class FlydubaiFlightController extends GetxController {
 
             // Store fare options by LFID (use segment index in key for multi-city)
             final fareKey = 'segment_${matchingSegmentIndex}_${segment.lfid}';
-            fareOptionsByLFID[fareKey] = segment.fareTypes;
-            developer.log('  💾 Stored fare options with key: $fareKey');
+            
+            // KEY FIX: For each segment LFID, we should only keep ONE fare option per fareTypeName
+            // (LITE, VALUE, FLEX, Business). Multiple occurrences of the same LFID are due to combinability,
+            // but users only need to see one option per fare type. We'll keep the cheapest one.
+            
+            // Check if fare options already exist for this key
+            if (fareOptionsByLFID.containsKey(fareKey)) {
+              final existingFares = fareOptionsByLFID[fareKey]!;
+              
+              // Group existing fares by fareTypeName
+              final existingByType = <String, FlydubaiFlightFare>{};
+              for (final fare in existingFares) {
+                final typeKey = '${fare.fareTypeName}_${fare.cabin}';
+                // Keep the cheapest option for each type
+                if (!existingByType.containsKey(typeKey) || 
+                    fare.baseFareAmountIncludingTax < existingByType[typeKey]!.baseFareAmountIncludingTax) {
+                  existingByType[typeKey] = fare;
+                }
+              }
+              
+              // Process new fares and keep only the cheapest per type
+              for (final fare in segment.fareTypes) {
+                final typeKey = '${fare.fareTypeName}_${fare.cabin}';
+                if (!existingByType.containsKey(typeKey) || 
+                    fare.baseFareAmountIncludingTax < existingByType[typeKey]!.baseFareAmountIncludingTax) {
+                  existingByType[typeKey] = fare;
+                }
+              }
+              
+              fareOptionsByLFID[fareKey] = existingByType.values.toList();
+              developer.log('  💾 Updated fare options: ${existingByType.length} unique types (kept cheapest per type) for key: $fareKey');
+            } else {
+              // First time storing for this key - keep only one fare option per fareTypeName (cheapest)
+              final faresByType = <String, FlydubaiFlightFare>{};
+              
+              for (final fare in segment.fareTypes) {
+                final typeKey = '${fare.fareTypeName}_${fare.cabin}';
+                // Keep the cheapest option for each type
+                if (!faresByType.containsKey(typeKey) || 
+                    fare.baseFareAmountIncludingTax < faresByType[typeKey]!.baseFareAmountIncludingTax) {
+                  faresByType[typeKey] = fare;
+                }
+              }
+              
+              fareOptionsByLFID[fareKey] = faresByType.values.toList();
+              developer.log('  💾 Stored ${faresByType.length} unique fare types with key: $fareKey (${segment.fareTypes.length} total options, kept cheapest per type)');
+            }
 
             // Add to segment-specific list
             flightsBySegment[matchingSegmentIndex]!.add(flight);
@@ -723,6 +768,8 @@ class FlydubaiFlightController extends GetxController {
 
   // Get fare options for a selected flight
   List<FlydubaiFlightFare> getFareOptionsForFlight(FlydubaiFlight flight, {int? segmentIndex}) {
+    List<FlydubaiFlightFare> options;
+    
     // For multi-city, use segment-specific key
     if (segmentIndex != null) {
       final multiCityKey = 'segment_${segmentIndex}_${flight.flightSegment.lfid}';
@@ -732,18 +779,58 @@ class FlydubaiFlightController extends GetxController {
       developer.log('  Looking for key: $multiCityKey');
       developer.log('  Available keys: ${fareOptionsByLFID.keys.where((k) => k.startsWith('segment_')).toList()}');
       
-      final options = fareOptionsByLFID[multiCityKey] ?? [];
-      developer.log('  Found ${options.length} fare options');
-      return options;
+      options = fareOptionsByLFID[multiCityKey] ?? [];
+      developer.log('  Found ${options.length} fare options before deduplication');
+      
+      // Debug: Log all fare options to see duplicates
+      if (options.isNotEmpty) {
+        developer.log('  📋 All fare options:');
+        for (int i = 0; i < options.length; i++) {
+          final opt = options[i];
+          developer.log('    [$i] FareID: ${opt.fareId}, Type: ${opt.fareTypeName}, SolnId: ${opt.solnId}, Cabin: ${opt.cabin}');
+        }
+      }
+    } else {
+      // For one-way/return, use standard LFID key
+      options = fareOptionsByLFID[flight.rph] ?? [];
+      if (options.isEmpty) {
+        developer.log('⚠️ No fare options found for flight RPH: ${flight.rph}');
+        developer.log('  Available keys: ${fareOptionsByLFID.keys.toList()}');
+      }
     }
     
-    // For one-way/return, use standard LFID key
-    final options = fareOptionsByLFID[flight.rph] ?? [];
-    if (options.isEmpty) {
-      developer.log('⚠️ No fare options found for flight RPH: ${flight.rph}');
-      developer.log('  Available keys: ${fareOptionsByLFID.keys.toList()}');
+    // Deduplicate by fareId AND solnId to ensure no duplicates are returned
+    // Use composite key: fareId + solnId + fareTypeName to catch all duplicates
+    // Final deduplication: Keep only ONE fare option per fareTypeName (LITE, VALUE, FLEX, Business)
+    // This ensures users only see one option per package type, even if combinability created multiple
+    final uniqueByType = <String, FlydubaiFlightFare>{};
+    
+    for (final option in options) {
+      final typeKey = '${option.fareTypeName}_${option.cabin}';
+      // Keep the cheapest option for each type
+      if (!uniqueByType.containsKey(typeKey) || 
+          option.baseFareAmountIncludingTax < uniqueByType[typeKey]!.baseFareAmountIncludingTax) {
+        uniqueByType[typeKey] = option;
+      }
     }
-    return options;
+    
+    final finalOptions = uniqueByType.values.toList();
+    
+    if (finalOptions.length != options.length) {
+      developer.log('  ⚠️ Removed ${options.length - finalOptions.length} duplicate fare types (kept cheapest per type)');
+    }
+    developer.log('  ✅ Returning ${finalOptions.length} unique fare types (was ${options.length} total options)');
+    
+    // Debug: Log final options
+    if (finalOptions.isNotEmpty) {
+      developer.log('  📋 Final fare options (one per type):');
+      for (int i = 0; i < finalOptions.length; i++) {
+        final opt = finalOptions[i];
+        developer.log('    [$i] Type: ${opt.fareTypeName}, FareID: ${opt.fareId}, Price: ${opt.baseFareAmountIncludingTax}');
+      }
+    }
+    
+    return finalOptions;
   }
 
   // Apply filters method - works on both outbound and return flights
@@ -1309,91 +1396,91 @@ class FlydubaiFlightController extends GetxController {
         }
       } else {
         // Build segments for outbound flight (one-way or round-trip)
-        if (selectedOutboundFlight != null && selectedOutboundFareOption != null) {
-          print('📍 Building Outbound Segment:');
-          print('   - Flight: ${selectedOutboundFlight!.airlineCode} ${selectedOutboundFlight!.flightSegment.flightNumber}');
-          print('   - LFID: ${selectedOutboundFlight!.flightSegment.lfid}');
-          print('   - Fare: ${selectedOutboundFareOption!.fareTypeName}');
-          print('   - Fare ID: ${selectedOutboundFareOption!.fareId}');
-          
-          final fareId = selectedOutboundFareOption!.fareId;
-          final outboundMeta = _buildSegmentMeta(selectedOutboundFlight!);
+      if (selectedOutboundFlight != null && selectedOutboundFareOption != null) {
+        print('📍 Building Outbound Segment:');
+        print('   - Flight: ${selectedOutboundFlight!.airlineCode} ${selectedOutboundFlight!.flightSegment.flightNumber}');
+        print('   - LFID: ${selectedOutboundFlight!.flightSegment.lfid}');
+        print('   - Fare: ${selectedOutboundFareOption!.fareTypeName}');
+        print('   - Fare ID: ${selectedOutboundFareOption!.fareId}');
+        
+        final fareId = selectedOutboundFareOption!.fareId;
+        final outboundMeta = _buildSegmentMeta(selectedOutboundFlight!);
 
-          // Get extras data from extras controller
-          final baggageExtras = _buildBaggageExtras(
-            extrasController.selectedBaggage,
-            outboundMeta,
-          );
-          final mealExtras = _buildMealExtras(
-            extrasController.selectedMeals,
-            outboundMeta,
+        // Get extras data from extras controller
+        final baggageExtras = _buildBaggageExtras(
+          extrasController.selectedBaggage,
+          outboundMeta,
+        );
+        final mealExtras = _buildMealExtras(
+          extrasController.selectedMeals,
+          outboundMeta,
             selectedOutboundFlight!,
-          );
-          final seatExtras = _buildSeatExtras(
-            extrasController.selectedSeats,
-            outboundMeta,
+        );
+        final seatExtras = _buildSeatExtras(
+          extrasController.selectedSeats,
+          outboundMeta,
             selectedOutboundFlight!,
-          );
+        );
 
-          print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-          print('   - Meal extras: ${mealExtras.length}');
-          print('   - Seat extras: ${seatExtras.length}');
+        print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
+        print('   - Meal extras: ${mealExtras.length}');
+        print('   - Seat extras: ${seatExtras.length}');
 
-          segments.add({
-            'pax': 1, // First passenger
-            'fareID': fareId,
-            'extra': {
-              'baggage': baggageExtras,
-              'meal': mealExtras,
-              'seat': seatExtras
-            }
-          });
-          
-          print('   ✅ Outbound segment added');
-        }
+        segments.add({
+          'pax': 1, // First passenger
+          'fareID': fareId,
+          'extra': {
+            'baggage': baggageExtras,
+            'meal': mealExtras,
+            'seat': seatExtras
+          }
+        });
+        
+        print('   ✅ Outbound segment added');
+      }
 
-        // Build segments for return flight
-        if (selectedReturnFlight != null && selectedReturnFareOption != null) {
-          print('📍 Building Return Segment:');
-          print('   - Flight: ${selectedReturnFlight!.airlineCode} ${selectedReturnFlight!.flightSegment.flightNumber}');
-          print('   - LFID: ${selectedReturnFlight!.flightSegment.lfid}');
-          print('   - Fare: ${selectedReturnFareOption!.fareTypeName}');
-          print('   - Fare ID: ${selectedReturnFareOption!.fareId}');
-          
-          final fareId = selectedReturnFareOption!.fareId;
-          final returnMeta = _buildSegmentMeta(selectedReturnFlight!);
+      // Build segments for return flight
+      if (selectedReturnFlight != null && selectedReturnFareOption != null) {
+        print('📍 Building Return Segment:');
+        print('   - Flight: ${selectedReturnFlight!.airlineCode} ${selectedReturnFlight!.flightSegment.flightNumber}');
+        print('   - LFID: ${selectedReturnFlight!.flightSegment.lfid}');
+        print('   - Fare: ${selectedReturnFareOption!.fareTypeName}');
+        print('   - Fare ID: ${selectedReturnFareOption!.fareId}');
+        
+        final fareId = selectedReturnFareOption!.fareId;
+        final returnMeta = _buildSegmentMeta(selectedReturnFlight!);
 
-          // Get extras data from extras controller (you might want separate handling for return flight)
-          final baggageExtras = _buildBaggageExtras(
-            extrasController.selectedBaggage,
-            returnMeta,
-          );
-          final mealExtras = _buildMealExtras(
-            extrasController.selectedMeals,
-            returnMeta,
+        // Get extras data from extras controller (you might want separate handling for return flight)
+        final baggageExtras = _buildBaggageExtras(
+          extrasController.selectedBaggage,
+          returnMeta,
+        );
+        final mealExtras = _buildMealExtras(
+          extrasController.selectedMeals,
+          returnMeta,
             selectedReturnFlight!,
-          );
-          final seatExtras = _buildSeatExtras(
-            extrasController.selectedSeats,
-            returnMeta,
+        );
+        final seatExtras = _buildSeatExtras(
+          extrasController.selectedSeats,
+          returnMeta,
             selectedReturnFlight!,
-          );
+        );
 
-          print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-          print('   - Meal extras: ${mealExtras.length}');
-          print('   - Seat extras: ${seatExtras.length}');
+        print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
+        print('   - Meal extras: ${mealExtras.length}');
+        print('   - Seat extras: ${seatExtras.length}');
 
-          segments.add({
-            'pax': 1, // First passenger
-            'fareID': fareId,
-            'extra': {
-              'baggage': baggageExtras,
-              'meal': mealExtras,
-              'seat': seatExtras
-            }
-          });
-          
-          print('   ✅ Return segment added');
+        segments.add({
+          'pax': 1, // First passenger
+          'fareID': fareId,
+          'extra': {
+            'baggage': baggageExtras,
+            'meal': mealExtras,
+            'seat': seatExtras
+          }
+        });
+        
+        print('   ✅ Return segment added');
         }
       }
       
@@ -1591,7 +1678,7 @@ class FlydubaiFlightController extends GetxController {
       final amount = baggage['charge']?.toString() ?? '0';
       final currency = baggage['currency']?.toString() ?? 'PKR';
       final description = baggage['description']?.toString() ?? 'Baggage';
-      
+
       // Check if segment has multiple legs - if so, use PFID 0 for baggage
       // Otherwise use first leg's PFID
       final legCount = segmentMeta['legCount'] as int? ?? 1;
