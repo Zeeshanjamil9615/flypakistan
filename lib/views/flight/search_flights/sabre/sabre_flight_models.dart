@@ -5,7 +5,9 @@ class SabreFlight {
   final String airline;
   final String airlineCode;
   final String flightNumber;
-  final double price;
+  final double price; // Selling price (display price) - with margin applied
+  final double buyingPrice; // Buying price (without margin) - for PNR creation
+  final double sellingPrice; // Selling price (with margin) - same as price for backward compatibility
   final bool isRefundable;
   final bool isNonStop;
   final BaggageAllowance baggageAllowance;
@@ -24,7 +26,9 @@ class SabreFlight {
     required this.airline,
     required this.airlineCode,
     required this.flightNumber,
-    required this.price,
+    required this.price, // Selling price (display)
+    required this.buyingPrice, // Buying price (for PNR)
+    required this.sellingPrice, // Selling price (with margin)
     required this.isRefundable,
     required this.isNonStop,
     required this.baggageAllowance,
@@ -36,7 +40,7 @@ class SabreFlight {
     required this.mealCode,
     this.groupId,
     required this.pricingInforArray,
-    required this.isNDC, // Add this to constructor
+    required this.isNDC,
   });
 }
 

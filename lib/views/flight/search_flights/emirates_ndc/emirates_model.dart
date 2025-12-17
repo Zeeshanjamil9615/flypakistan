@@ -5,7 +5,9 @@ import '../../../../widgets/city_selection_bottom_sheet.dart';
 
 class EmiratesFlight {
   final String id;
-  final double price; // Real price without margin
+  final double price; // Selling price (display price) - with margin applied
+  final double buyingPrice; // Buying price (without margin) - for PNR creation
+  final double sellingPrice; // Selling price (with margin) - same as price for backward compatibility
   final double basePrice;
   final double taxAmount;
   final String currency;
@@ -30,7 +32,9 @@ class EmiratesFlight {
 
   EmiratesFlight({
     required this.id,
-    required this.price,
+    required this.price, // Selling price (display)
+    required this.buyingPrice, // Buying price (for PNR)
+    required this.sellingPrice, // Selling price (with margin)
     required this.basePrice,
     required this.taxAmount,
     required this.currency,
@@ -54,7 +58,12 @@ class EmiratesFlight {
      required this.responseId,
   });
 
-  factory EmiratesFlight.fromJson(Map<String, dynamic> json, {String? searchOrigin, String? searchDestination}) {
+  factory EmiratesFlight.fromJson(
+    Map<String, dynamic> json, {
+    String? searchOrigin,
+    String? searchDestination,
+    double? sellingPrice, // Optional selling price with margin applied
+  }) {
     try {
       debugPrint('\n🔵 Creating EmiratesFlight from JSON');
       debugPrint('Offer ID: ${json['OfferID']}');
@@ -87,11 +96,14 @@ class EmiratesFlight {
       final lastSegment = segments.last;
       debugPrint('Flight segment data extracted: ${firstSegment['departure']['airport']} -> ${lastSegment['arrival']['airport']} (Segments: ${segments.length})');
 
-      // Extract price information (real price without margin)
+      // Extract price information (buying price without margin)
       final priceInfo = _extractPriceInfo(json);
+      final buyingPrice = priceInfo['total']; // Buying price from API
+      final finalSellingPrice = sellingPrice ?? buyingPrice; // Use provided selling price or default to buying price
+      debugPrint('Buying Price: $buyingPrice ${priceInfo['currency']}');
+      debugPrint('Selling Price: $finalSellingPrice ${priceInfo['currency']}');
       debugPrint('Base Price: ${priceInfo['base']} ${priceInfo['currency']}');
       debugPrint('Tax: ${priceInfo['tax']} ${priceInfo['currency']}');
-      debugPrint('Total: ${priceInfo['total']} ${priceInfo['currency']}');
 
       // Extract fare details FROM OFFERITEM
       final offerItem = json['OfferItem'];
@@ -110,7 +122,9 @@ class EmiratesFlight {
 
       return EmiratesFlight(
         id: json['OfferID']?.toString() ?? 'UNKNOWN',
-        price: priceInfo['total'], // Store real price without margin
+        price: finalSellingPrice, // Display selling price
+        buyingPrice: buyingPrice, // Store buying price for PNR
+        sellingPrice: finalSellingPrice, // Store selling price
         basePrice: priceInfo['base'],
         taxAmount: priceInfo['tax'],
         currency: priceInfo['currency'],

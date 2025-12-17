@@ -33,35 +33,11 @@ class _FlightCardState extends State<FlightCard>
     with SingleTickerProviderStateMixin {
   bool isExpanded = false;
 
-  final Rx<Map<String, dynamic>> marginData = Rx<Map<String, dynamic>>({});
-  final RxDouble finalPrice = 0.0.obs;
-
   final flightController = Get.find<SabreFlightController>();
+  
   @override
   void initState() {
     super.initState();
-
-
-    // Fetch margin data when widget initializes
-    _fetchMarginData();
-  }
-
-  // Add this method to fetch margin data
-  Future<void> _fetchMarginData() async {
-    try {
-      final apiService = Get.find<ApiServiceSabre>();
-      final data = await apiService.getMargin(widget.flight.airlineCode, widget.flight.airline);
-      marginData.value = data;
-
-      // Calculate final price with margin
-      finalPrice.value = apiService.calculatePriceWithMargin(
-        widget.flight.price,
-        data,
-      );
-    } catch (e) {
-      // If margin fetch fails, use original price
-      finalPrice.value = widget.flight.price;
-    }
   }
 
   @override
@@ -590,7 +566,7 @@ class _FlightCardState extends State<FlightCard>
                           ),
                         ),
                         TextSpan(
-                          text: NumberFormat('#,###').format(finalPrice.value),
+                          text: NumberFormat('#,###').format(widget.flight.price),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,

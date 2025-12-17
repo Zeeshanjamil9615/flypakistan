@@ -21,7 +21,7 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
   final RxBool isLoading = false.obs;
 
   // Cache for margin data and calculated prices
-  final Rx<Map<String, dynamic>> marginData = Rx<Map<String, dynamic>>({});
+  // Cache for calculated prices (margins already applied during flight parsing)
   final Map<String, RxDouble> finalPrices = {};
 
   FlyDubaiPackageSelectionDialog({
@@ -87,11 +87,6 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
       print('  isMultiCity: $isMultiCity');
       print('  segmentIndex: $segmentIndex');
       print('  Flight LFID: ${flight.flightSegment.lfid}');
-      
-      if (marginData.value.isEmpty) {
-        final apiService = Get.find<ApiServiceSabre>();
-        marginData.value = await apiService.getMargin(flight.airlineCode, flight.airlineName);
-      }
 
       // Pre-calculate prices for all fare options
       final fareOptions = flyDubaiController.getFareOptionsForFlight(
@@ -101,19 +96,13 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
       
       print('  Fare options in prefetch: ${fareOptions.length}');
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      // Fare options prices already have margin applied during flight parsing
       for (var option in fareOptions) {
         final String packageKey = '${option.cabin}-${option.fareTypeName}';
 
         if (!finalPrices.containsKey(packageKey)) {
-          final apiService = Get.find<ApiServiceSabre>();
-
-          final marginedBasePrice = apiService.calculatePriceWithMargin(
-            option.baseFareAmountIncludingTax,
-            marginData.value,
-          );
-
-          final totalPrice = marginedBasePrice;
-
+          // Use the price directly (margin already applied)
+          final totalPrice = option.baseFareAmountIncludingTax;
           finalPrices[packageKey] = totalPrice.obs;
         }
       }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
 import 'package:ready_flights/services/api_service_emirates.dart';
+import 'package:ready_flights/services/api_service_sabre.dart';
 import 'package:ready_flights/views/flight/search_flights/flight_package/emirates_ndc/emirates_ndc_package.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_return_flights_page.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_booking_flight.dart';
@@ -72,12 +73,12 @@ class EmiratesFlightController extends GetxController {
     errorMessage.value = message;
   }
 
-  void loadFlights(
+  Future<void> loadFlights(
     Map<String, dynamic> response, {
     String? searchOrigin,
     String? searchDestination,
     bool isRoundTrip = false,
-  }) {
+  }) async {
      try {
     isLoading.value = true;
     errorMessage.value = '';
@@ -92,6 +93,15 @@ class EmiratesFlightController extends GetxController {
     isRoundTripSearch.value = isRoundTrip;
     _lastSearchOrigin = searchOrigin?.toUpperCase();
     _lastSearchDestination = searchDestination?.toUpperCase();
+
+    // Fetch margin for Emirates (airline code EK)
+    final sabreApiService = Get.put(ApiServiceSabre());
+    Map<String, dynamic> marginData = {};
+    try {
+      marginData = await sabreApiService.getMargin('EK', 'Emirates');
+    } catch (e) {
+      debugPrint('Error fetching Emirates margin: $e');
+    }
 
     debugPrint('\n=== PARSING EMIRATES RESPONSE ===');
     
@@ -165,7 +175,17 @@ class EmiratesFlightController extends GetxController {
           offerData['DataLists'] = dataLists;
         }
         
-        final flight = EmiratesFlight.fromJson(offerData, searchOrigin: searchOrigin, searchDestination: searchDestination);
+        // Extract buying price to calculate selling price with margin
+        final priceInfo = _extractPriceInfoFromOffer(offerData);
+        final buyingPrice = priceInfo['total'];
+        final sellingPrice = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+
+        final flight = EmiratesFlight.fromJson(
+          offerData,
+          searchOrigin: searchOrigin,
+          searchDestination: searchDestination,
+          sellingPrice: sellingPrice,
+        );
         
         final uniqueKey = '${flight.offerId}-${flight.priceClassName}';
         
@@ -638,6 +658,61 @@ class EmiratesFlightController extends GetxController {
     return filteredFlights.where((flight) {
       return flight.airlineCode.toUpperCase() == airlineCode.toUpperCase();
     }).toList();
+  }
+
+  // Helper method to extract price info from offer (similar to model's _extractPriceInfo)
+  Map<String, dynamic> _extractPriceInfoFromOffer(Map<String, dynamic> json) {
+    try {
+      final totalPrice = json['TotalPrice']?['DetailCurrencyPrice']?['Total'] ?? {};
+      final offerItem = json['OfferItem'];
+      
+      double total = 0;
+      double base = 0;
+      double tax = 0;
+      String currency = 'PKR';
+
+      if (totalPrice is Map) {
+        total = double.tryParse(totalPrice['\$t']?.toString() ?? totalPrice['value']?.toString() ?? totalPrice.toString()) ?? 0;
+        currency = totalPrice['Code']?.toString() ?? 'PKR';
+      } else {
+        total = double.tryParse(totalPrice.toString()) ?? 0;
+      }
+
+      if (offerItem != null) {
+        final fareDetail = offerItem['FareDetail'];
+        if (fareDetail != null) {
+          final price = fareDetail['Price'];
+          if (price != null) {
+            final baseAmount = price['BaseAmount'];
+            if (baseAmount != null) {
+              base = double.tryParse(_extractNodeText(baseAmount)) ?? 0;
+            }
+
+            final taxes = price['Taxes'];
+            if (taxes != null) {
+              final taxTotal = taxes['Total'];
+              if (taxTotal != null) {
+                tax = double.tryParse(_extractNodeText(taxTotal)) ?? 0;
+              }
+            }
+          }
+        }
+      }
+
+      return {
+        'total': total,
+        'base': base,
+        'tax': tax,
+        'currency': currency,
+      };
+    } catch (e) {
+      return {
+        'total': 0.0,
+        'base': 0.0,
+        'tax': 0.0,
+        'currency': 'PKR',
+      };
+    }
   }
 
   String _extractNodeText(dynamic value) {

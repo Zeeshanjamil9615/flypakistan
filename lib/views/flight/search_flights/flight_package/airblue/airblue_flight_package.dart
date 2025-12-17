@@ -22,8 +22,7 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
   final int segmentIndex; // Which segment of the trip this is
   final bool isMultiCity;
 
-  // Cache for margin data and calculated prices
-  final Rx<Map<String, dynamic>> marginData = Rx<Map<String, dynamic>>({});
+  // Cache for calculated prices (margins already applied during flight parsing)
   final Map<String, RxDouble> finalPrices = {};
 
   AirBluePackageSelectionDialog({
@@ -94,11 +93,6 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
 
   Future<void> _prefetchMarginData() async {
     try {
-      if (marginData.value.isEmpty) {
-        final apiService = Get.find<ApiServiceSabre>();
-        marginData.value = await apiService.getMargin(flight.airlineCode, flight.airlineName);
-      }
-
       // Get fare options using the controller method
       final fareOptions = airBlueController.getFareOptionsForFlight(
           flight,
@@ -107,16 +101,14 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
 
       print('DEBUG: Found ${fareOptions.length} fare options for flight ${flight.rph}');
 
+      // Fare options already have prices from flight parsing (with margin applied)
+      // Just use their prices directly
       for (var option in fareOptions) {
         final String packageKey = '${option.cabinCode}-${option.brandName}';
 
         if (!finalPrices.containsKey(packageKey)) {
-          final apiService = Get.find<ApiServiceSabre>();
-          final marginedBasePrice = apiService.calculatePriceWithMargin(
-            option.basePrice,
-            marginData.value,
-          );
-          final totalPrice = marginedBasePrice + option.taxAmount + option.feeAmount;
+          // Price already includes margin from flight parsing
+          final totalPrice = option.price;
           finalPrices[packageKey] = totalPrice.obs;
         }
       }

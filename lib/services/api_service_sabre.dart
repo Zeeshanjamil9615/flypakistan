@@ -553,7 +553,7 @@ class ApiServiceSabre extends GetxService {
   }
 
 
-  static const String _marginApiBaseUrl = 'https://agent1.pk/group_api';
+  static const String _marginApiBaseUrl = 'https://readyflights.pk/api';
   static const String _marginUserId = 'Group-121';
   static const String _marginUsername = 'travelocity';
 
@@ -585,7 +585,6 @@ class ApiServiceSabre extends GetxService {
   }
 
   Future<Map<String, dynamic>> getMargin(String airlineCode, String gds) async {
-
     try {
       // Check if user is logged in by getting valid token
       final token = await authController.getValidToken();
@@ -602,7 +601,7 @@ class ApiServiceSabre extends GetxService {
       }
 
       final response = await dio.post(
-        '$_marginApiBaseUrl/sastay_restapi.php',
+        '$_marginApiBaseUrl/get-margin',
         options: Options(
           headers: {
             'Content-Type': 'application/json',
@@ -616,8 +615,30 @@ class ApiServiceSabre extends GetxService {
         },
       );
 
+      print("+++++++++++++++++ Margin Response+++++++++++++++");
+      print(gds);
+      print(airlineCode);
+      print(response.data);
+
       if (response.statusCode == 200) {
-        return response.data['response'] ?? {};
+        Map<String, dynamic> marginMap = {};
+        
+        // Handle different response types
+        if (response.data is Map) {
+          // Already a Map
+          marginMap = Map<String, dynamic>.from(response.data);
+        } else if (response.data is String) {
+          // Parse JSON string
+          try {
+            marginMap = jsonDecode(response.data) as Map<String, dynamic>;
+          } catch (e) {
+            return {};
+          }
+        } else {
+          return {};
+        }
+        
+        return marginMap;
       } else {
         throw Exception('Failed to get margin: ${response.statusMessage}');
       }
@@ -625,22 +646,52 @@ class ApiServiceSabre extends GetxService {
       throw Exception('Error getting margin: $e');
     }
   }
+  // Calculate price with margin based on margin type
+  // marginType: "per" for percentage, "val" for fixed value
   double calculatePriceWithMargin(double basePrice, Map<String, dynamic> marginData) {
-    final marginVal = marginData['margin_val'];
-    final marginPer = marginData['margin_per'];
+    try {
+      if (marginData.isEmpty) {
+        return basePrice;
+      }
+      
+      final marginType = marginData['flight_margin_type']?.toString().toLowerCase().trim() ?? '';
+      final marginValRaw = marginData['margin_val'];
+      final marginPerRaw = marginData['margin_per'];
+      
+      // Handle numeric types (int, double) and string representations
+      double marginVal = 0.0;
+      if (marginValRaw != null) {
+        if (marginValRaw is num) {
+          marginVal = marginValRaw.toDouble();
+        } else {
+          marginVal = double.tryParse(marginValRaw.toString()) ?? 0.0;
+        }
+      }
+      
+      double marginPer = 0.0;
+      if (marginPerRaw != null) {
+        if (marginPerRaw is num) {
+          marginPer = marginPerRaw.toDouble();
+        } else {
+          marginPer = double.tryParse(marginPerRaw.toString()) ?? 0.0;
+        }
+      }
 
+      // Use margin type to determine which calculation to use
+      if (marginType == 'per' && marginPer > 0) {
+        // Percentage margin: API returns as decimal (0.03 = 3%), so multiply directly
+        // basePrice * (1 + marginPer) where marginPer is already a decimal
+        return basePrice * (1 + marginPer);
+      } else if (marginType == 'val' && marginVal > 0) {
+        // Fixed value margin: basePrice + marginValue
+        return basePrice + marginVal;
+      }
 
-
-    if (marginVal != null && marginVal != 'N/A') {
-      // Fixed margin value
-      return basePrice + double.parse(marginVal);
-    } else if (marginPer != null && marginPer != 'N/A') {
-      // Percentage margin
-      final percentage = double.parse(marginPer);
-      return basePrice * (1 + (percentage / 100));
+      // If no valid margin data, return base price
+      return basePrice;
+    } catch (e) {
+      return basePrice;
     }
-    // If no margin data is available, return the base price
-    return basePrice;
   }
 
 

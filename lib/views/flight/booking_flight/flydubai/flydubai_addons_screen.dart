@@ -838,10 +838,23 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
               );
             }
             
+            // ⚠️ CRITICAL: Deduplicate baggage by ID to prevent UI duplicates
+            // Use a map to ensure each baggage ID appears only once
+            final uniqueBaggageMap = <String, dynamic>{};
+            for (final baggage in filteredBaggage) {
+              final bagId = baggage['id']?.toString() ?? '';
+              if (bagId.isNotEmpty && !uniqueBaggageMap.containsKey(bagId)) {
+                uniqueBaggageMap[bagId] = baggage;
+              }
+            }
+            final uniqueBaggageList = uniqueBaggageMap.values.toList();
+            
             return Column(
-              children: filteredBaggage.map((baggage) {
-                final isSelected = selectedBaggage?['id'] == baggage['id'];
+              children: uniqueBaggageList.map((baggage) {
+                final bagId = baggage['id']?.toString() ?? '';
+                final isSelected = selectedBaggage?['id'] == bagId;
                 return Padding(
+                  key: ValueKey('baggage_${_segmentCode}_${passengerId}_$bagId'), // Unique key for each item
                   padding: const EdgeInsets.only(bottom: 12),
                   child: _buildBaggageOptionCard(
                     baggage: baggage,

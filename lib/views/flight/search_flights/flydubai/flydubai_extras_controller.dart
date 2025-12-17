@@ -188,6 +188,8 @@ class FlydubaiExtrasController extends GetxController {
   void _processBaggageData(Map<String, dynamic> data) {
     try {
       final List<dynamic> baggageOptions = [];
+      // Track unique baggage by offerCode to prevent duplicates
+      final uniqueBaggageById = <String, dynamic>{};
 
       // Parse baggage data from API response
       if (data['ServiceOffers'] is List) {
@@ -203,19 +205,28 @@ class FlydubaiExtrasController extends GetxController {
           if (offerCode.contains('BAG') || offerCode.contains('BUP')) {
             final quantityAvailable = (offer['quantityAvailable'] as num?)?.toInt() ?? 0;
             
-            baggageOptions.add({
-              'id': offerCode,
-              'description': description,
-              'type': 'baggage',
-              'charge': amount,
-              'currency': currency,
-              'offerID': offer['offerID']?.toString() ?? '',
-              'quantityAvailable': quantityAvailable,
-              'hashCode': offer['hashCode']?.toString() ?? '',
-            });
+            // ⚠️ CRITICAL: Deduplicate by offerCode to prevent duplicates
+            // Keep the first occurrence (or the one with better quantity if needed)
+            if (!uniqueBaggageById.containsKey(offerCode)) {
+              uniqueBaggageById[offerCode] = {
+                'id': offerCode,
+                'description': description,
+                'type': 'baggage',
+                'charge': amount,
+                'currency': currency,
+                'offerID': offer['offerID']?.toString() ?? '',
+                'quantityAvailable': quantityAvailable,
+                'hashCode': offer['hashCode']?.toString() ?? '',
+              };
+            } else {
+              debugPrint('⚠️ Duplicate baggage offerCode found during processing: $offerCode');
+            }
           }
         }
       }
+
+      // Convert unique map to list
+      baggageOptions.addAll(uniqueBaggageById.values);
 
       // Add default options if none found
       if (baggageOptions.isEmpty) {
@@ -238,6 +249,7 @@ class FlydubaiExtrasController extends GetxController {
       }
 
       availableBaggage.value = baggageOptions;
+      debugPrint('✅ Processed ${baggageOptions.length} unique baggage options');
 
     } catch (e) {
       debugPrint('❌ Error processing baggage data: $e');
@@ -835,7 +847,7 @@ class FlydubaiExtrasController extends GetxController {
       
       // Check if charge is valid
       final charge = double.tryParse(bag['charge']?.toString() ?? '0') ?? 0.0;
-      final description = (bag['description'] ?? '').toString().toLowerCase();
+      final description = (bag['description']?.toString() ?? '').toLowerCase();
       
       // Filter out "No Bag" options
       if (description.contains('no bag')) return false;
@@ -843,14 +855,37 @@ class FlydubaiExtrasController extends GetxController {
       return true;
     }).toList();
     
+    // ⚠️ CRITICAL: Deduplicate by baggage ID (offerCode) to prevent UI duplicates
+    // This ensures each baggage option (20kg, 30kg, 40kg) appears only once
+    final uniqueBaggage = <String, dynamic>{};
+    for (final bag in validBaggage) {
+      final bagId = bag['id']?.toString() ?? '';
+      if (bagId.isNotEmpty) {
+        // Keep the first occurrence (or you could keep the one with better quantity/price)
+        if (!uniqueBaggage.containsKey(bagId)) {
+          uniqueBaggage[bagId] = bag;
+        } else {
+          debugPrint('⚠️ Duplicate baggage found: $bagId - ${bag['description']}');
+        }
+      }
+    }
+    
+    final deduplicatedBaggage = uniqueBaggage.values.toList();
+    
+    if (deduplicatedBaggage.length != validBaggage.length) {
+      debugPrint('🔍 Removed ${validBaggage.length - deduplicatedBaggage.length} duplicate baggage options');
+    }
+    
     // Sort by weight extracted from description (20kg, 30kg, 40kg order)
-    validBaggage.sort((a, b) {
+    deduplicatedBaggage.sort((a, b) {
       final weightA = _extractWeightFromDescription(a['description']?.toString() ?? '');
       final weightB = _extractWeightFromDescription(b['description']?.toString() ?? '');
       return weightA.compareTo(weightB);
     });
     
-    return validBaggage;
+    debugPrint('✅ Returning ${deduplicatedBaggage.length} unique baggage options');
+    
+    return deduplicatedBaggage;
   }
 
   /// Prints JSON nicely with chunking

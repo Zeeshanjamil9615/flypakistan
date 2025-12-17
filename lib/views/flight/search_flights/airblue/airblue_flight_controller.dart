@@ -169,6 +169,14 @@ class AirBlueFlightController extends GetxController {
       fareOptionsByRPH.clear();
       flightsBySegment.clear();
 
+      // Fetch margin for AirBlue (airline code PA)
+      Map<String, dynamic> marginData = {};
+      try {
+        marginData = await apiService.getMargin('PA', 'blue');
+      } catch (e) {
+        print('DEBUG: Error fetching AirBlue margin: $e');
+      }
+
       // Parse the response
       if (response == null ||
           response['soap\$Envelope'] == null ||
@@ -245,9 +253,16 @@ class AirBlueFlightController extends GetxController {
 
             for (var itinerary in rphItineraries) {
               try {
+                // Extract buying price to calculate selling price with margin
+                final pricingInfo = itinerary['AirItineraryPricingInfo'];
+                final totalFare = pricingInfo?['ItinTotalFare']?['TotalFare'];
+                final buyingPrice = double.tryParse(totalFare?['Amount']?.toString() ?? '0') ?? 0.0;
+                final sellingPrice = apiService.calculatePriceWithMargin(buyingPrice, marginData);
+
                 final flight = AirBlueFlight.fromJson(
                   itinerary,
                   apiService.airlineMap.value,
+                  sellingPrice: sellingPrice,
                 );
                 fareOptions.add(AirBlueFareOption.fromFlight(flight, itinerary));
               } catch (e) {
@@ -276,9 +291,16 @@ class AirBlueFlightController extends GetxController {
               print('DEBUG: Storing fare options with key: $fareKey (${fareOptions.length} options)');
 
               final lowestPriceOption = fareOptions.first;
+              // Get buying price for representative flight
+              final repPricingInfo = lowestPriceOption.rawData['AirItineraryPricingInfo'];
+              final repTotalFare = repPricingInfo?['ItinTotalFare']?['TotalFare'];
+              final repBuyingPrice = double.tryParse(repTotalFare?['Amount']?.toString() ?? '0') ?? 0.0;
+              final repSellingPrice = apiService.calculatePriceWithMargin(repBuyingPrice, marginData);
+
               final representativeFlight = AirBlueFlight.fromJson(
                 lowestPriceOption.rawData,
                 apiService.airlineMap.value,
+                sellingPrice: repSellingPrice,
               ).copyWithFareOptions(fareOptions);
 
               segmentFlights.add(representativeFlight);
@@ -321,8 +343,8 @@ class AirBlueFlightController extends GetxController {
     }
   }
 
-  void loadFlights(Map<String, dynamic> apiResponse) {
-    parseApiResponse(apiResponse);
+  Future<void> loadFlights(Map<String, dynamic> apiResponse) async {
+    await parseApiResponse(apiResponse);
   }
 
   // Current selected flight for package selection

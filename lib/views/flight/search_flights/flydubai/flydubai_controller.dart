@@ -7,6 +7,7 @@ import 'package:ready_flights/views/flight/search_flights/flydubai/flydubai_mode
 import 'dart:developer' as developer;
 
 import '../../../../services/api_service_flydubai.dart';
+import '../../../../services/api_service_sabre.dart';
 import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 import '../flight_package/flydubai/flydubai_package.dart';
@@ -18,6 +19,8 @@ import 'flydubai_multicity_flight_selection.dart';
 class FlydubaiFlightController extends GetxController {
   // Use the separate API service
   final ApiServiceFlyDubai apiService = Get.put(ApiServiceFlyDubai());
+  // Use Sabre service for margin
+  final ApiServiceSabre sabreApiService = Get.put(ApiServiceSabre());
 
   // Separate lists for outbound and return flights
   final RxList<FlydubaiFlight> _originalOutboundFlights =
@@ -334,6 +337,14 @@ class FlydubaiFlightController extends GetxController {
         }
       }
 
+      // Fetch margin for FlyDubai (airline code FZ)
+      Map<String, dynamic> marginData = {};
+      try {
+        marginData = await sabreApiService.getMargin('FZ', 'flydubai');
+      } catch (e) {
+        developer.log('Error fetching FlyDubai margin: $e');
+      }
+
       // Create airline map for FlyDubai
       final airlineMap = {
         'FZ': AirlineInfo(
@@ -438,12 +449,20 @@ class FlydubaiFlightController extends GetxController {
 
             // Create flight with actual segment data
             developer.log('  ✈️ Creating FlydubaiFlight object...');
+            // Get buying price from lowest fare
+            final lowestFare = segment.fareTypes.isNotEmpty
+                ? segment.fareTypes.reduce((a, b) => a.baseFareAmountIncludingTax < b.baseFareAmountIncludingTax ? a : b)
+                : null;
+            final buyingPrice = lowestFare?.baseFareAmountIncludingTax ?? 0.0;
+            final sellingPrice = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+            
             final flight = FlydubaiFlight.fromFlightSegment(
               segment,
               airlineMap,
               response,
               expectedOrigin: cityPairs[matchingSegmentIndex].fromCity.value,
               expectedDestination: cityPairs[matchingSegmentIndex].toCity.value,
+              sellingPrice: sellingPrice,
             );
 
             // Store fare options by LFID (use segment index in key for multi-city)
@@ -567,6 +586,13 @@ class FlydubaiFlightController extends GetxController {
           );
 
           // Create flight with actual segment data
+          // Get buying price from lowest fare
+          final lowestFare = segment.fareTypes.isNotEmpty
+              ? segment.fareTypes.reduce((a, b) => a.baseFareAmountIncludingTax < b.baseFareAmountIncludingTax ? a : b)
+              : null;
+          final buyingPrice = lowestFare?.baseFareAmountIncludingTax ?? 0.0;
+          final sellingPrice = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+          
           final flight = FlydubaiFlight.fromFlightSegment(
             segment,
             airlineMap,
@@ -575,6 +601,7 @@ class FlydubaiFlightController extends GetxController {
                 isOutboundFlight ? expectedOrigin : expectedDestination,
             expectedDestination:
                 isOutboundFlight ? expectedDestination : expectedOrigin,
+            sellingPrice: sellingPrice,
           );
 
           // Store fare options by LFID
@@ -1264,7 +1291,9 @@ class FlydubaiFlightController extends GetxController {
     // Create a new flight object with updated price
     return FlydubaiFlight(
       id: flight.id,
-      price: newPrice,
+      price: newPrice, // Selling price (display price)
+      buyingPrice: flight.buyingPrice, // Keep original buying price
+      sellingPrice: newPrice, // Update selling price to new price
       basePrice: newPrice * 0.75, // Approximate base price (75% of total)
       taxAmount: newPrice * 0.25, // Approximate tax (25% of total)
       feeAmount: flight.feeAmount,

@@ -485,7 +485,9 @@ class FlydubaiFlightFare {
 
 class FlydubaiFlight {
   final String id;
-  final double price;
+  final double price; // Selling price (display price) - with margin applied
+  final double buyingPrice; // Buying price (without margin) - for PNR creation
+  final double sellingPrice; // Selling price (with margin) - same as price for backward compatibility
   final double basePrice;
   final double taxAmount;
   final double feeAmount;
@@ -511,7 +513,9 @@ class FlydubaiFlight {
 
   FlydubaiFlight({
     required this.id,
-    required this.price,
+    required this.price, // Selling price (display)
+    required this.buyingPrice, // Buying price (for PNR)
+    required this.sellingPrice, // Selling price (with margin)
     required this.basePrice,
     required this.taxAmount,
     required this.feeAmount,
@@ -542,6 +546,7 @@ class FlydubaiFlight {
       Map<String, dynamic> rawData, {
         String? expectedOrigin,
         String? expectedDestination,
+        double? sellingPrice, // Optional selling price with margin applied
       }) {
     try {
       // Get the lowest price fare
@@ -589,9 +594,10 @@ class FlydubaiFlight {
       final baggageAllowance = _createBaggageAllowance(lowestFare.fareTypeName);
 
       // Calculate pricing breakdown
-      final totalPrice = lowestFare.baseFareAmountIncludingTax;
-      final taxAmount = totalPrice * 0.25; // Approximate 25% for taxes and fees
-      final basePrice = totalPrice - taxAmount;
+      final buyingPrice = lowestFare.baseFareAmountIncludingTax; // Buying price from API
+      final finalSellingPrice = sellingPrice ?? buyingPrice; // Use provided selling price or default to buying price
+      final taxAmount = buyingPrice * 0.25; // Approximate 25% for taxes and fees
+      final basePrice = buyingPrice - taxAmount;
 
 
       // Calculate stops from segment details
@@ -624,7 +630,9 @@ class FlydubaiFlight {
 
       return FlydubaiFlight(
         id: flightId,
-        price: totalPrice,
+        price: finalSellingPrice, // Display selling price
+        buyingPrice: buyingPrice, // Store buying price for PNR
+        sellingPrice: finalSellingPrice, // Store selling price
         basePrice: basePrice,
         taxAmount: taxAmount,
         feeAmount: 0,
@@ -1169,7 +1177,9 @@ class FlydubaiFlight {
   FlydubaiFlight copyWithFareOptions(List<FlydubaiFlightFare> options) {
     return FlydubaiFlight(
       id: id,
-      price: price,
+      price: price, // Selling price
+      buyingPrice: buyingPrice, // Buying price
+      sellingPrice: sellingPrice, // Selling price
       basePrice: basePrice,
       taxAmount: taxAmount,
       feeAmount: feeAmount,

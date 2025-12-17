@@ -125,27 +125,6 @@ class SabrePackageSelectionDialog extends StatelessWidget {
 
   Widget _buildHorizontalPackageCard(FlightPackageInfo package, int index) {
     print(package.seatsAvailable);
-    final Rx<Map<String, dynamic>> marginData = Rx<Map<String, dynamic>>({});
-    final RxDouble finalPrice = 0.0.obs;
-
-    // Fetch margin data
-    Future<void> fetchMarginData() async {
-      try {
-        final apiService = Get.find<ApiServiceSabre>();
-        final data = await apiService.getMargin(flight.airlineCode, flight.airline);
-        marginData.value = data;
-
-        // Calculate final price with margin
-        finalPrice.value = apiService.calculatePriceWithMargin(
-          package.totalPrice,
-          data,
-        );
-      } catch (e) {
-        // If margin fetch fails, use original price
-        finalPrice.value = package.totalPrice;
-      }
-    }
-    fetchMarginData();
 
     // Determine if this is the cheapest option
     final sortedPackages = List<FlightPackageInfo>.from(flight.packages);
@@ -266,7 +245,7 @@ class SabrePackageSelectionDialog extends StatelessWidget {
                       ),
                     )
                         : Text(
-                      '${package.currency} ${finalPrice.value.toStringAsFixed(0)}',
+                      '${package.currency} ${package.totalPrice.toStringAsFixed(0)}',
                       style: const TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
@@ -609,7 +588,7 @@ class SabrePackageSelectionDialog extends StatelessWidget {
       print(response);
 
       // Parse the response
-      flightController.parseApiResponse(response, isAvailabilityCheck: true);
+      await flightController.parseApiResponse(response, isAvailabilityCheck: true);
 
       if (response.containsKey('groupedItineraryResponse') ||
           response.containsKey('payloadAttributes')) {

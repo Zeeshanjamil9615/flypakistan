@@ -10,7 +10,9 @@ import '../../../../widgets/city_selection_bottom_sheet.dart';
 
 class AirBlueFlight {
   final String id;
-  final double price;
+  final double price; // Selling price (display price) - with margin applied
+  final double buyingPrice; // Buying price (without margin) - for PNR creation
+  final double sellingPrice; // Selling price (with margin) - same as price for backward compatibility
   final double basePrice;
   final double taxAmount;
   final double feeAmount;
@@ -33,7 +35,9 @@ class AirBlueFlight {
 
   AirBlueFlight({
     required this.id,
-    required this.price,
+    required this.price, // Selling price (display)
+    required this.buyingPrice, // Buying price (for PNR)
+    required this.sellingPrice, // Selling price (with margin)
     required this.basePrice,
     required this.taxAmount,
     required this.feeAmount,
@@ -55,7 +59,11 @@ class AirBlueFlight {
     this.pnrPricing,
   });
 
-  factory AirBlueFlight.fromJson(Map<String, dynamic> json, Map<String, AirlineInfo> airlineMap) {
+  factory AirBlueFlight.fromJson(
+    Map<String, dynamic> json,
+    Map<String, AirlineInfo> airlineMap, {
+    double? sellingPrice, // Optional selling price with margin applied
+  }) {
     try {
       // Extract flight segment data
       final flightSegment = json['AirItinerary']['OriginDestinationOptions']['OriginDestinationOption']['FlightSegment'] ?? {};
@@ -80,6 +88,12 @@ class AirBlueFlight {
       final taxAmount = pricingInfo['ItinTotalFare']['Taxes'];
       final feeAmount = pricingInfo['ItinTotalFare']['Fees'];
 
+      // Get buying price (base price from API)
+      final buyingPrice = double.tryParse(totalFare['Amount']?.toString() ?? '0') ?? 0;
+
+      // Use provided selling price or default to buying price
+      final finalSellingPrice = sellingPrice ?? buyingPrice;
+
       // Generate a unique ID
       final flightId = '${flightSegment['FlightNumber'] ?? 'UNKNOWN'}-${DateTime.now().millisecondsSinceEpoch}';
 
@@ -96,7 +110,9 @@ class AirBlueFlight {
 
       return AirBlueFlight(
         id: flightId,
-        price: double.tryParse(totalFare['Amount']?.toString() ?? '0') ?? 0,
+        price: finalSellingPrice, // Display selling price
+        buyingPrice: buyingPrice, // Store buying price for PNR
+        sellingPrice: finalSellingPrice, // Store selling price
         basePrice: double.tryParse(basePrice['Amount']?.toString() ?? '0') ?? 0,
         taxAmount: double.tryParse(taxAmount['Amount']?.toString() ?? '0') ?? 0,
         feeAmount: double.tryParse(feeAmount['Amount']?.toString() ?? '0') ?? 0,
@@ -129,6 +145,8 @@ class AirBlueFlight {
     return AirBlueFlight(
       id: id,
       price: price,
+      buyingPrice: buyingPrice,
+      sellingPrice: sellingPrice,
       basePrice: basePrice,
       taxAmount: taxAmount,
       feeAmount: feeAmount,
@@ -155,6 +173,8 @@ class AirBlueFlight {
     return AirBlueFlight(
       id: id,
       price: price,
+      buyingPrice: buyingPrice,
+      sellingPrice: sellingPrice,
       basePrice: basePrice,
       taxAmount: taxAmount,
       feeAmount: feeAmount,

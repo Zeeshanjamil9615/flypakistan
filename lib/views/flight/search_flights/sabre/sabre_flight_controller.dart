@@ -86,8 +86,8 @@ class SabreFlightController extends GetxController {
   // New: Sorting type
   var sortType = 'Suggested'.obs;
 
-  void loadFlights(Map<String, dynamic> apiResponse) {
-    parseApiResponse(apiResponse);
+  Future<void> loadFlights(Map<String, dynamic> apiResponse) async {
+    await parseApiResponse(apiResponse);
   }
 
   void changeCurrency(String currency) {
@@ -294,7 +294,7 @@ extension FlightDateTimeExtension on SabreFlightController {
     return dateTime;
   }
 
-  void parseApiResponse(Map<String, dynamic>? response, {bool isAvailabilityCheck = false}) {
+  Future<void> parseApiResponse(Map<String, dynamic>? response, {bool isAvailabilityCheck = false}) async {
     try {
       isLoading.value = true;
 
@@ -307,6 +307,10 @@ extension FlightDateTimeExtension on SabreFlightController {
         }
         return;
       }
+
+      // Cache for margins by airline code to avoid multiple API calls
+      final Map<String, Map<String, dynamic>> marginCache = {};
+      final ApiServiceSabre apiService = Get.put(ApiServiceSabre());
 
       final groupedResponse = response['groupedItineraryResponse'];
 
@@ -362,6 +366,39 @@ extension FlightDateTimeExtension on SabreFlightController {
           Map<String, dynamic>.from(item as Map)).toList() ?? [];
           if (pricingInfo == null || pricingInfo.isEmpty) continue;
 
+          // Extract airline code early from the first leg's schedule
+          String airlineCode = 'Unknown';
+          try {
+            if (legs.isNotEmpty) {
+              final firstLeg = legs[0];
+              final legId = firstLeg['ref'] as int;
+              final legDesc = legDescsMap[legId];
+              if (legDesc != null) {
+                final schedules = legDesc['schedules'] as List?;
+                if (schedules != null && schedules.isNotEmpty) {
+                  final scheduleRef = schedules[0];
+                  final schedule = scheduleDescsMap[scheduleRef['ref']];
+                  if (schedule != null && schedule['carrier'] != null) {
+                    airlineCode = schedule['carrier']['marketing'] as String? ?? 'Unknown';
+                  }
+                }
+              }
+            }
+          } catch (e) {
+            // If extraction fails, airlineCode remains 'Unknown'
+          }
+
+          // Fetch margin for this airline if not already cached (MUST be before packages processing)
+          if (!marginCache.containsKey(airlineCode)) {
+            try {
+              final margin = await apiService.getMargin(airlineCode, 'sabre');
+              marginCache[airlineCode] = margin;
+            } catch (e) {
+              // If margin fetch fails, use empty margin (will return buying price)
+              marginCache[airlineCode] = {};
+            }
+          }
+
           // Process all available packages from pricingInfo
           final List<FlightPackageInfo> packages = [];
           for (var pricing in pricingInfo) {
@@ -370,11 +407,34 @@ extension FlightDateTimeExtension on SabreFlightController {
 
               // Handle regular fare packages
               if (fareInfo != null) {
-
+                final package = FlightPackageInfo.fromApiResponse(
+                  fareInfo,
+                  baggageAllowanceDescsMap,
+                );
+                // Apply margin to package base price (totalPrice - taxAmount)
+                final packageBasePrice = package.totalPrice - package.taxAmount;
+                final marginData = marginCache[airlineCode] ?? {};
+                final marginedBasePrice = apiService.calculatePriceWithMargin(packageBasePrice, marginData);
+                // Total = margined base + tax
+                final packageSellingPrice = marginedBasePrice + package.taxAmount;
+                
+                // Create package with margin applied
                 packages.add(
-                  FlightPackageInfo.fromApiResponse(
-                    fareInfo,
-                    baggageAllowanceDescsMap,
+                  FlightPackageInfo(
+                    cabinCode: package.cabinCode,
+                    cabinName: package.cabinName,
+                    mealCode: package.mealCode,
+                    seatsAvailable: package.seatsAvailable,
+                    totalPrice: packageSellingPrice, // Apply margin to base, then add tax
+                    taxAmount: package.taxAmount,
+                    currency: package.currency,
+                    isNonRefundable: package.isNonRefundable,
+                    baggageAllowance: package.baggageAllowance,
+                    brandCode: package.brandCode,
+                    brandDescription: package.brandDescription,
+                    isSoldOut: package.isSoldOut,
+                    offerItemId: package.offerItemId,
+                    pricingInfo: package.pricingInfo,
                   ),
                 );
               }
@@ -554,19 +614,37 @@ extension FlightDateTimeExtension on SabreFlightController {
             final lastSchedule = allStopSchedules.last;
             final carrier = firstSchedule['carrier'];
             final airlineCode = carrier['marketing'] as String? ?? 'Unknown';
-            final ApiServiceSabre apiService = Get.put(ApiServiceSabre());
             final airlineMap = apiService.getAirlineMap();
             final airlineInfo = getAirlineInfo(airlineCode, airlineMap);
+
+            // Get buying price (base price from API)
+            final buyingPrice = (mainFareInfo['totalFare']['totalPrice'] as num).toDouble();
+
+            // Fetch margin for this airline if not cached
+            if (!marginCache.containsKey(airlineCode)) {
+              try {
+                final margin = await apiService.getMargin(airlineCode, 'sabre');
+                marginCache[airlineCode] = margin;
+              } catch (e) {
+                // If margin fetch fails, use empty margin (will return buying price)
+                marginCache[airlineCode] = {};
+              }
+            }
+
+            // Calculate selling price with margin
+            final marginData = marginCache[airlineCode] ?? {};
+            final sellingPrice = apiService.calculatePriceWithMargin(buyingPrice, marginData);
 
             final flight = SabreFlight(
               imgPath: airlineInfo.logoPath,
               airline: airlineInfo.name,
-              airlineCode:airlineCode,
+              airlineCode: airlineCode,
               flightNumber:
               '${carrier['marketing'] ?? 'XX'}-${carrier['marketingFlightNumber'] ?? '000'}',
-            price:
-              (mainFareInfo['totalFare']['totalPrice'] as num).toDouble(),
-             legSchedules: legSchedules,
+              price: sellingPrice, // Display selling price
+              buyingPrice: buyingPrice, // Store buying price for PNR
+              sellingPrice: sellingPrice, // Store selling price
+              legSchedules: legSchedules,
               stopSchedules: allStopSchedules,
               // type: getFareType(mainFareInfo),
               isRefundable: !(mainFareInfo['passengerInfoList'][0]
