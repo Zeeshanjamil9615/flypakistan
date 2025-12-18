@@ -66,10 +66,24 @@ class AirBlueFlight {
   }) {
     try {
       // Extract flight segment data
-      final flightSegment = json['AirItinerary']['OriginDestinationOptions']['OriginDestinationOption']['FlightSegment'] ?? {};
-
-      // Extract RPH value from the OriginDestinationOption
-      final originDestOption = json['AirItinerary']['OriginDestinationOptions']['OriginDestinationOption'] ?? {};
+      // Handle case where OriginDestinationOption might be a List or Map
+      final airItinerary = json['AirItinerary'] ?? {};
+      final originDestOptions = airItinerary['OriginDestinationOptions'] ?? {};
+      dynamic originDestOptionRaw = originDestOptions['OriginDestinationOption'];
+      
+      // Normalize to Map - if it's a List, use first element
+      Map<String, dynamic> originDestOption;
+      if (originDestOptionRaw == null) {
+        originDestOption = {};
+      } else if (originDestOptionRaw is List && originDestOptionRaw.isNotEmpty) {
+        originDestOption = originDestOptionRaw[0] is Map ? Map<String, dynamic>.from(originDestOptionRaw[0]) : {};
+      } else if (originDestOptionRaw is Map) {
+        originDestOption = Map<String, dynamic>.from(originDestOptionRaw);
+      } else {
+        originDestOption = {};
+      }
+      
+      final flightSegment = originDestOption['FlightSegment'] ?? {};
       final rph = originDestOption['RPH']?.toString() ?? 'n/a'; // Default value if RPH is not found
       final rphFareSegment = flightSegment['RPH']?.toString() ?? 'n/a'; // Default value if RPH is not found
 
@@ -217,9 +231,30 @@ class AirBlueFlight {
         }
       } else if (fareBreakdown['FareInfo']?['PassengerFare']?['FareBaggageAllowance'] != null) {
         // Direct access if not a list
-        final baggage = fareBreakdown['FareInfo']['PassengerFare']['FareBaggageAllowance'];
-        final weight = baggage['UnitOfMeasureQuantity']?.toString() ?? '20';
-        final unit = baggage['UnitOfMeasure']?.toString() ?? 'KGS';
+      // Handle nested structure - check if FareInfo is a List or Map
+      final fareInfo = fareBreakdown['FareInfo'];
+      if (fareInfo == null) {
+        throw Exception('FareInfo is null');
+      }
+      
+      // If FareInfo is a List, use first element
+      final fareInfoMap = fareInfo is List ? (fareInfo.isNotEmpty ? fareInfo[0] : null) : fareInfo;
+      if (fareInfoMap == null || fareInfoMap is! Map) {
+        throw Exception('FareInfo is not a valid Map');
+      }
+      
+      final passengerFare = fareInfoMap['PassengerFare'];
+      if (passengerFare == null || passengerFare is! Map) {
+        throw Exception('PassengerFare is not a valid Map');
+      }
+      
+      final baggage = passengerFare['FareBaggageAllowance'];
+      if (baggage == null || baggage is! Map) {
+        throw Exception('FareBaggageAllowance is not a valid Map');
+      }
+      
+      final weight = baggage['UnitOfMeasureQuantity']?.toString() ?? '20';
+      final unit = baggage['UnitOfMeasure']?.toString() ?? 'KGS';
 
         return BaggageAllowance(
           type: 'Checked',
@@ -432,7 +467,21 @@ class AirBlueFlight {
       ) {
     try {
       final airItinerary = json['AirItinerary'] ?? {};
-      final originDestOption = airItinerary['OriginDestinationOptions']['OriginDestinationOption'] ?? {};
+      final originDestOptions = airItinerary['OriginDestinationOptions'] ?? {};
+      dynamic originDestOptionRaw = originDestOptions['OriginDestinationOption'];
+      
+      // Normalize to Map - if it's a List, use first element
+      Map<String, dynamic> originDestOption;
+      if (originDestOptionRaw == null) {
+        originDestOption = {};
+      } else if (originDestOptionRaw is List && originDestOptionRaw.isNotEmpty) {
+        originDestOption = originDestOptionRaw[0] is Map ? Map<String, dynamic>.from(originDestOptionRaw[0]) : {};
+      } else if (originDestOptionRaw is Map) {
+        originDestOption = Map<String, dynamic>.from(originDestOptionRaw);
+      } else {
+        originDestOption = {};
+      }
+      
       final flightSegment = originDestOption['FlightSegment'] ?? {};
 
       final departure = flightSegment['DepartureAirport'] ?? {};
@@ -500,7 +549,21 @@ class AirBlueFlight {
   static List<Map<String, dynamic>> _createStopSchedules(Map<String, dynamic> json) {
     try {
       final airItinerary = json['AirItinerary'] ?? {};
-      final originDestOption = airItinerary['OriginDestinationOptions']['OriginDestinationOption'] ?? {};
+      final originDestOptions = airItinerary['OriginDestinationOptions'] ?? {};
+      dynamic originDestOptionRaw = originDestOptions['OriginDestinationOption'];
+      
+      // Normalize to Map - if it's a List, use first element
+      Map<String, dynamic> originDestOption;
+      if (originDestOptionRaw == null) {
+        originDestOption = {};
+      } else if (originDestOptionRaw is List && originDestOptionRaw.isNotEmpty) {
+        originDestOption = originDestOptionRaw[0] is Map ? Map<String, dynamic>.from(originDestOptionRaw[0]) : {};
+      } else if (originDestOptionRaw is Map) {
+        originDestOption = Map<String, dynamic>.from(originDestOptionRaw);
+      } else {
+        originDestOption = {};
+      }
+      
       final flightSegment = originDestOption['FlightSegment'] ?? {};
 
       final departure = flightSegment['DepartureAirport'] ?? {};

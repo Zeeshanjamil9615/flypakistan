@@ -590,12 +590,29 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
               ],
             ),
           ),
-          IconButton(
-            onPressed: () {
-              widget.onClose?.call();
-              Get.back();
-            },
-            icon: const Icon(Icons.close),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                widget.onClose?.call();
+                // Use Navigator.pop for more reliable dismissal in release mode
+                try {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    Get.back();
+                  }
+                } catch (e) {
+                  // Fallback to Get.back() if Navigator fails
+                  Get.back();
+                }
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: const Icon(Icons.close, size: 24),
+              ),
+            ),
           ),
         ],
       ),

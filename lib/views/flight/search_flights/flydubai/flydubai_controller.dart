@@ -115,6 +115,32 @@ class FlydubaiFlightController extends GetxController {
     _returnDate = null;
   }
 
+  // Calculate price with margin and BSP (BSP only for FlyDubai GDS, not Sabre)
+  // BSP is a special fee that should be added only to FlyDubai GDS flights
+  double _calculateFlyDubaiSellingPrice(double buyingPrice, Map<String, dynamic> marginData) {
+    // First calculate price with margin
+    double priceWithMargin = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+    
+    // Then add BSP if it exists in marginData (only for FlyDubai GDS)
+    final bspRaw = marginData['bsp'];
+    if (bspRaw != null) {
+      double bsp = 0.0;
+      if (bspRaw is num) {
+        bsp = bspRaw.toDouble();
+      } else {
+        bsp = double.tryParse(bspRaw.toString()) ?? 0.0;
+      }
+      
+      if (bsp > 0) {
+        priceWithMargin += bsp;
+        developer.log('Added BSP fee: $bsp to FlyDubai GDS flight. Final price: $priceWithMargin');
+      }
+    }
+    
+    // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+    return priceWithMargin.ceil().toDouble();
+  }
+
   void loadFlights(Map<String, dynamic> result, String fromCity, String toCity, int tripTpe) {
     try {
       debugPrint('=== LOADING FLYDUBAI FLIGHTS ===');
@@ -162,36 +188,80 @@ class FlydubaiFlightController extends GetxController {
       developer.log('=== FlyDubai Controller: Starting flight search ===');
       developer.log('Search Parameters:');
       developer.log('Type: $type');
-      developer.log('Origin: $origin');
-      developer.log('Destination: $destination');
+      developer.log('Raw Origin: "$origin" (length: ${origin.length})');
+      developer.log('Raw Destination: "$destination" (length: ${destination.length})');
       developer.log('Departure Date: $depDate');
       developer.log('Passengers: Adult=$adult, Child=$child, Infant=$infant');
       developer.log('Cabin: $cabin');
 
-      // Clean the origin and destination parameters
-      String cleanOrigin = origin.replaceAll(',', '').trim();
-      String cleanDestination = destination.replaceAll(',', '').trim();
-      String cleanDepDate = depDate.replaceAll(',', '').trim();
-
-      // Store search parameters for flight separation
-      _searchOrigin = cleanOrigin;
-      _searchDestination = cleanDestination;
-
-      // Parse dates for round trip
+      // Clean and parse origin/destination parameters
+      // For round trip: origin can come as ",LHE,DXB", "LHEDXB" (concatenated), or "LHE"
+      // For one-way: origin comes as ",LHE" or "LHE"
+      // We need to extract the first origin/destination pair for the API call
+      String cleanOrigin;
+      String cleanDestination;
+      String cleanDepDate;
+      
+      // Parse dates for round trip first (needed before cleaning origin/destination)
       if (type == 1) {
-        List<String> datesList =
-            cleanDepDate
-                .split(',')
-                .map((d) => d.trim())
-                .where((d) => d.isNotEmpty)
-                .toList();
+        // Round trip - extract first origin/destination pair
+        String originCleaned = origin.replaceAll(',', '').trim();
+        String destCleaned = destination.replaceAll(',', '').trim();
+        
+        // Check if origin/destination are concatenated (e.g., "LHEDXB" = 6 chars, should split into two 3-char codes)
+        // Airport codes are typically 3 characters, so concatenated would be 6 characters
+        if (originCleaned.length == 6 && destCleaned.length == 6) {
+          // Likely concatenated format: "LHEDXB" = "LHE" + "DXB"
+          // Extract first 3 characters for outbound origin/destination
+          cleanOrigin = originCleaned.substring(0, 3);
+          cleanDestination = destCleaned.substring(0, 3);
+          developer.log('Detected concatenated format - Extracted: origin=$cleanOrigin, destination=$cleanDestination');
+        } else {
+          // Try splitting by comma first (in case there are commas)
+          final originParts = origin.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          final destParts = destination.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
+          
+          // For round trip: originParts = [LHE, DXB], destParts = [DXB, LHE]
+          // We want first pair: LHE -> DXB
+          cleanOrigin = originParts.isNotEmpty ? originParts[0] : originCleaned;
+          cleanDestination = destParts.isNotEmpty ? destParts[0] : destCleaned;
+        }
+        
+        // Ensure we have valid 3-character airport codes
+        if (cleanOrigin.length != 3 || cleanDestination.length != 3) {
+          developer.log('⚠️ Warning: Invalid airport code length - Origin: ${cleanOrigin.length} chars, Destination: ${cleanDestination.length} chars');
+          developer.log('  Origin value: "$cleanOrigin"');
+          developer.log('  Destination value: "$cleanDestination"');
+        }
+        
+        // Store search parameters for flight separation (first pair for outbound)
+        _searchOrigin = cleanOrigin;
+        _searchDestination = cleanDestination;
+        
+        final datesList = depDate
+            .split(',')
+            .map((d) => d.trim())
+            .where((d) => d.isNotEmpty)
+            .toList();
         if (datesList.length >= 2) {
+          cleanDepDate = datesList[0] + ',' + datesList[1]; // Keep both dates
           _outboundDate = DateTime.parse(datesList[0]);
           _returnDate = DateTime.parse(datesList[1]);
           developer.log('Outbound Date: $_outboundDate');
           developer.log('Return Date: $_returnDate');
+        } else {
+          cleanDepDate = depDate.replaceAll(',', '').trim();
+          _outboundDate = DateTime.parse(cleanDepDate);
         }
       } else {
+        // One-way - just remove commas
+        cleanOrigin = origin.replaceAll(',', '').trim();
+        cleanDestination = destination.replaceAll(',', '').trim();
+        cleanDepDate = depDate.replaceAll(',', '').trim();
+        
+        // Store search parameters
+        _searchOrigin = cleanOrigin;
+        _searchDestination = cleanDestination;
         _outboundDate = DateTime.parse(cleanDepDate);
       }
 
@@ -200,12 +270,12 @@ class FlydubaiFlightController extends GetxController {
       developer.log('Clean Destination: $cleanDestination');
       developer.log('Clean DepDate: $cleanDepDate');
 
-      // Call the API service with cleaned parameters
+      // Call the API service with cleaned parameters (no comma prefix for FlyDubai)
       final result = await apiService.searchFlights(
         type: type,
-        origin: ',$cleanOrigin', // Add comma back for API format
-        destination: ',$cleanDestination', // Add comma back for API format
-        depDate: ',$cleanDepDate', // Add comma back for API format
+        origin: cleanOrigin, // FlyDubai doesn't need comma prefix
+        destination: cleanDestination, // FlyDubai doesn't need comma prefix
+        depDate: cleanDepDate,
         adult: adult,
         child: child,
         infant: infant,
@@ -454,7 +524,8 @@ class FlydubaiFlightController extends GetxController {
                 ? segment.fareTypes.reduce((a, b) => a.baseFareAmountIncludingTax < b.baseFareAmountIncludingTax ? a : b)
                 : null;
             final buyingPrice = lowestFare?.baseFareAmountIncludingTax ?? 0.0;
-            final sellingPrice = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+            // Calculate selling price with margin + BSP (BSP only for FlyDubai GDS)
+            final sellingPrice = _calculateFlyDubaiSellingPrice(buyingPrice, marginData);
             
             final flight = FlydubaiFlight.fromFlightSegment(
               segment,
@@ -559,21 +630,32 @@ class FlydubaiFlightController extends GetxController {
         developer.log('  Processing ${flydubaiResponse.flightSegments.length} segments');
         
         // Process all segments and separate outbound/return (existing logic)
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      developer.log('📊 Round-trip flight separation:');
+      developer.log('  Expected Origin: $expectedOrigin');
+      developer.log('  Expected Destination: $expectedDestination');
+      developer.log('  Outbound Date: $_outboundDate');
+      developer.log('  Return Date: $_returnDate');
+      developer.log('  Total segments to process: ${flydubaiResponse.flightSegments.length}');
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
       for (var segment in flydubaiResponse.flightSegments) {
         try {
-          developer.log('Processing segment LFID: ${segment.lfid}');
-          developer.log(
-            'Segment route: ${segment.origin} -> ${segment.destination}',
-          );
-          developer.log('Segment date: ${segment.departureDateTime}');
+          developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+          developer.log('🔍 Processing segment LFID: ${segment.lfid}');
+          developer.log('  Route: ${segment.origin} -> ${segment.destination}');
+          developer.log('  Date: ${segment.departureDateTime}');
+          developer.log('  Date (date only): ${segment.departureDateTime.toIso8601String().substring(0, 10)}');
+          developer.log('  Fare types count: ${segment.fareTypes.length}');
 
           // Check if segment has valid fare data
           if (segment.fareTypes.isEmpty) {
-            developer.log('Skipping segment ${segment.lfid} - no fare data');
+            developer.log('  ⚠️ Skipping segment ${segment.lfid} - no fare data');
             continue;
           }
 
           // Determine if this is outbound or return flight
+          developer.log('  🔎 Determining flight type (outbound/return)...');
           bool isOutboundFlight = _isOutboundFlight(
             segment,
             expectedOrigin,
@@ -581,9 +663,7 @@ class FlydubaiFlightController extends GetxController {
             tripType,
           );
 
-          developer.log(
-            'Flight ${segment.lfid} classified as: ${isOutboundFlight ? "OUTBOUND" : "RETURN"}',
-          );
+          developer.log('  ✅ Flight ${segment.lfid} classified as: ${isOutboundFlight ? "OUTBOUND" : "RETURN"}');
 
           // Create flight with actual segment data
           // Get buying price from lowest fare
@@ -591,7 +671,8 @@ class FlydubaiFlightController extends GetxController {
               ? segment.fareTypes.reduce((a, b) => a.baseFareAmountIncludingTax < b.baseFareAmountIncludingTax ? a : b)
               : null;
           final buyingPrice = lowestFare?.baseFareAmountIncludingTax ?? 0.0;
-          final sellingPrice = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+          // Calculate selling price with margin + BSP (BSP only for FlyDubai GDS)
+          final sellingPrice = _calculateFlyDubaiSellingPrice(buyingPrice, marginData);
           
           final flight = FlydubaiFlight.fromFlightSegment(
             segment,
@@ -636,17 +717,36 @@ class FlydubaiFlightController extends GetxController {
       filteredOutboundFlights.assignAll(_originalOutboundFlights);
       filteredReturnFlights.assignAll(_originalReturnFlights);
 
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       developer.log('=== PARSING COMPLETE ===');
-      developer.log(
-        'Successfully parsed ${_originalOutboundFlights.length} FlyDubai outbound flights',
-      );
-      developer.log(
-        'Successfully parsed ${_originalReturnFlights.length} FlyDubai return flights',
-      );
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      developer.log('📊 Final Results:');
+      developer.log('  ✅ Outbound flights: ${_originalOutboundFlights.length}');
+      if (_originalOutboundFlights.isNotEmpty) {
+        developer.log('    First outbound: ${_originalOutboundFlights.first.flightSegment.origin} -> ${_originalOutboundFlights.first.flightSegment.destination} (PKR ${_originalOutboundFlights.first.price})');
+        developer.log('    Last outbound: ${_originalOutboundFlights.last.flightSegment.origin} -> ${_originalOutboundFlights.last.flightSegment.destination} (PKR ${_originalOutboundFlights.last.price})');
+      }
+      developer.log('  ✅ Return flights: ${_originalReturnFlights.length}');
+      if (_originalReturnFlights.isNotEmpty) {
+        developer.log('    First return: ${_originalReturnFlights.first.flightSegment.origin} -> ${_originalReturnFlights.first.flightSegment.destination} (PKR ${_originalReturnFlights.first.price})');
+        developer.log('    Last return: ${_originalReturnFlights.last.flightSegment.origin} -> ${_originalReturnFlights.last.flightSegment.destination} (PKR ${_originalReturnFlights.last.price})');
+      } else {
+        developer.log('    ⚠️ WARNING: No return flights found!');
+        developer.log('    Check if:');
+        developer.log('      1. Return date matches segment dates');
+        developer.log('      2. Route is correct (expected: $expectedDestination -> $expectedOrigin)');
+        developer.log('      3. API response contains return segments');
+      }
+      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
 
       if (_originalOutboundFlights.isEmpty && _originalReturnFlights.isEmpty) {
         setErrorMessage(
           'No FlyDubai flights found for the selected route and dates',
+        );
+      } else if (tripType == 1 && _originalReturnFlights.isEmpty) {
+        developer.log('⚠️ WARNING: Round-trip search but no return flights found!');
+        setErrorMessage(
+          'No return flights found for the selected dates. Please try different dates.',
         );
       }
     } catch (e, stackTrace) {
@@ -663,41 +763,47 @@ class FlydubaiFlightController extends GetxController {
     String? expectedDestination,
     int? tripType,
   ) {
+    developer.log('    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    developer.log('    📍 _isOutboundFlight called:');
+    developer.log('      Segment: ${segment.origin} -> ${segment.destination}');
+    developer.log('      Segment Date: ${segment.departureDateTime.toIso8601String().substring(0, 10)}');
+    developer.log('      Trip Type: $tripType (${tripType == 0 ? "One-way" : tripType == 1 ? "Round-trip" : tripType == 2 ? "Multi-city" : "Unknown"})');
+    developer.log('      Expected Origin: $expectedOrigin');
+    developer.log('      Expected Destination: $expectedDestination');
+    developer.log('      Stored Outbound Date: $_outboundDate');
+    developer.log('      Stored Return Date: $_returnDate');
+    
     // For one-way flights, all flights are outbound
     if (tripType == 0) {
-      print("check 1");
+      developer.log('      ✅ One-way flight - classifying as OUTBOUND');
       return true;
     }
 
-    print("check 2");
-
     // For round-trip flights, separate by route and date
     if (tripType == 1) {
-      print("check 3");
+      developer.log('      🔄 Round-trip flight - analyzing route and date...');
+      
       // Check if we have the expected origin/destination from search
       if (expectedOrigin != null && expectedDestination != null) {
-        print("check 4");
-        print(expectedOrigin);
-        print(expectedDestination);
         bool isOutboundRoute =
             (segment.origin == expectedOrigin &&
                 segment.destination == expectedDestination);
         bool isReturnRoute =
             (segment.origin == expectedDestination &&
                 segment.destination == expectedOrigin);
-        print("check 4.5");
-        print(isOutboundRoute);
-        print(isReturnRoute);
+        
+        developer.log('      Route analysis:');
+        developer.log('        Is Outbound Route (${segment.origin}->${segment.destination} == $expectedOrigin->$expectedDestination): $isOutboundRoute');
+        developer.log('        Is Return Route (${segment.origin}->${segment.destination} == $expectedDestination->$expectedOrigin): $isReturnRoute');
+        
         // If we have dates, use them for more accurate classification
         if (_outboundDate != null && _returnDate != null) {
-          print("check 5");
           DateTime segmentDate = DateTime(
             segment.departureDateTime.year,
             segment.departureDateTime.month,
             segment.departureDateTime.day,
           );
 
-          print(segmentDate);
           DateTime outboundDateOnly = DateTime(
             _outboundDate!.year,
             _outboundDate!.month,
@@ -708,27 +814,46 @@ class FlydubaiFlightController extends GetxController {
             _returnDate!.month,
             _returnDate!.day,
           );
-          print(outboundDateOnly);
-          print(returnDateOnly);
+          
+          developer.log('      Date analysis:');
+          developer.log('        Segment Date: ${segmentDate.toIso8601String().substring(0, 10)}');
+          developer.log('        Outbound Date: ${outboundDateOnly.toIso8601String().substring(0, 10)}');
+          developer.log('        Return Date: ${returnDateOnly.toIso8601String().substring(0, 10)}');
+          developer.log('        Matches Outbound Date: ${segmentDate.isAtSameMomentAs(outboundDateOnly)}');
+          developer.log('        Matches Return Date: ${segmentDate.isAtSameMomentAs(returnDateOnly)}');
+          
           // Check if flight is on outbound date with outbound route
           if (segmentDate.isAtSameMomentAs(outboundDateOnly) &&
               isOutboundRoute) {
-            print("check 6");
+            developer.log('      ✅ Classified as OUTBOUND (matches outbound date + route)');
             return true;
           }
           // Check if flight is on return date with return route
           if (segmentDate.isAtSameMomentAs(returnDateOnly) && isReturnRoute) {
-            print("check 7");
+            developer.log('      ✅ Classified as RETURN (matches return date + route)');
             return false;
           }
+          
+          // If date matches but route doesn't match perfectly, log warning
+          if (segmentDate.isAtSameMomentAs(outboundDateOnly) && !isOutboundRoute) {
+            developer.log('      ⚠️ WARNING: Date matches outbound but route doesn\'t! Route: ${segment.origin}->${segment.destination}, Expected: $expectedOrigin->$expectedDestination');
+          }
+          if (segmentDate.isAtSameMomentAs(returnDateOnly) && !isReturnRoute) {
+            developer.log('      ⚠️ WARNING: Date matches return but route doesn\'t! Route: ${segment.origin}->${segment.destination}, Expected: $expectedDestination->$expectedOrigin');
+          }
         }
-        print("check 8");
+        
         // Fallback: if we can't determine by date, use route direction
+        developer.log('      📍 Using route direction fallback (no date match or dates not available)');
+        developer.log('      ${isOutboundRoute ? "✅ Classified as OUTBOUND" : isReturnRoute ? "✅ Classified as RETURN" : "⚠️ WARNING: Route doesn\'t match expected - defaulting to OUTBOUND"}');
         return isOutboundRoute;
+      } else {
+        developer.log('      ⚠️ WARNING: Expected origin/destination is null - defaulting to OUTBOUND');
       }
     }
 
     // Default to outbound for multi-city or unknown cases
+    developer.log('      📍 Default case - classifying as OUTBOUND');
     return true;
   }
 
@@ -1351,77 +1476,68 @@ class FlydubaiFlightController extends GetxController {
                           selectedMultiCityFlightsList.length == selectedMultiCityFareOptionsList.length;
 
       if (isMultiCity) {
+        // Get passenger counts from extras controller
+        final int adultCount = extrasController.adultPassengers.value;
+        final int childCount = extrasController.childPassengers.value;
+        final int infantCount = extrasController.infantPassengers.value;
+        final int totalPassengers = adultCount + childCount + infantCount;
+        
         print('🌍 Building segments for MULTI-CITY booking (${selectedMultiCityFlightsList.length} segments)');
+        print('👥 Passengers: $adultCount adults, $childCount children, $infantCount infants (Total: $totalPassengers)');
         
         // Build segments for each multi-city flight
-        for (int i = 0; i < selectedMultiCityFlightsList.length; i++) {
-          final flight = selectedMultiCityFlightsList[i];
-          final fareOption = selectedMultiCityFareOptionsList[i];
+        for (int segmentIndex = 0; segmentIndex < selectedMultiCityFlightsList.length; segmentIndex++) {
+          final flight = selectedMultiCityFlightsList[segmentIndex];
+          final fareOption = selectedMultiCityFareOptionsList[segmentIndex];
           
-          print('📍 Building Multi-City Segment $i:');
+          print('📍 Building Multi-City Segment $segmentIndex:');
           print('   - Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
           print('   - LFID: ${flight.flightSegment.lfid}');
           print('   - Route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
           print('   - Fare: ${fareOption.fareTypeName}');
           print('   - Fare ID: ${fareOption.fareId}');
           
-          final fareId = fareOption.fareId;
+          final adultFareId = fareOption.fareId;
           final segmentMeta = _buildSegmentMeta(flight);
-
-          // Get extras data from extras controller - filter by segment LFID for multi-city
           final segmentLfid = flight.flightSegment.lfid.toString();
-          final filteredBaggage = _filterExtrasBySegment(extrasController.selectedBaggage, segmentLfid);
           
-          print('   🔍 Baggage filtering debug for segment $segmentLfid:');
-          print('      - All baggage keys: ${extrasController.selectedBaggage.keys.toList()}');
-          print('      - Looking for keys starting with: seg$segmentLfid|');
-          // Meals and seats use leg codes, need to filter by all legs in this segment
+          // Get extras data from extras controller - filter by segment LFID for multi-city
+          final filteredBaggage = _filterExtrasBySegment(extrasController.selectedBaggage, segmentLfid);
           final filteredMeals = _filterExtrasByLegForSegment(extrasController.selectedMeals, segmentLfid, flight);
           final filteredSeats = _filterExtrasByLegForSegment(extrasController.selectedSeats, segmentLfid, flight);
           
-          print('   🔍 Filtering extras for segment $segmentLfid:');
-          print('      - Total baggage in controller: ${extrasController.selectedBaggage.length}');
-          print('      - Baggage keys: ${extrasController.selectedBaggage.keys.toList()}');
-          print('      - Looking for: seg$segmentLfid|');
-          print('      - Filtered baggage: ${filteredBaggage.length}');
-          if (filteredBaggage.isNotEmpty) {
-            print('      - Filtered baggage keys: ${filteredBaggage.keys.toList()}');
+          // Build segments for EACH ADULT passenger (skip children/infants for multi-city)
+          // For multi-city, we create segments for all adults for each flight segment
+          int passengerId = 0;
+          
+          // Add segments for adults only
+          for (int adultIndex = 0; adultIndex < adultCount; adultIndex++) {
+            passengerId++;
+            final passengerKey = 'p$adultIndex'; // p0, p1, etc.
+            
+            // Filter extras for this specific passenger
+            final passengerBaggage = _filterExtrasByPassenger(filteredBaggage, passengerKey);
+            final passengerMeals = _filterExtrasByPassenger(filteredMeals, passengerKey);
+            final passengerSeats = _filterExtrasByPassenger(filteredSeats, passengerKey);
+            
+            final baggageExtras = _buildBaggageExtras(passengerBaggage, segmentMeta);
+            final mealExtras = _buildMealExtras(passengerMeals, segmentMeta, flight);
+            final seatExtras = _buildSeatExtras(passengerSeats, segmentMeta, flight);
+
+            segments.add({
+              'pax': passengerId,
+              'fareID': adultFareId,
+              'lfid': flight.flightSegment.lfid,
+              'extra': {
+                'baggage': baggageExtras,
+                'meal': mealExtras,
+                'seat': seatExtras
+              }
+            });
           }
-          print('      - Total meals in controller: ${extrasController.selectedMeals.length}');
-          print('      - Filtered meals: ${filteredMeals.length}');
-          print('      - Total seats in controller: ${extrasController.selectedSeats.length}');
-          print('      - Filtered seats: ${filteredSeats.length}');
           
-          final baggageExtras = _buildBaggageExtras(
-            filteredBaggage,
-            segmentMeta,
-          );
-          final mealExtras = _buildMealExtras(
-            filteredMeals,
-            segmentMeta,
-            flight,
-          );
-          final seatExtras = _buildSeatExtras(
-            filteredSeats,
-            segmentMeta,
-            flight,
-          );
-
-          print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-          print('   - Meal extras: ${mealExtras.length}');
-          print('   - Seat extras: ${seatExtras.length}');
-
-          segments.add({
-            'pax': 1, // First passenger
-            'fareID': fareId,
-            'extra': {
-              'baggage': baggageExtras,
-              'meal': mealExtras,
-              'seat': seatExtras
-            }
-          });
-          
-          print('   ✅ Multi-city segment $i added');
+          // Skip children and infants for multi-city (they're in Passengers array but not in Segments)
+          // TODO: Add child/infant segment support when API supports it
         }
       } else {
         // Build segments for outbound flight (one-way or round-trip)
@@ -1528,10 +1644,6 @@ class FlydubaiFlightController extends GetxController {
   // Helper method to filter extras by segment code
   Map<String, dynamic> _filterExtrasBySegment(RxMap<String, dynamic> allExtras, String segmentLfid) {
     final filtered = <String, dynamic>{};
-    print('   🔍 _filterExtrasBySegment called:');
-    print('      - Looking for segment LFID: $segmentLfid');
-    print('      - Total extras in map: ${allExtras.length}');
-    print('      - All keys: ${allExtras.keys.toList()}');
     
     for (final entry in allExtras.entries) {
       final key = entry.key;
@@ -1539,13 +1651,29 @@ class FlydubaiFlightController extends GetxController {
       final expectedPrefix = 'seg$segmentLfid|';
       if (key.startsWith(expectedPrefix)) {
         filtered[key] = entry.value;
-        print('      ✅ Matched key: $key');
-      } else {
-        print('      ❌ Key "$key" does not start with "$expectedPrefix"');
       }
     }
     
-    print('      - Filtered count: ${filtered.length}');
+    return filtered;
+  }
+
+  // Helper method to filter extras by passenger ID
+  // Extras keys are in format: 
+  // - Baggage: seg{segmentCode}|p{passengerId}
+  // - Meals/Seats: legseg{segmentCode}_leg{pfid}|p{passengerId}
+  Map<String, dynamic> _filterExtrasByPassenger(Map<String, dynamic> allExtras, String passengerKey) {
+    final filtered = <String, dynamic>{};
+    
+    for (final entry in allExtras.entries) {
+      final key = entry.key;
+      // Check if key ends with |{passengerKey}
+      // This works for both formats: seg{code}|p{id} and legseg{code}_leg{pfid}|p{id}
+      final expectedSuffix = '|$passengerKey';
+      if (key.endsWith(expectedSuffix)) {
+        filtered[key] = entry.value;
+      }
+    }
+    
     return filtered;
   }
 

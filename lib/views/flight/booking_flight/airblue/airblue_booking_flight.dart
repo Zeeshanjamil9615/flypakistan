@@ -2046,46 +2046,58 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         backgroundColor: Colors.white,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Header row with logo centered and close button on right
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
+        child: Builder(
+          builder: (dialogContext) {
+            return Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Left spacer
-                  const Expanded(child: SizedBox()),
-                  // Centered Logo
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: const BoxDecoration(
-                      // color: Color(0xFF0B5ED7),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Image.asset(
-                      'assets/images/logo1.png',
-                      height: 80,
-                      width: 100,
-                    ),
-                  ),
-                  // Right spacer with close button
-                  Expanded(
-                    child: Align(
-                      alignment: Alignment.centerRight,
-                      child: GestureDetector(
-                        onTap: _dismissLoginDialog,
-                        child: const Icon(
-                          Icons.close,
-                          color: TColors.black,
-                          size: 20,
+                  // Header row with logo centered and close button on right
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      // Left spacer
+                      const Expanded(child: SizedBox()),
+                      // Centered Logo
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: const BoxDecoration(
+                          // color: Color(0xFF0B5ED7),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Image.asset(
+                          'assets/images/logo1.png',
+                          height: 80,
+                          width: 100,
                         ),
                       ),
-                    ),
+                      // Right spacer with close button
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerRight,
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              onTap: () {
+                                _loginDialogVisible = false;
+                                Navigator.of(dialogContext, rootNavigator: true).pop();
+                              },
+                              borderRadius: BorderRadius.circular(20),
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                child: const Icon(
+                                  Icons.close,
+                                  color: TColors.black,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
 
               // const SizedBox(height: 20),
 
@@ -2135,7 +2147,10 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                 children: [
                   Expanded(
                     child: OutlinedButton(
-                      onPressed: _dismissLoginDialog,
+                      onPressed: () {
+                        _loginDialogVisible = false;
+                        Navigator.of(dialogContext, rootNavigator: true).pop();
+                      },
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 12),
                         side: BorderSide(
@@ -2180,8 +2195,10 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
                   ),
                 ],
               ),
-            ],
-          ),
+                ],
+              ),
+            );
+          },
         ),
       ),
       barrierDismissible: false,
@@ -2191,11 +2208,30 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   }
 
   void _dismissLoginDialog() {
+    // Set flag first to prevent multiple calls
     _loginDialogVisible = false;
-    if (Get.isDialogOpen ?? false) {
+    
+    // Since we're using Get.dialog(), we should use Get.context
+    // This is more reliable than widget context in release mode
+    try {
+      // Method 1: Try Get.back() first (works with Get.dialog)
       Get.back();
-    } else if (Navigator.of(context).canPop()) {
-      Navigator.of(context).pop();
+    } catch (e) {
+      // Method 2: If Get.back() fails, use Navigator with Get.context
+      try {
+        if (Get.context != null) {
+          Navigator.of(Get.context!, rootNavigator: true).pop();
+        }
+      } catch (e2) {
+        // Method 3: Last resort - try with widget context if mounted
+        try {
+          if (mounted) {
+            Navigator.of(context, rootNavigator: true).pop();
+          }
+        } catch (_) {
+          // All methods failed, but flag is set so dialog won't show again
+        }
+      }
     }
   }
 

@@ -79,7 +79,29 @@ class EmiratesFlight {
       debugPrint('ResponseID: $responseId');
 
       // Extract DataLists for reference data
-      final dataLists = json['DataLists'] ?? {};
+      dynamic dataListsRaw = json['DataLists'];
+      Map<String, dynamic> dataLists;
+      
+      // Handle case where DataLists might be a List or Map
+      if (dataListsRaw == null) {
+        debugPrint('⚠️ DataLists is null in offer JSON');
+        dataLists = {};
+      } else if (dataListsRaw is Map) {
+        dataLists = Map<String, dynamic>.from(dataListsRaw);
+      } else if (dataListsRaw is List && dataListsRaw.isNotEmpty) {
+        // If DataLists is a List, try to find FlightSegmentList in first element
+        debugPrint('⚠️ DataLists is a List, attempting to extract from first element');
+        final firstElement = dataListsRaw[0];
+        if (firstElement is Map) {
+          dataLists = Map<String, dynamic>.from(firstElement);
+        } else {
+          dataLists = {};
+        }
+      } else {
+        dataLists = {};
+      }
+      
+      debugPrint('🔍 DataLists type: ${dataListsRaw.runtimeType}, keys: ${dataLists.keys.take(5).toList()}');
       
       // Extract flight segment information - throw exception if extraction fails
       final segments = _extractFlightSegments(
@@ -294,11 +316,59 @@ class EmiratesFlight {
           ? fareComponentRaw
           : [fareComponentRaw];
 
-      final flightSegmentList = dataLists['FlightSegmentList'];
-      if (flightSegmentList == null) return [];
+      // Handle FlightSegmentList - it can be a Map or directly the FlightSegment data
+      dynamic flightSegmentList = dataLists['FlightSegmentList'];
+      if (flightSegmentList == null) {
+        debugPrint('⚠️ FlightSegmentList is null in dataLists');
+        return [];
+      }
 
-      final flightSegments = flightSegmentList['FlightSegment'];
-      if (flightSegments == null) return [];
+      // Extract FlightSegment - handle both Map and direct access
+      dynamic flightSegmentsRaw;
+      if (flightSegmentList is Map) {
+        flightSegmentsRaw = flightSegmentList['FlightSegment'];
+      } else if (flightSegmentList is List) {
+        // If FlightSegmentList is a List, it might contain FlightSegment objects directly
+        debugPrint('⚠️ FlightSegmentList is a List, not a Map. Attempting to use directly.');
+        flightSegmentsRaw = flightSegmentList;
+      } else {
+        // Try to use it directly
+        flightSegmentsRaw = flightSegmentList;
+      }
+      
+      if (flightSegmentsRaw == null) {
+        debugPrint('⚠️ FlightSegment is null after extraction');
+        return [];
+      }
+      
+      debugPrint('🔍 FlightSegments type: ${flightSegmentsRaw.runtimeType}');
+      if (flightSegmentsRaw is List) {
+        debugPrint('   FlightSegments is a List with ${flightSegmentsRaw.length} items');
+      } else if (flightSegmentsRaw is Map) {
+        debugPrint('   FlightSegments is a Map with keys: ${flightSegmentsRaw.keys.take(5).toList()}');
+      }
+
+      // Normalize flightSegments - convert List to Map for consistent access
+      Map<String, dynamic> flightSegments;
+      if (flightSegmentsRaw is List) {
+        // Convert List to Map using SegmentKey, SegmentID, or @Key as the key
+        flightSegments = {};
+        for (var segment in flightSegmentsRaw) {
+          if (segment is Map<String, dynamic>) {
+            final segKey = segment['SegmentKey']?.toString() ?? 
+                           segment['SegmentID']?.toString() ?? 
+                           segment['@Key']?.toString() ?? 
+                           segment['SegmentRef']?.toString() ?? '';
+            if (segKey.isNotEmpty) {
+              flightSegments[segKey] = segment;
+            }
+          }
+        }
+      } else if (flightSegmentsRaw is Map) {
+        flightSegments = Map<String, dynamic>.from(flightSegmentsRaw);
+      } else {
+        return [];
+      }
 
       final segments = <Map<String, dynamic>>[];
 

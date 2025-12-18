@@ -675,9 +675,28 @@ class _FlyDubaiBaggageSelectorState extends State<FlyDubaiBaggageSelector> {
             title,
             style: AppConstants.sectionTitleStyle.copyWith(fontSize: 18),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Use Navigator.pop for more reliable dismissal in release mode
+                try {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    Get.back();
+                  }
+                } catch (e) {
+                  // Fallback to Get.back() if Navigator fails
+                  Get.back();
+                }
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: const Icon(Icons.close, size: 24),
+              ),
+            ),
           ),
         ],
       ),
@@ -1156,9 +1175,28 @@ class _FlyDubaiMealSelectorState extends State<FlyDubaiMealSelector> {
               fontWeight: FontWeight.w700,
             ),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Use Navigator.pop for more reliable dismissal in release mode
+                try {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    Get.back();
+                  }
+                } catch (e) {
+                  // Fallback to Get.back() if Navigator fails
+                  Get.back();
+                }
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: const Icon(Icons.close, size: 24),
+              ),
+            ),
           ),
         ],
       ),
@@ -1682,9 +1720,28 @@ class _FlyDubaiSeatSelectorState extends State<FlyDubaiSeatSelector> {
             title,
             style: AppConstants.sectionTitleStyle.copyWith(fontSize: 18),
           ),
-          IconButton(
-            icon: const Icon(Icons.close),
-            onPressed: () => Navigator.pop(context),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                // Use Navigator.pop for more reliable dismissal in release mode
+                try {
+                  if (Navigator.of(context).canPop()) {
+                    Navigator.of(context).pop();
+                  } else {
+                    Get.back();
+                  }
+                } catch (e) {
+                  // Fallback to Get.back() if Navigator fails
+                  Get.back();
+                }
+              },
+              borderRadius: BorderRadius.circular(20),
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                child: const Icon(Icons.close, size: 24),
+              ),
+            ),
           ),
         ],
       ),

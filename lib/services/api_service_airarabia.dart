@@ -76,7 +76,8 @@ class ApiServiceAirArabia {
       // Validate that at least one margin type has a value
       if (marginVal == 0 && marginPer == 0) {
         print('Warning: Both margin values are zero, returning base price');
-        return basePrice;
+        // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+        return basePrice.ceil().toDouble();
       }
 
       // Apply percentage margin first (if exists)
@@ -92,10 +93,12 @@ class ApiServiceAirArabia {
         print('Added value margin: $marginVal -> Final Price: $finalPrice');
       }
 
-      return finalPrice;
+      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+      return finalPrice.ceil().toDouble();
     } catch (e) {
       print('Error calculating margin: $e');
-      return basePrice;
+      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+      return basePrice.ceil().toDouble();
     }
   }
 

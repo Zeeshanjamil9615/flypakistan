@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../../b2b/agent_dashboard/agent_dashboard.dart';
 import '../../../utility/colors.dart';
 import '../login/login.dart';
@@ -62,25 +63,9 @@ class RegisterController extends GetxController {
   final TextEditingController cityNameController = TextEditingController();
 
   // Observable variables
-  var selectedCountryCode = ''.obs;
+  var selectedCountry = Country.parse('PK').obs; // Default to Pakistan
   var isLoading = false.obs;
   var apiErrorMessage = ''.obs; // Added for detailed API error messages
-
-  // List of country codes
-  final List<String> countryCodes = [
-    '+1', // USA/Canada
-    '+44', // UK
-    '+92', // Pakistan
-    '+61', // Australia
-    '+49', // Germany
-    '+81', // Japan
-    '+86', // China
-    '+971', // UAE
-    '+966', // Saudi Arabia
-    '+91', // India
-    '+33', // France
-    '+55', // Brazil
-  ];
 
   // Form validation variables
   var agencyNameError = ''.obs;
@@ -169,11 +154,8 @@ class RegisterController extends GetxController {
       isValid = false;
     }
 
-    // Validate Country Code
-    if (selectedCountryCode.value.isEmpty) {
-      countryCodeError.value = 'Please select country code';
-      isValid = false;
-    }
+    // Validate Country Code (country is always selected as it has default)
+    // This validation is kept for consistency but should always pass
 
     // Validate Cell Number
     if (cellController.text.trim().isEmpty) {
@@ -229,7 +211,7 @@ class RegisterController extends GetxController {
         agencyName: agencyNameController.text.trim(),
         contactName: contactNameController.text.trim(),
         email: emailController.text.trim(),
-        countryCode: selectedCountryCode.value,
+        countryCode: '+${selectedCountry.value.phoneCode}',
         cellNumber: cellController.text.trim(),
         address: addressController.text.trim(),
         city: cityNameController.text.trim(),
@@ -295,11 +277,35 @@ class RegisterController extends GetxController {
     return errorValue.value.isEmpty ? null : errorValue.value;
   }
 
-  // Method to update country code
-  void updateCountryCode(String? code) {
-    if (code != null) {
-      selectedCountryCode.value = code;
-      countryCodeError.value = '';
-    }
+  // Method to show country picker
+  void showPhoneCountryPicker(BuildContext buildContext) {
+    showCountryPicker(
+      context: buildContext,
+      showPhoneCode: true,
+      onSelect: (Country country) {
+        selectedCountry.value = country;
+        countryCodeError.value = '';
+      },
+      countryListTheme: CountryListThemeData(
+        flagSize: 25,
+        backgroundColor: Colors.white,
+        textStyle: const TextStyle(fontSize: 16, color: Colors.blueGrey),
+        bottomSheetHeight: MediaQuery.of(buildContext).size.height * 0.8,
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20.0),
+          topRight: Radius.circular(20.0),
+        ),
+        inputDecoration: InputDecoration(
+          labelText: 'Search',
+          hintText: 'Start typing to search',
+          prefixIcon: const Icon(Icons.search),
+          border: OutlineInputBorder(
+            borderSide: BorderSide(
+              color: const Color(0xFF8C98A8).withOpacity(0.2),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

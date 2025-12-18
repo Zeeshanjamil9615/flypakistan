@@ -104,14 +104,17 @@ class FlightBookingController extends GetxController {
   // API Service and Flight Controller
   final ApiServiceSabre apiServiceFlight = Get.put(ApiServiceSabre());
   final SabreFlightController flightController = Get.put(SabreFlightController());
+  
+  // Ensure ApiServiceAirArabia is available before creating AirArabiaFlightController
+  final ApiServiceAirArabia apiServiceAirArabia = Get.isRegistered<ApiServiceAirArabia>()
+      ? Get.find<ApiServiceAirArabia>()
+      : Get.put(ApiServiceAirArabia());
+  
   final AirArabiaFlightController airArabiaController = Get.put(
     AirArabiaFlightController(),
   );
   final PIAFlightApiService piaFlightApiService = Get.put(
     PIAFlightApiService(),
-  );
-  final ApiServiceAirArabia apiServiceAirArabia = Get.put(
-    ApiServiceAirArabia(),
   );
   final FlydubaiFlightController flydubaiController = Get.put(FlydubaiFlightController());
   final ApiServiceEmirates apiServiceEmirates = Get.put(ApiServiceEmirates());

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:country_picker/country_picker.dart';
 import '../../../../utility/colors.dart';
 import '../../../../utility/app_constants.dart';
 import '../login/login.dart';
@@ -8,410 +9,282 @@ import 'rejistration_controller.dart';
 class RegisterAccount extends StatelessWidget {
   final RegisterController controller = Get.put(RegisterController());
 
-  InputDecoration _buildInputDecoration({
-    required String label,
-    required IconData prefixIcon,
-    String? errorText,
-  }) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: AppConstants.fieldLabelStyle.copyWith(
-        color: TColors.text.withOpacity(0.7),
-      ),
-      errorText: errorText,
-      prefixIcon: Icon(prefixIcon, color: TColors.primary),
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: BorderSide(
-          color: TColors.grey.withOpacity(0.3),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: TColors.primary),
-      ),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: TColors.third),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(15),
-        borderSide: const BorderSide(color: TColors.third),
-      ),
-      filled: true,
-      fillColor: Colors.grey.shade50,
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.grey.shade50,
       body: SafeArea(
         child: Obx(() => Stack(
           children: [
             SingleChildScrollView(
-              child: Container(
-                width: double.infinity,
-                color: TColors.white,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    // Header
-                    Padding(
-                      padding: const EdgeInsets.only(
-                        top: 14,
-                        left: 16,
-                        right: 16,
-                        bottom: 30,
-                      ),
-                      child: Text(
-                        'Create a new account',
-                        style: AppConstants.sectionTitleStyle.copyWith(
-                          color: TColors.text,
-                        ),
-                      ),
-                    ),
-
-                    // "Already have an account? Log in" text
-                    Padding(
-                      padding: const EdgeInsets.only(left: 16, bottom: 20),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Already have an account? ',
-                            style: AppConstants.fieldLabelStyle.copyWith(
-                              color: TColors.text.withOpacity(0.7),
-                            ),
-                          ),
-                          GestureDetector(
-                            onTap: (){
-                              Get.to(()=>Login());
-                            },
-                            child: Text(
-                              'Log in',
-                              style: AppConstants.fieldValueStyle.copyWith(
-                                color: TColors.primary,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ),
+                  // Modern Header
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [
+                          TColors.secondary,
+                          TColors.secondary.withOpacity(0.8),
                         ],
                       ),
-                    ),
-
-                    // Display API error message if any
-                    if (controller.apiErrorMessage.value.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        child: Container(
-                          width: double.infinity,
-                          padding: EdgeInsets.all(10),
-                          decoration: BoxDecoration(
-                            color: TColors.third.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: TColors.third),
                           ),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.error_outline, color: TColors.third),
-                                  SizedBox(width: 8),
-                                  Text(
-                                    'Registration Error',
-                                    style: AppConstants.fieldValueStyle.copyWith(
-                                      color: TColors.third,
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                            Material(
+                              color: Colors.white.withOpacity(0.2),
+                              borderRadius: BorderRadius.circular(12),
+                              child: InkWell(
+                                onTap: () => Navigator.of(context).pop(),
+                                borderRadius: BorderRadius.circular(12),
+                                child: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  child: const Icon(
+                                    Icons.arrow_back,
+                                    color: Colors.white,
+                                    size: 22,
                                   ),
-                                ],
+                                ),
                               ),
-                              SizedBox(height: 8),
-                              Text(
-                                controller.apiErrorMessage.value,
-                                style: AppConstants.fieldLabelStyle.copyWith(
-                                  color: TColors.third,
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  color: Colors.white,
+                                  letterSpacing: 0.5,
+                                ),
                                 ),
                               ),
                             ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Join us and start your journey',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.white.withOpacity(0.9),
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
-                      ),
+                      ],
+                    ),
+                  ),
 
-                    // Agency Name field
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: TextField(
-                        controller: controller.agencyNameController,
-                        style: AppConstants.fieldValueStyle.copyWith(
-                          color: TColors.text,
-                        ),
-                        decoration: _buildInputDecoration(
-                          label: 'Agency Name',
-                          prefixIcon: Icons.business,
-                          errorText: controller.getErrorText(
-                            controller.agencyNameError,
-                          ),
-                        ),
+                  // Form Content
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.only(
+                        topLeft: Radius.circular(32),
+                        topRight: Radius.circular(32),
                       ),
                     ),
-
-                    // Contact Name field
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: TextField(
-                        controller: controller.contactNameController,
-                        style: AppConstants.fieldValueStyle.copyWith(
-                          color: TColors.text,
-                        ),
-                        decoration: _buildInputDecoration(
-                          label: 'Contact Name',
-                          prefixIcon: Icons.person,
-                          errorText: controller.getErrorText(
-                            controller.contactNameError,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Email field
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: TextField(
-                        controller: controller.emailController,
-                        keyboardType: TextInputType.emailAddress,
-                        style: AppConstants.fieldValueStyle.copyWith(
-                          color: TColors.text,
-                        ),
-                        decoration: _buildInputDecoration(
-                          label: 'Email',
-                          prefixIcon: Icons.email,
-                          errorText: controller.getErrorText(
-                            controller.emailError,
-                          ),
-                        ),
-                      ),
-                    ),
-
-                    // Country Code and Cell
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          // Country Code dropdown
-                          Expanded(
-                            flex: 2,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
+                          const SizedBox(height: 8),
+
+                          // Login link
+                          Center(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
                               children: [
-                                Container(
-                                  height: 60,
-                                  decoration: BoxDecoration(
-                                    color: Colors.grey.shade50,
-                                    border: Border.all(
-                                      color:
-                                      controller.countryCodeError.value.isNotEmpty
-                                          ? TColors.third
-                                          : TColors.grey.withOpacity(0.3),
-                                    ),
-                                    borderRadius: BorderRadius.circular(15),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Padding(
-                                        padding: const EdgeInsets.only(left: 12),
-                                        child: Icon(Icons.flag, color: TColors.primary),
-                                      ),
-                                      Expanded(
-                                        child: DropdownButtonHideUnderline(
-                                          child: DropdownButton<String>(
-                                            value: controller.selectedCountryCode.value.isEmpty
-                                                ? null
-                                                : controller.selectedCountryCode.value,
-                                            dropdownColor: Colors.white,
-                                            icon: Icon(
-                                              Icons.arrow_drop_down,
-                                              color: TColors.text,
-                                            ),
-                                            style: AppConstants.fieldValueStyle.copyWith(
-                                              color: TColors.text,
-                                            ),
-                                            isExpanded: true,
-                                            hint: Padding(
-                                              padding: const EdgeInsets.only(left: 8),
-                                              child: Text(
-                                                'Code',
-                                                style: AppConstants.fieldLabelStyle.copyWith(
-                                                  color: TColors.text.withOpacity(0.7),
-                                                ),
-                                              ),
-                                            ),
-                                            items: controller.countryCodes.map((String code) {
-                                              return DropdownMenuItem<String>(
-                                                value: code,
-                                                child: Padding(
-                                                  padding: const EdgeInsets.only(left: 8),
-                                                  child: Text(code),
-                                                ),
-                                              );
-                                            }).toList(),
-                                            onChanged: controller.updateCountryCode,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
+                                Text(
+                                  'Already have an account? ',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    color: Colors.grey.shade700,
+                                    fontWeight: FontWeight.w400,
                                   ),
                                 ),
-                                if (controller.countryCodeError.value.isNotEmpty)
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                      left: 12,
-                                      top: 6,
-                                    ),
+                                InkWell(
+                                  onTap: () => Get.to(() => const Login()),
                                     child: Text(
-                                      controller.countryCodeError.value,
-                                      style: AppConstants.fieldLabelStyle.copyWith(
-                                        color: TColors.third,
-                                        fontSize: 12,
-                                      ),
+                                    'Login',
+                                    style: TextStyle(
+                                      color: TColors.secondary,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w600,
+                                      decoration: TextDecoration.underline,
+                                      decorationColor: TColors.secondary,
+                                    ),
                                     ),
                                   ),
                               ],
                             ),
                           ),
-                          SizedBox(width: 10),
-                          // Cell field
-                          Expanded(
-                            flex: 3,
-                            child: TextField(
-                              controller: controller.cellController,
-                              keyboardType: TextInputType.phone,
-                              style: AppConstants.fieldValueStyle.copyWith(
-                                color: TColors.text,
-                              ),
-                              decoration: _buildInputDecoration(
-                                label: 'Cell Number',
-                                prefixIcon: Icons.phone,
-                                errorText: controller.getErrorText(
-                                  controller.cellError,
+
+                          const SizedBox(height: 24),
+
+                          // API Error message
+                          if (controller.apiErrorMessage.value.isNotEmpty)
+                            Container(
+                              margin: const EdgeInsets.only(bottom: 24),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(
+                                  color: Colors.red.shade200,
+                                  width: 1,
                                 ),
                               ),
+                              child: Row(
+                                children: [
+                                  Icon(Icons.error_outline, color: Colors.red.shade700, size: 22),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Registration Error',
+                                          style: TextStyle(
+                                            color: Colors.red.shade700,
+                                            fontWeight: FontWeight.w600,
+                                            fontSize: 14,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Text(
+                                          controller.apiErrorMessage.value,
+                                          style: TextStyle(
+                                            color: Colors.red.shade700,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ],
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    // Address field
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: TextField(
-                        controller: controller.addressController,
-                        style: AppConstants.fieldValueStyle.copyWith(
-                          color: TColors.text,
-                        ),
-                        decoration: _buildInputDecoration(
-                          label: 'Address',
-                          prefixIcon: Icons.location_on,
-                          errorText: controller.getErrorText(
-                            controller.addressError,
+                          // Agency Name field
+                          _buildModernTextField(
+                            label: 'Agency Name',
+                            hint: 'Enter agency name',
+                            controller: controller.agencyNameController,
+                            prefixIcon: Icons.business_outlined,
+                            errorText: controller.getErrorText(controller.agencyNameError),
                           ),
-                        ),
-                      ),
-                    ),
+
+                          const SizedBox(height: 20),
+
+                          // Contact Name field
+                          _buildModernTextField(
+                            label: 'Contact Name',
+                            hint: 'Enter contact name',
+                            controller: controller.contactNameController,
+                            prefixIcon: Icons.person_outline,
+                            errorText: controller.getErrorText(controller.contactNameError),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Email field
+                          _buildModernTextField(
+                            label: 'Email',
+                            hint: 'Enter your email',
+                            controller: controller.emailController,
+                            prefixIcon: Icons.email_outlined,
+                            keyboardType: TextInputType.emailAddress,
+                            errorText: controller.getErrorText(controller.emailError),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Phone Number with Country Code (No space between them)
+                          _buildPhoneFieldWithCountryCode(context),
+
+                          const SizedBox(height: 20),
+
+                          // Address field
+                          _buildModernTextField(
+                            label: 'Address',
+                            hint: 'Enter your address',
+                            controller: controller.addressController,
+                            prefixIcon: Icons.location_on_outlined,
+                            errorText: controller.getErrorText(controller.addressError),
+                          ),
+
+                          const SizedBox(height: 20),
 
                     // City Name field
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 8,
-                      ),
-                      child: TextField(
+                          _buildModernTextField(
+                            label: 'City',
+                            hint: 'Enter city name',
                         controller: controller.cityNameController,
-                        style: AppConstants.fieldValueStyle.copyWith(
-                          color: TColors.text,
-                        ),
-                        decoration: _buildInputDecoration(
-                          label: 'City Name',
-                          prefixIcon: Icons.location_city,
-                          errorText: controller.getErrorText(
-                            controller.cityNameError,
+                            prefixIcon: Icons.location_city_outlined,
+                            errorText: controller.getErrorText(controller.cityNameError),
                           ),
-                        ),
-                      ),
-                    ),
+
+                          const SizedBox(height: 32),
 
                     // Register button
-                    Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 16,
-                      ),
-                      child: Column(
-                        children: [
-                          ElevatedButton(
+                          Container(
+                            height: 56,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: TColors.secondary.withOpacity(0.3),
+                                  blurRadius: 12,
+                                  offset: const Offset(0, 6),
+                                ),
+                              ],
+                            ),
+                            child: ElevatedButton(
                             onPressed: controller.isLoading.value ? null : controller.register,
                             style: ElevatedButton.styleFrom(
                               backgroundColor: TColors.secondary,
-                              disabledBackgroundColor: TColors.secondary.withOpacity(0.5),
-                              minimumSize: Size(double.infinity, 55),
+                                disabledBackgroundColor: TColors.secondary.withOpacity(0.6),
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(15),
-                              ),
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                                elevation: 0,
                             ),
                             child: controller.isLoading.value
                                 ? SizedBox(
                               height: 24,
                               width: 24,
                               child: CircularProgressIndicator(
-                                color: TColors.white,
-                                strokeWidth: 2,
+                                        color: Colors.white,
+                                        strokeWidth: 2.5,
                               ),
                             )
                                 : Text(
-                              'Register',
-                              style: AppConstants.fieldValueStyle.copyWith(
-                                color: TColors.white,
+                                      'Create Account',
+                                      style: TextStyle(
                                 fontSize: 18,
-                                fontWeight: FontWeight.bold,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
                               ),
                             ),
                           ),
-                          const SizedBox(height: 12),
-                          TextButton(
-                            onPressed: () => Get.to(() => const Login()),
-                            child: Text(
-                              'Login',
-                              style: AppConstants.fieldValueStyle.copyWith(
-                                color: TColors.primary,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ),
+
+                          const SizedBox(height: 32),
                         ],
                       ),
                     ),
-
-                    SizedBox(height: 30),
+                  ),
                   ],
-                ),
               ),
             ),
 
@@ -422,14 +295,14 @@ class RegisterAccount extends StatelessWidget {
                   color: Colors.black.withOpacity(0.5),
                   child: Center(
                     child: Container(
-                      padding: EdgeInsets.all(24),
+                      padding: const EdgeInsets.all(32),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.2),
-                            blurRadius: 10,
+                            blurRadius: 20,
                             spreadRadius: 2,
                           )
                         ],
@@ -437,14 +310,14 @@ class RegisterAccount extends StatelessWidget {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          CircularProgressIndicator(color: TColors.primary),
-                          SizedBox(height: 16),
+                          CircularProgressIndicator(color: TColors.secondary),
+                          const SizedBox(height: 20),
                           Text(
                             'Creating your account...',
                             style: TextStyle(
-                              color: TColors.text,
+                              color: Colors.grey.shade800,
                               fontSize: 16,
-                              fontWeight: FontWeight.w500,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                         ],
@@ -456,6 +329,200 @@ class RegisterAccount extends StatelessWidget {
           ],
         )),
       ),
+    );
+  }
+
+  Widget _buildModernTextField({
+    required String label,
+    required String hint,
+    required TextEditingController controller,
+    required IconData prefixIcon,
+    TextInputType keyboardType = TextInputType.text,
+    String? errorText,
+  }) {
+    final hasError = errorText != null && errorText.isNotEmpty;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hasError ? Colors.red.shade300 : Colors.grey.shade200,
+              width: 1.5,
+            ),
+          ),
+          child: TextField(
+            controller: controller,
+            keyboardType: keyboardType,
+            style: TextStyle(
+              fontSize: 16,
+              color: Colors.grey.shade900,
+              fontWeight: FontWeight.w500,
+            ),
+            decoration: InputDecoration(
+              hintText: hint,
+              hintStyle: TextStyle(
+                color: Colors.grey.shade400,
+                fontSize: 16,
+              ),
+              prefixIcon: Icon(prefixIcon, color: TColors.secondary, size: 22),
+              border: InputBorder.none,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 20,
+                vertical: 14,
+              ),
+            ),
+          ),
+        ),
+        if (hasError)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 6),
+            child: Text(
+              errorText,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildPhoneFieldWithCountryCode(BuildContext context) {
+    final hasError = controller.getErrorText(controller.cellError) != null ||
+        controller.countryCodeError.value.isNotEmpty;
+    
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Phone Number',
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: Colors.grey.shade800,
+            letterSpacing: 0.3,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: hasError ? Colors.red.shade300 : Colors.grey.shade200,
+              width: 1.5,
+            ),
+          ),
+          child: Row(
+            children: [
+              // Country Code Picker
+              Obx(() {
+                final country = controller.selectedCountry.value;
+                return InkWell(
+                  onTap: () {
+                    controller.showPhoneCountryPicker(context);
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 12,
+                    ),
+                    decoration: BoxDecoration(
+                      border: Border(
+                        right: BorderSide(
+                          color: hasError ? Colors.red.shade300 : Colors.grey.shade200,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          country.flagEmoji,
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          '+${country.phoneCode}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade900,
+                          ),
+                        ),
+                        const Icon(Icons.arrow_drop_down, size: 20, color: Colors.grey),
+                      ],
+                    ),
+                  ),
+                );
+              }),
+              // Phone Number Input
+              Expanded(
+                child: TextField(
+                  controller: controller.cellController,
+                  keyboardType: TextInputType.phone,
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey.shade900,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  decoration: InputDecoration(
+                    hintText: 'Enter phone number',
+                    hintStyle: TextStyle(
+                      color: Colors.grey.shade400,
+                      fontSize: 16,
+                    ),
+                    border: InputBorder.none,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 14,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (controller.getErrorText(controller.cellError) != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 6),
+            child: Text(
+              controller.getErrorText(controller.cellError)!,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+        if (controller.countryCodeError.value.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.only(left: 4, top: 6),
+            child: Text(
+              controller.countryCodeError.value,
+              style: TextStyle(
+                color: Colors.red.shade700,
+                fontSize: 12,
+              ),
+            ),
+          ),
+      ],
     );
   }
 }

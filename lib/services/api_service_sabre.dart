@@ -651,7 +651,8 @@ class ApiServiceSabre extends GetxService {
   double calculatePriceWithMargin(double basePrice, Map<String, dynamic> marginData) {
     try {
       if (marginData.isEmpty) {
-        return basePrice;
+        // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+        return basePrice.ceil().toDouble();
       }
       
       final marginType = marginData['flight_margin_type']?.toString().toLowerCase().trim() ?? '';
@@ -678,19 +679,21 @@ class ApiServiceSabre extends GetxService {
       }
 
       // Use margin type to determine which calculation to use
+      double finalPrice = basePrice;
       if (marginType == 'per' && marginPer > 0) {
         // Percentage margin: API returns as decimal (0.03 = 3%), so multiply directly
         // basePrice * (1 + marginPer) where marginPer is already a decimal
-        return basePrice * (1 + marginPer);
+        finalPrice = basePrice * (1 + marginPer);
       } else if (marginType == 'val' && marginVal > 0) {
         // Fixed value margin: basePrice + marginValue
-        return basePrice + marginVal;
+        finalPrice = basePrice + marginVal;
       }
 
-      // If no valid margin data, return base price
-      return basePrice;
+      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+      return finalPrice.ceil().toDouble();
     } catch (e) {
-      return basePrice;
+      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
+      return basePrice.ceil().toDouble();
     }
   }
 

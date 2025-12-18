@@ -147,6 +147,9 @@ class ApiServiceFlyDubai {
       } else if (type == 1) {
         // Round-trip search
         print('Processing round-trip search');
+        print('Raw origin: "$origin"');
+        print('Raw destination: "$destination"');
+        print('Raw depDate: "$depDate"');
 
         // Parse dates - handle different possible formats
         List<String> datesList = [];
@@ -173,10 +176,28 @@ class ApiServiceFlyDubai {
           final returnDate = DateTime.parse(datesList[1]);
 
           print("Successfully parsed dates - Outbound: $outboundDate, Return: $returnDate");
+          
+          // Clean origin and destination (remove any remaining commas and trim)
+          String cleanOrigin = origin.trim().replaceAll(',', '');
+          String cleanDestination = destination.trim().replaceAll(',', '');
+          
+          // Additional safety check: If origin/destination are still concatenated (6 chars), split them
+          // This is a fallback in case the controller didn't handle it
+          if (cleanOrigin.length == 6 && cleanDestination.length == 6) {
+            print("⚠️ Detected concatenated airport codes in API service - splitting...");
+            print("  Before: origin='$cleanOrigin', destination='$cleanDestination'");
+            cleanOrigin = cleanOrigin.substring(0, 3);
+            cleanDestination = cleanDestination.substring(0, 3);
+            print("  After: origin='$cleanOrigin', destination='$cleanDestination'");
+          }
+          
+          print("Cleaned origin: '$cleanOrigin'");
+          print("Cleaned destination: '$cleanDestination'");
+          print("Building round-trip request: $cleanOrigin -> $cleanDestination on $outboundDate, return on $returnDate");
 
           searchParams = _buildRoundTripRequest(
-            origin: origin.trim(),
-            destination: destination.trim(),
+            origin: cleanOrigin,
+            destination: cleanDestination,
             outboundDate: outboundDate,
             returnDate: returnDate,
             passengers: adult + child + infant,
@@ -222,7 +243,12 @@ class ApiServiceFlyDubai {
       }
 
       print("Using access token in search flight: $_accessToken");
-      printJsonPretty(json.encode(searchParams));
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      print('📤 FLYDUBAI REQUEST BODY:');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      printJsonPretty(searchParams);
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      
       // Make API request
       final response = await http.post(
         Uri.parse('$baseUrl/pricing/flightswithfares'),
@@ -236,6 +262,33 @@ class ApiServiceFlyDubai {
       );
 
       print('FlyDubai Response Status: ${response.statusCode}');
+      
+      // Log error response body if status is not 200
+      if (response.statusCode != 200) {
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('❌ FlyDubai API Error Response:');
+        print('Status Code: ${response.statusCode}');
+        print('Response Body: ${response.body}');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        
+        // Try to parse error message
+        try {
+          final errorData = json.decode(response.body);
+          print('Parsed Error Data:');
+          printJsonPretty(errorData);
+          
+          // Extract error message if available
+          final errorMessage = errorData['message'] ?? 
+                               errorData['error'] ?? 
+                               errorData['errorMessage'] ?? 
+                               errorData['Exception']?.toString() ?? 
+                               'Unknown error';
+          print('Error Message: $errorMessage');
+        } catch (e) {
+          print('Could not parse error response: $e');
+        }
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      }
 
       if (response.statusCode == 200) {
         final Map<String, dynamic> responseData = json.decode(response.body);
@@ -353,8 +406,32 @@ class ApiServiceFlyDubai {
         }
       }
 
+      // Extract detailed error message from response
+      String errorMessage = 'FlyDubai API returned status: ${response.statusCode}';
+      try {
+        final errorData = json.decode(response.body);
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+        print('❌ FlyDubai API Error Response:');
+        print('Status Code: ${response.statusCode}');
+        print('Full Error Response:');
+        printJsonPretty(errorData);
+        
+        // Try to extract meaningful error message
+        errorMessage = errorData['message'] ?? 
+                      errorData['error'] ?? 
+                      errorData['errorMessage'] ?? 
+                      errorData['Exception']?.toString() ?? 
+                      errorData['Exceptions']?.toString() ??
+                      errorMessage;
+        print('Extracted Error Message: $errorMessage');
+        print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      } catch (e) {
+        print('⚠️ Could not parse error response: $e');
+        print('Raw Response Body: ${response.body}');
+      }
+
       return {
-        'error': 'FlyDubai API returned status: ${response.statusCode}',
+        'error': errorMessage,
         'flights': [],
         'success': false
       };
@@ -1901,15 +1978,18 @@ class ApiServiceFlyDubai {
         final segment = segmentArray[i];
         final paxId = segment['pax'] ?? 1;
         final fareId = segment['fareID'] ?? 1;
+        final lfid = segment['lfid']; // Get LogicalFlightID from segment
         final extra = segment['extra'] as Map<String, dynamic>? ?? {};
 
-        // FareInformationID should be sequential (1, 2, 3...) for PNR, not the actual fareID
-        final fareInformationId = i + 1;
+        // Use the actual fareID from the segment as FareInformationID
+        // This matches what's in the cart data for this specific flight segment
+        final fareInformationId = fareId is int ? fareId : int.tryParse(fareId.toString()) ?? 1;
 
         print('📍 Processing segment $i:');
         print('   - Passenger ID (pax): $paxId');
         print('   - Original fareID from segment: $fareId');
-        print('   - Using FareInformationID for PNR: $fareInformationId (sequential)');
+        print('   - LogicalFlightID: $lfid');
+        print('   - Using FareInformationID for PNR: $fareInformationId');
         print('   - Extra data: $extra');
 
         // Build special services (baggage and meals)
@@ -1918,14 +1998,21 @@ class ApiServiceFlyDubai {
         // Build seats
         final seats = _buildSeats(extra, paxId);
 
-        segments.add({
+        final segmentData = {
           "PersonOrgID": -paxId,
-          "FareInformationID": fareInformationId,  // Use sequential ID (1, 2, 3...)
+          "FareInformationID": fareInformationId,
           "SpecialServices": specialServices,
           "Seats": seats
-        });
+        };
 
-        print('Added segment $i with FareInformationID: $fareInformationId, ${specialServices.length} special services and ${seats.length} seats');
+        // Add LogicalFlightID if available (required for PNR creation)
+        if (lfid != null) {
+          segmentData["LogicalFlightID"] = lfid is int ? lfid : int.tryParse(lfid.toString()) ?? 0;
+        }
+
+        segments.add(segmentData);
+
+        print('Added segment $i with FareInformationID: $fareInformationId, LogicalFlightID: ${segmentData["LogicalFlightID"]}, ${specialServices.length} special services and ${seats.length} seats');
       }
     } catch (e) {
       print('Error building segments from array: $e');
