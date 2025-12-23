@@ -6,6 +6,7 @@ import 'dart:convert';
 import '../views/flight/booking_flight/booking_flight_controller.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
 import '../views/flight/search_flights/search_flight_utils/helper_functions.dart';
+import 'logger_service.dart';
 
 class ApiServiceFlyDubai {
   // FlyDubai API credentials and constants
@@ -249,17 +250,47 @@ class ApiServiceFlyDubai {
       printJsonPretty(searchParams);
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       
+      // Prepare request headers and endpoint for logging
+      final endpoint = '$baseUrl/pricing/flightswithfares';
+      final requestHeaders = {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $_accessToken',
+        'Cookie': 'visid_incap_3059742=mt0fc3JTQDStXbDmAKotlet1zGUAAAAAQUIPAAAAAAA/4nh9vwd+842orxzMj3FS',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+      };
+      final requestBody = json.encode(searchParams);
+      
+      // Log request to file (only in debug mode)
+      final logger = LoggerService();
+      await logger.logFlightsRequest(
+        endpoint: endpoint,
+        headers: requestHeaders,
+        body: searchParams, // Pass the Map directly for better JSON formatting
+      );
+      
       // Make API request
       final response = await http.post(
-        Uri.parse('$baseUrl/pricing/flightswithfares'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $_accessToken',
-          'Cookie': 'visid_incap_3059742=mt0fc3JTQDStXbDmAKotlet1zGUAAAAAQUIPAAAAAAA/4nh9vwd+842orxzMj3FS',
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        },
-        body: json.encode(searchParams),
+        Uri.parse(endpoint),
+        headers: requestHeaders,
+        body: requestBody,
       );
+      
+      // Log response to file (only in debug mode)
+      try {
+        final responseBody = json.decode(response.body);
+        await logger.logFlightsResponse(
+          endpoint: endpoint,
+          statusCode: response.statusCode,
+          body: responseBody,
+        );
+      } catch (e) {
+        // If response body is not JSON, log as string
+        await logger.logFlightsResponse(
+          endpoint: endpoint,
+          statusCode: response.statusCode,
+          body: response.body,
+        );
+      }
 
       print('FlyDubai Response Status: ${response.statusCode}');
       
@@ -436,8 +467,27 @@ class ApiServiceFlyDubai {
         'success': false
       };
 
-    } catch (e) {
+    } catch (e, stackTrace) {
       print('FlyDubai API search error: $e');
+      
+      // Log error to file (only in debug mode)
+      final logger = LoggerService();
+      await logger.logError(
+        error: e,
+        stackTrace: stackTrace,
+        context: {
+          'method': 'searchFlights',
+          'type': type,
+          'origin': origin,
+          'destination': destination,
+          'depDate': depDate,
+          'adult': adult,
+          'child': child,
+          'infant': infant,
+          'cabin': cabin,
+        },
+      );
+      
       return {
         'error': 'FlyDubai search failed: $e',
         'flights': [],

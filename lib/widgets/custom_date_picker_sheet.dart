@@ -11,6 +11,8 @@ class CustomDatePickerSheet extends StatefulWidget {
   final String title;
   final String? label;
   final bool isRangeSelection;
+  final DateTime? firstDate;
+  final DateTime? lastDate;
 
   const CustomDatePickerSheet({
     super.key,
@@ -22,6 +24,8 @@ class CustomDatePickerSheet extends StatefulWidget {
     required this.title,
     this.label,
     this.isRangeSelection = false,
+    this.firstDate,
+    this.lastDate,
   });
 
   @override
@@ -116,7 +120,31 @@ class _CustomDatePickerSheetState extends State<CustomDatePickerSheet> {
   }
 
   bool _isDateDisabled(DateTime date) {
-    return date.isBefore(DateTime(_today.year, _today.month, _today.day));
+    final today = DateTime(_today.year, _today.month, _today.day);
+    final dateOnly = DateTime(date.year, date.month, date.day);
+    
+    // Check firstDate constraint
+    if (widget.firstDate != null) {
+      final firstDateOnly = DateTime(widget.firstDate!.year, widget.firstDate!.month, widget.firstDate!.day);
+      if (dateOnly.isBefore(firstDateOnly)) {
+        return true;
+      }
+    }
+    
+    // Check lastDate constraint
+    if (widget.lastDate != null) {
+      final lastDateOnly = DateTime(widget.lastDate!.year, widget.lastDate!.month, widget.lastDate!.day);
+      if (dateOnly.isAfter(lastDateOnly)) {
+        return true;
+      }
+    }
+    
+    // Default: disable past dates if no constraints specified
+    if (widget.firstDate == null && widget.lastDate == null) {
+      return dateOnly.isBefore(today);
+    }
+    
+    return false;
   }
 
   String _getMonthName(int month) {
@@ -341,6 +369,8 @@ Future<DateTime?> showCustomDatePicker({
   DateTime? initialDate,
   required String title,
   String? label,
+  DateTime? firstDate,
+  DateTime? lastDate,
 }) {
   DateTime? result;
   
@@ -357,6 +387,8 @@ Future<DateTime?> showCustomDatePicker({
       title: title,
       label: label,
       isRangeSelection: false,
+      firstDate: firstDate,
+      lastDate: lastDate,
       onDateSelected: (date) {
         result = date;
       },
@@ -404,6 +436,8 @@ class _AnimatedDatePickerSheet extends StatefulWidget {
   final String title;
   final String? label;
   final bool isRangeSelection;
+  final DateTime? firstDate;
+  final DateTime? lastDate;
 
   const _AnimatedDatePickerSheet({
     this.selectedDate,
@@ -414,6 +448,8 @@ class _AnimatedDatePickerSheet extends StatefulWidget {
     required this.title,
     this.label,
     this.isRangeSelection = false,
+    this.firstDate,
+    this.lastDate,
   });
 
   @override
@@ -516,6 +552,8 @@ class _AnimatedDatePickerSheetState extends State<_AnimatedDatePickerSheet>
                   title: widget.title,
                   label: widget.label,
                   isRangeSelection: widget.isRangeSelection,
+                  firstDate: widget.firstDate,
+                  lastDate: widget.lastDate,
                 ),
               ),
             ),

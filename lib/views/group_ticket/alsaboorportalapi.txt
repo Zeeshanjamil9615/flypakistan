@@ -1,0 +1,301 @@
+APIs Integration Manual
+Alsaboorportal Group Customer Interface
+Base Information
+• Domain: https://alsaboorportal.com/
+• Base URL: https://alsaboorportal.com/admins/api
+• Authentication: Token
+• Content-Type: application/json
+Authentication
+All API endpoints require authentication using a token in the Authorization
+header:
+Authorization: Token YOUR_API_KEY
+1. API for Login
+This API endpoint allows users to log in to the application.
+Request
+Method: POST
+URL : https://alsaboorportal.com/admins/api/login
+Response
+● Status Code: 200
+● Content-Type: text/html
+Response Body (JSON)
+{
+"status": "",
+"message": "",
+"token": "",
+"expiry": ""
+}
+Body formdata
+email : khushabtravels@yahoo.com
+password : Maryam@786
+Agent_code : 1016
+2. Get All Groups
+https://alsaboorportal.com/admins/api/groups?type=UMRAH%20GROUP&tok
+en=f7104b55cda61e8f479299e7020483f2b2ea3849d3af52ada830569408ac3f
+5d
+Endpoint Description
+This endpoint retrieves a list of groups associated with a specific type from the
+Al Saboor Portal Group API. The request is made using the HTTP GET
+method.
+Request Parameters
+● type (query parameter): A string that specifies the type of group to
+retrieve. In this case, the value is "UMRAH GROUP".
+● token (query parameter): A string that serves as an authentication token
+to authorize the request.
+Example Request
+GET /groups?type=UMRAH GROUP&token=YOUR_TOKEN_HERE
+Response Structure
+The response will contain a JSON object that includes the following key
+information:
+● status: Indicates the success or failure of the request.
+● data: An array of group objects, each containing details about the
+groups corresponding to the specified type.
+● message: A string providing additional information about the request
+status.
+Example Response
+{
+"status": "success",
+"data": [
+{
+"groupId": "123",
+"groupName": "Group A",
+"description": "Description of Group A"
+},
+{
+"groupId": "124",
+"groupName": "Group B",
+"description": "Description of Group B"
+}
+],
+"message": "Groups retrieved successfully"
+}
+PARAMS
+type ONE WAY GROUP, UMRAH GROUP
+token
+f7104b55cda61e8f479299e7020483f2b2ea3849d3af52ada830569408ac3f5d
+3. Get Group Details
+https://alsaboorportal.com/admins/api/group-details?group_id=381&token=f71
+04b55cda61e8f479299e7020483f2b2ea3849d3af52ada830569408ac3f5d
+API Endpoint: Get Group Details
+Description
+This endpoint retrieves detailed information about a specific travel group
+based on the provided group_id. It is useful for obtaining essential details
+regarding the group's flight information, pricing, and available passenger
+capacity.
+Request
+● Method: GET
+● URL: https://alsaboorportal.com/admins/api/group-details
+Query Parameters
+● group_id (required): The unique identifier for the travel group you want
+to retrieve details for.
+● token (required): An authentication token that validates the request.
+Response
+On a successful request (HTTP Status 200), the API returns a JSON object
+containing the following structure:
+{
+"groups": [
+{
+"id": "",
+"airline_id": "",
+"dept_date": "",
+"arv_date": "",
+"sector": "",
+"type": "",
+"price": "",
+"baggage": "",
+"meal": "",
+"pnr": "",
+"group_price_detail_id": null,
+"available_no_of_pax": 0,
+"details": [
+{
+"id": "",
+"group_id": "",
+"sr": 0,
+"flight_no": "",
+"flight_date": "",
+"origin": "",
+"destination": "",
+"baggage": "",
+"dept_time": "",
+"arv_time": ""
+}
+],
+"airline": [
+{
+"id": "",
+"airline_name": "",
+"short_name": "",
+"logo_url": ""
+}
+]
+}
+]
+}
+Response Fields
+● groups: An array containing details of the requested group.
+● id: The unique identifier of the group.
+● airline_id: Identifier for the associated airline.
+● dept_date: Departure date of the group.
+● arv_date: Arrival date of the group.
+● sector: Flight sector information.
+● type: Type of the group (e.g., business, economy).
+● price: Price details for the group.
+● baggage: Baggage allowance information.
+● meal: Meal options provided.
+● pnr: Passenger Name Record for the group.
+● group_price_detail_id: ID for group pricing details.
+● available_no_of_pax: Number of available passengers.
+● details: An array containing individual flight details, including:
+● flight_no: Flight number.
+● flight_date: Date of the flight.
+● origin: Departure location.
+● destination: Arrival location.
+● baggage: Baggage information for the flight.
+● dept_time: Departure time.
+● arv_time: Arrival time.
+● airline: An array containing airline information, including: airline_name:
+Name of the airline.
+● short_name: Short name or code of the airline.
+● logo_url: URL to the airline's logo.
+4. Create Group Booking
+This endpoint allows you to create a booking by submitting the necessary
+details in a structured format.
+Request
+HTTP Method: POST
+URL: https://alsaboorportal.com/admins/api/booking
+Request Body
+{
+"token": "string",
+"roe": "string",
+"no_of_seat": "string",
+"group_id": "string",
+"pnr_1": "string",
+"pnr_2": "string",
+"pax_title": ["string"],
+"human_type": ["string"],
+"sur_name": ["string"],
+"given_name": ["string"],
+"pass_no": ["string"],
+"dob": ["string"],
+"doi": ["string"],
+"doe": ["string"],
+"adult_price": ["string"],
+"child_price": ["string"],
+"infant_price": ["string"]
+}
+Parameters Description
+● token: A unique identifier for the session.
+● roe: Reference of the booking.
+● no_of_seat: Number of seats being booked.
+● group_id: Identifier for the group booking.
+● pnr_1, pnr_2: Passenger Name Record identifiers.
+● pax_title[]: Titles for each passenger (e.g., Mr., Mrs.).
+● human_type[]: Type of each passenger (e.g., adult, child, infant).
+● sur_name[]: Surnames of the passengers.
+● given_name[]: Given names of the passengers.
+● pass_no[]: Passport numbers of the passengers.
+● dob[]: Dates of birth of the passengers.
+● doi[]: Dates of issue for the passports.
+● doe[]: Dates of expiry for the passports.
+● adult_price[]: Prices for adult tickets.
+● child_price[]: Prices for child tickets.
+● infant_price[]: Prices for infant tickets.
+Response
+On a successful request, the API will return a response in JSON format with
+the following structure:
+● status: (string) The status of the request.
+● message: (string) A message providing additional information about the
+request.
+● transaction_id: (integer) The unique identifier for the transaction.
+Response Example:
+{
+"status": "",
+"message": "",
+"transaction_id": 0
+}
+5. Get Booking Details
+https://alsaboorportal.com/admins/api/get-booking?token=f7104b55cda61e8f4
+79299e7020483f2b2ea3849d3af52ada830569408ac3f5d&booking_id=3244
+API Endpoint: Get Booking Details
+This endpoint retrieves the details of a specific booking using the provided
+booking_id. It requires an authentication token to access the booking
+information.
+Request
+Method: GET
+URL: https://alsaboorportal.com/admins/api/get-booking
+Query Parameters:
+● token (string): The authentication token required to access the API.
+● booking_id (string): The unique identifier for the booking you want to
+retrieve.
+Example Request
+GET
+https://alsaboorportal.com/admins/api/get-booking?token=f7104b55cda61e8f4
+79299e7020483f2b2ea3849d3af52ada830569408ac3f5d&booking_id=3244
+Example Response
+{
+"id": "",
+"group_id": "",
+"agent_id": "",
+"agent_name": "",
+"adults": "",
+"child": "",
+"infant": "",
+"total_fare": 0,
+"group": {
+"id": "",
+"airline_id": "",
+"dept_date": "",
+"arv_date": "",
+"sector": "",
+"type": "",
+"price": "",
+"baggage": "",
+"meal": "",
+"pnr": "",
+"group_price_detail_id": null,
+"details": [
+{
+"id": "",
+"group_id": "",
+"sr": 0,
+"flight_no": "",
+"flight_date": "",
+"origin": "",
+"destination": "",
+"baggage": "",
+"dept_time": "",
+"arv_time": ""
+}
+],
+"airline": [
+{
+"id": "",
+"airline_name": "",
+"short_name": "",
+"logo_url": ""
+}
+]
+},
+"booking_details": [
+{
+"id": "",
+"booking_id": "",
+"type": "",
+"sur_name": "",
+"given_name": "",
+"title": "",
+"passport_no": "",
+"dob": "",
+"doe": "",
+"fare": "",
+"status": "",
+"created_at": null,
+"updated_at": null
+}
+]
+}
+Contact Information
+For API access, support, or questions:
+● Phone: +92 310 0007901, +92 333 7323379
+● Domain: Journeyonline.pk
+● Email : tech@journeyonline.pk

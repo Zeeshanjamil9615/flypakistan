@@ -17,64 +17,67 @@ class TypeSelectorState extends State<TypeSelector> {
   final List<Map<String, dynamic>> travelTypes = [
     {'icon': Icons.flight_takeoff, 'label': 'Flights'},
     {'icon': Icons.hotel, 'label': 'Hotels'},
-
+    {'icon': Icons.group, 'label': 'Group Tickets'},
   ];
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: travelTypes.map((type) {
-        final isSelected = selectedType == type['label'];
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: travelTypes.map((type) {
+          final isSelected = selectedType == type['label'];
 
-        return GestureDetector(
-          onTap: () {
-            setState(() {
-              selectedType = type['label'];
-              widget.onTypeChanged(selectedType);
-            });
-          },
-          child: Padding(
-            padding: const EdgeInsets.only(right: 32),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  children: [
-                    Icon(
-                      type['icon'],
-                      size: 24,
-                      color: isSelected
-                          ? TColors.primary
-                          : AppConstants.tabInactiveColor,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      type['label'],
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          return GestureDetector(
+            onTap: () {
+              setState(() {
+                selectedType = type['label'];
+                widget.onTypeChanged(selectedType);
+              });
+            },
+            child: Padding(
+              padding: const EdgeInsets.only(right: 24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        type['icon'],
+                        size: 24,
                         color: isSelected
                             ? TColors.primary
                             : AppConstants.tabInactiveColor,
                       ),
-                    ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-                Container(
-                  height: 3,
-                  width: 50,
-                  decoration: BoxDecoration(
-                    color: isSelected ? TColors.primary : Colors.transparent,
-                    borderRadius: BorderRadius.circular(1.5),
+                      const SizedBox(width: 4),
+                      Text(
+                        type['label'],
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          color: isSelected
+                              ? TColors.primary
+                              : AppConstants.tabInactiveColor,
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-              ],
+
+                  const SizedBox(height: 8),
+                  Container(
+                    height: 3,
+                    width: 50,
+                    decoration: BoxDecoration(
+                      color: isSelected ? TColors.primary : Colors.transparent,
+                      borderRadius: BorderRadius.circular(1.5),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 }

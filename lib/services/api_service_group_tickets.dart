@@ -1,576 +1,517 @@
-// ignore_for_file: non_constant_identifier_names, unused_local_variable
-
-
-import 'package:dio/dio.dart' as dio;
+import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
-class GroupTicketingController extends GetxController {
-  final dio1 = dio.Dio();
-
-  // Base URLs for different services
-  static const String travelNetworkBaseUrl = 'https://travelnetwork.pk/api';
-  static const String alhaiderBaseUrl = 'https://alhaidertravel.pk/api';
-
-  // Store the selected region
-  final RxString selectedRegion = ''.obs;
-  final RxString selectedRegion2 = ''.obs;
-
-  // Store tokens separately
-  final String travelNetworkAuthToken =
-      'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI1IiwianRpIjoiMTdmOTNjMTM2NjkwNmU1ZmZlMWYxMTRkNjFhZmJhODg3YWNjYWYxYmQyM2I0NGU5OTg5MTg5NGYyZmUwMjdlZTBlZGYwMDMyN2Q0YmYzN2IiLCJpYXQiOjE3MzgyNDQ2NDkuODI2MDc4LCJuYmYiOjE3MzgyNDQ2NDkuODI2MDgsImV4cCI6MTc2OTc4MDY0OS43OTQ4MTEsInN1YiI6IjM5Iiwic2NvcGVzIjpbXX0.g09sNMCTRD7V0Y7FKflF63seB5ri6vuwJ66TNrEy2cgQByMKveomh8IAtb2Q5bsdeGZeqQVrkvzD97wblJXVjLNTuBrC0xtLOxkN9pOd1LcPlEHU9gbXpyjUNa841ESXVuLhmabedb2d0CZxitrOb62TIQH81J6k_uapZRQsBbPissnFsZCNZndwlQC3oSFvQmqJJ_qdtliYQ39z27M7XUlVH3NEk0mgVcj34NanGi7ENWuVPjCPiSr33pCRbsAZUcU5eMk97brgpXtiZuMpy2E7EWnFlFbVCme9mffq3ISP4dNigqN09-gS2dObQ_r1HcgPLcaX3netnvDOUBrgvONjdS8YDDQ5Xpxf3gN6Ez-4lxwSFhF1bhHFYvpPEsrv-dLGgN_c3rGSIBqRowrA_JH1jCTo6-HTwB_tPn5ZJ-nN5v5732Rl0OM4Yhhwv23yEToA5q20S74gOx1wMYQbRCMQEEkouZdLabv5Jns_ADBrTnlE8IMlUu5viCYUaLzs0PZeW0IbVAFjKVICiydF7bAuxysRwAedhQcm5zbTQKnKFH65UqLwf7Q5b2uoE3L7yqWWbyOSWmPM4DahDfMyA8-L3D2Q5nMeDYwnFpVQQujQUoaSDHRVTEXZM0-gZ-cJ0G7obvZ5D2lf36ZVzotAPb7FbLENuh3pdEqktO7p1NY';
-
-  final String alhaiderAuthToken =
-      'eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiJ9.eyJhdWQiOiI5ZTc4OTIxMS0zZjc0LTQ1ZTUtOWE3NC03YzZhYzNmMWVjZGQiLCJqdGkiOiIxNDE0NDE2YmNlNjE5OTk3YTJkNzE4MWYzYWY3YTRkMTA1YzZmZGUxNDYwNDFhZTJjYjVjZDA5ZTlhYTVhYjQ1Y2Q2M2EyNDI2MzBhZjdiZiIsImlhdCI6MTc0MzA3MjA1NC4yMDk1MTgsIm5iZiI6MTc0MzA3MjA1NC4yMDk1MjMsImV4cCI6MTc3NDYwODA1NC4xOTM4MzYsInN1YiI6Ijc0Iiwic2NvcGVzIjpbXX0.mv6GXni4w0wCJAUKWAtFOcfnH9fmI5bWTSIddDzkS3H3UUgk-0CcehU86U_m_91XRUwljgO_X06VtS3VQs29m3wwjBcNxZcL74gkmWk5zSzgjezhoaMSSuYsF_yHb3-XXODLFe6yq0-6yQ8nydhr57ifa1CLvRZRfVYdfPTCnkZqb6Y6pH_FXex4EjC5vHWHPPUOU9n6jrIvL1TM4sSs7Ie4PznkazOLdJME1XZqwrge1gdVhA7MYSVvEbPZBw7nuRdNAuA1xUHWgS2PC-qvrO_4atWEeWA__2jI6_0_Hr1nE1vUqVbRmtg3eiudmZgqo2Zfb2xjhwNfPdNgVqveFSZDiN2HmweWylN-7oGM6yKZyfa8RMSR1OH1-ubyr2TEcggUiv7Dew0gUGgq5J-kjUTWMIKpWJ_o_yZUXMCrMaBheKqDMXTZQ2w3C4CNqKf96Ky2YIU3kuQHtfgTOwhzysZSzU1Fpd9fCPo6UGbsPbzFut2vTj413dlvu1NdXWT6n-ZGhhbGxoi3JVUuOvWksKP-W1XugsbAUIeh5hyp_tr8iiORpf5DGiGjphD2PEksIxE7n9NTp1iR4TQZlSY_nUXyuW1TNd3KmdWb7eZFhP_lWc2Ycfkmt8Kq9ii_DbtTlrjtimTn24Nud33szwK19mFOfkXN55wA1DXAKA4anDs';
-
-  // Helper methods to get headers for different services
-  Map<String, String> getTravelNetworkHeaders() {
-    return {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $travelNetworkAuthToken',
-    };
-  }
-
-  Map<String, String> getAlhaiderHeaders() {
-    return {
-      'Accept': 'application/json',
-      'Authorization': 'Bearer $alhaiderAuthToken',
-      'Cookie':
-      'XSRF-TOKEN=your_xsrf_token_here; al_haider_international_travels_tours_session=your_session_token_here',
-    };
-  }
-
-  // TRAVEL NETWORK API METHODS
-
-  // Fetch Airlines from Travel Network
-  Future<List<dynamic>> fetchtravelnetworkAirlines() async {
-    try {
-      var response = await dio1.get(
-        '$travelNetworkBaseUrl/available/airlines',
-        options: dio.Options(headers: getTravelNetworkHeaders()),
-      );
-
-      if (response.statusCode == 200) {
-        return response.data['airlines'] as List<dynamic>;
-      } else {
-        if (kDebugMode) {
-          print("Error: ${response.statusMessage}");
-        }
-        return [];
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print("Exception in fetchAirlines: $e");
-      }
-      return [];
-    }
-  }
-
-  // Fetch Sectors from Travel Network
-  Future<List<dynamic>> fetchSectors() async {
-    try {
-      var response = await dio1.get(
-        '$travelNetworkBaseUrl/available/sectors',
-        options: dio.Options(headers: getTravelNetworkHeaders()),
-      );
-
-      if (response.statusCode == 200) {
-        return response.data['sectors'] as List<dynamic>;
-      } else {
-        if (kDebugMode) {
-          print("Error: ${response.statusMessage}");
-        }
-        return [];
-      }
-    } catch (e) {
-      if (kDebugMode) {
-        print("Exception in fetchSectors: $e");
-      }
-      return [];
-    }
-  }
-
-  // Fetch Groups from Travel Network
-  Future<List<dynamic>> fetchGroups(String type) async {
-    selectedRegion.value = type;
-
-    try {
-      String url = '$travelNetworkBaseUrl/available/groups';
-
-      if (type.isNotEmpty) {
-        url += '?type=$type';
-      } else {
-        url += '?type=';
-      }
-
-
-      var response = await dio1.get(
-        url,
-        options: dio.Options(headers: getTravelNetworkHeaders()),
-      );
-
-      if (response.statusCode == 200) {
-        // Print summary of response
-
-        // Print the first 3 groups (or fewer if there aren't 3)
-        final groups = response.data['groups'] as List;
-        final sampleSize = groups.length > 3 ? 3 : groups.length;
-
-        for (int i = 0; i < sampleSize; i++) {
-        }
-
-        // Print available keys in the response data
-        for (var key in (response.data as Map).keys) {
-        }
-
-        return response.data['groups'] as List<dynamic>;
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // Save Booking to Travel Network
-  Future<Map<String, dynamic>> saveBooking({
-    required int groupId,
-    required String agentName,
-    required String agencyName,
-    required String email,
-    required String mobile,
-    required int adults,
-    int? children,
-    int? infants,
-    String? agentNotes,
-    required List<Map<String, dynamic>> passengers,
-    required int groupPriceDetailId,
-  }) async {
-    try {
-      // Validate passengers data before creating the request
-      for (var passenger in passengers) {
-        if (passenger['firstName'] == null ||
-            passenger['lastName'] == null ||
-            passenger['title'] == null) {
-          return {
-            'success': false,
-            'message': 'Missing required passenger information (name or title)',
-            'data': null,
-          };
-        }
-
-        // Handle potential null dates safely
-        String? dob = passenger['dateOfBirth'];
-        String? doe = passenger['passportExpiry'];
-
-        // Format dates only if they exist
-        if (dob != null && dob.length >= 10) {
-          passenger['dateOfBirth'] = dob.substring(0, 10);
-        }
-
-        if (doe != null && doe.length >= 10) {
-          passenger['passportExpiry'] = doe.substring(0, 10);
-        }
-      }
-
-      final data = {
-        "group_id": groupId,
-        "agency_info": {
-          "group_id": groupId,
-          "agent_name": agentName,
-          "agency_name": agencyName,
-          "email": email,
-          "mobile": mobile,
-          "adults": adults,
-          "child": children ?? 0,
-          "infant": infants ?? 0,
-          "agent_notes": agentNotes ?? "",
+class ApiServiceGroupTickets {
+  late final Dio dio;
+  
+  // Al Saboor API credentials
+  static const String _agentCode = '2737';
+  static const String _email = 'tech@sastayhotels.pk';
+  static const String _password = '1766469414';
+  
+  // Base URL from Al Saboor API documentation
+  static const String _baseUrl = 'https://alsaboorportal.com/admins/api';
+  
+  // SharedPreferences keys
+  static const String _tokenKey = 'alsaboor_auth_token';
+  static const String _tokenExpiryKey = 'alsaboor_token_expiry';
+  
+  ApiServiceGroupTickets() {
+    dio = Dio(
+      BaseOptions(
+        baseUrl: _baseUrl,
+        connectTimeout: const Duration(seconds: 30),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Accept': 'application/json',
         },
-        "booking_details":
-        passengers
-            .map(
-              (passenger) => {
-            "surname": passenger['lastName'],
-            "given_name": passenger['firstName'],
-            "title": passenger['title'],
-            "passport_no": passenger['passportNumber'] ?? "",
-            "dob": passenger['dateOfBirth'] ?? "",
-            "doe": passenger['passportExpiry'] ?? "",
+      ),
+    );
+    
+    // Add logging interceptor in debug mode
+    if (kDebugMode) {
+      dio.interceptors.add(
+        LogInterceptor(requestBody: true, responseBody: true),
+      );
+    }
+  }
+  
+  /// Authenticate with Al Saboor API
+  /// Returns token and expiry timestamp
+  /// According to docs: POST /login with formdata (email, password, Agent_code)
+  Future<Map<String, dynamic>> authenticate() async {
+    try {
+      if (kDebugMode) {
+        print('🔐 Authenticating with Al Saboor API...');
+      }
+      
+      // Use FormData.fromMap() as per working Postman example
+      // Note: Field name is 'agent_code' (lowercase), not 'Agent_code'
+      final formData = FormData.fromMap({
+        'email': _email,
+        'password': _password,
+        'agent_code': _agentCode, // lowercase as per working example
+      });
+      
+      if (kDebugMode) {
+        print('📤 Form data: email=${_email}, password=***, agent_code=${_agentCode}');
+      }
+      
+      final response = await dio.post(
+        '/login',
+        data: formData,
+        options: Options(
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
           },
-        )
-            .toList(),
-        "group_price_detail_id": groupPriceDetailId,
-      };
-
-
-      // Add timeout to avoid hanging requests
-      var response = await dio1.post(
-        '$travelNetworkBaseUrl/create/booking',
-        data: data,
-        options: dio.Options(
-          headers: getTravelNetworkHeaders(),
-          contentType: 'application/json',
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
         ),
       );
-
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        // Check if the response has the nested data structure
-        var responseData = response.data;
-
-        // Check for business logic success/failure in nested data
-        if (responseData is Map<String, dynamic> &&
-            responseData['data'] != null) {
-          var innerData = responseData['data'];
-
-          // Check if the inner data indicates an error or empty data
-          if (innerData is Map<String, dynamic>) {
-            // Check for explicit error flag or success flag
-            if (innerData['error'] == true || innerData['success'] == false) {
-              return {
-                'success': false,
-                'message': innerData['message'] ?? 'Booking failed',
-                'data': null,
-              };
-            }
-
-            // Check if data array is empty (booking not created)
-            if (innerData['data'] is List &&
-                (innerData['data'] as List).isEmpty) {
-              return {
-                'success': false,
-                'message':
-                innerData['message'] ??
-                    'Booking could not be created - no data returned',
-                'data': null,
-              };
-            }
-          }
+      
+      if (response.statusCode == 200 && response.data != null) {
+        // Handle response - it might be a Map or String (JSON string)
+        Map<String, dynamic> data;
+        if (response.data is String) {
+          // Parse JSON string
+          data = jsonDecode(response.data as String);
+        } else if (response.data is Map) {
+          data = response.data as Map<String, dynamic>;
+        } else {
+          return {
+            'success': false,
+            'message': 'Invalid response format',
+          };
         }
-
-        // If we reach here, the booking was successful
+        
+        // Check for error status first
+        if (data['status'] == 'error') {
+          return {
+            'success': false,
+            'message': data['message'] ?? 'Authentication failed',
+          };
+        }
+        
+        // Extract token and expiry from response
+        // Response structure: {status, message, token, expiry}
+        final token = data['token'];
+        final expiry = data['expiry'];
+        
+        if (token != null && token.toString().isNotEmpty) {
+          // Calculate expiry timestamp
+          int expiryTimestamp;
+          if (expiry == null || expiry.toString().isEmpty) {
+            // Default to 1 hour if not provided
+            expiryTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
+          } else if (expiry is int) {
+            // If expiry is already a timestamp
+            expiryTimestamp = expiry;
+          } else if (expiry is String) {
+            // Try to parse as timestamp or date string
+            try {
+              // Try parsing as ISO date string
+              expiryTimestamp = DateTime.parse(expiry).millisecondsSinceEpoch ~/ 1000;
+            } catch (e) {
+              // If parsing fails, try as Unix timestamp string
+              try {
+                expiryTimestamp = int.parse(expiry);
+              } catch (e2) {
+                // Default to 1 hour if parsing fails
+                expiryTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
+              }
+            }
+          } else {
+            // Default to 1 hour if not provided
+            expiryTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
+          }
+          
+          // Store token and expiry
+          await _storeToken(token.toString(), expiryTimestamp);
+          
+          if (kDebugMode) {
+            print('✅ Al Saboor Authentication successful');
+            print('🔐 Token: ${token.toString().substring(0, 20)}...');
+            print('🔐 Token expires at: ${DateTime.fromMillisecondsSinceEpoch(expiryTimestamp * 1000)}');
+          }
+          
+          return {
+            'success': true,
+            'token': token.toString(),
+            'expiry': expiryTimestamp,
+          };
+        }
+      }
+      
+      return {
+        'success': false,
+        'message': 'Authentication failed: Invalid response',
+      };
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print('❌ Al Saboor Authentication error: ${e.message}');
+        if (e.response != null) {
+          print('Response: ${e.response?.data}');
+        }
+      }
+      
+      // Try to extract error message from response
+      String errorMessage = e.message ?? 'Authentication failed';
+      if (e.response?.data != null) {
+        try {
+          Map<String, dynamic> errorData;
+          if (e.response!.data is String) {
+            errorData = jsonDecode(e.response!.data as String);
+          } else if (e.response!.data is Map) {
+            errorData = e.response!.data as Map<String, dynamic>;
+          } else {
+            errorData = {};
+          }
+          errorMessage = errorData['message'] ?? errorMessage;
+        } catch (parseError) {
+          // If parsing fails, use default message
+        }
+      }
+      
+      return {
+        'success': false,
+        'message': errorMessage,
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Al Saboor Authentication error: $e');
+      }
+      
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred: ${e.toString()}',
+      };
+    }
+  }
+  
+  /// Store token and expiry in SharedPreferences
+  Future<void> _storeToken(String token, int expiryTimestamp) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_tokenKey, token);
+    await prefs.setInt(_tokenExpiryKey, expiryTimestamp);
+  }
+  
+  /// Get valid token from storage or authenticate if expired
+  Future<String?> getValidToken() async {
+    final prefs = await SharedPreferences.getInstance();
+    final token = prefs.getString(_tokenKey);
+    final expiryTimestamp = prefs.getInt(_tokenExpiryKey);
+    
+    if (token == null || expiryTimestamp == null) {
+      // No token stored, need to authenticate
+      if (kDebugMode) {
+        print('🔐 No token found, authenticating...');
+      }
+      final authResult = await authenticate();
+      return authResult['success'] == true ? authResult['token'] as String? : null;
+    }
+    
+    // Check if token is expired
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+    if (now >= expiryTimestamp) {
+      // Token expired, authenticate again
+      if (kDebugMode) {
+        print('🔐 Token expired, re-authenticating...');
+      }
+      final authResult = await authenticate();
+      return authResult['success'] == true ? authResult['token'] as String? : null;
+    }
+    
+    // Token is valid
+    return token;
+  }
+  
+  /// Get all groups from Al Saboor API
+  /// According to docs: GET /groups?type=UMRAH GROUP&token=YOUR_TOKEN
+  /// type can be "UMRAH GROUP" or "ONE WAY GROUP"
+  /// Note: API expects "ONEWAY" instead of "ONE WAY GROUP"
+  Future<Map<String, dynamic>> getAllGroups({required String groupType}) async {
+    try {
+      // Get valid token first
+      final token = await getValidToken();
+      
+      if (token == null) {
+        return {
+          'success': false,
+          'message': 'Failed to get authentication token',
+        };
+      }
+      
+      // Map group type for API - remove spaces for ONE WAY GROUP
+      String apiGroupType = groupType;
+      if (groupType == 'ONE WAY GROUP') {
+        apiGroupType = 'ONEWAY';
+      }
+      
+      if (kDebugMode) {
+        print('📋 Fetching $groupType (API: $apiGroupType) from Al Saboor API...');
+      }
+      
+      // According to docs, token is passed as query parameter, not header
+      // Authorization header format: Token YOUR_API_KEY (but token is in query param)
+      final response = await dio.get(
+        '/groups',
+        queryParameters: {
+          'type': apiGroupType, // "UMRAH GROUP" or "ONEWAY"
+          'token': token,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Token $token', // Also include in header as per docs
+          },
+        ),
+      );
+      
+      if (response.statusCode == 200 && response.data != null) {
+        if (kDebugMode) {
+          print('✅ Groups fetched successfully');
+        }
+        
+        // Handle response - it might be a Map or String (JSON string)
+        dynamic responseData = response.data;
+        if (responseData is String) {
+          // Parse JSON string
+          responseData = jsonDecode(responseData);
+        }
+        
         return {
           'success': true,
-          'message': responseData['message'] ?? 'Booking saved successfully',
           'data': responseData,
         };
-      } else {
-        return {
-          'success': false,
-          'message': 'Failed to save booking. Status: ${response.statusCode}',
-          'error_details': response.data?.toString() ?? 'No error details',
-          'data': null,
-        };
       }
-    } on dio.DioException catch (e) {
-
-      // Check for specific error types
-      if (e.type == dio.DioExceptionType.connectionTimeout ||
-          e.type == dio.DioExceptionType.sendTimeout ||
-          e.type == dio.DioExceptionType.receiveTimeout) {
-        return {
-          'success': false,
-          'message':
-          'Request timed out. Please check your internet connection and try again.',
-          'error_details': e.message,
-          'data': null,
-        };
-      } else if (e.type == dio.DioExceptionType.badResponse) {
-        // Try to parse error response for more details
-        final errorData = e.response?.data;
-        String errorMessage = 'Server returned an error';
-
-        if (errorData is Map<String, dynamic>) {
-          errorMessage = errorData['message'] ?? errorMessage;
-        }
-
-        return {
-          'success': false,
-          'message': errorMessage,
-          'error_details': errorData?.toString(),
-          'status_code': e.response?.statusCode,
-          'data': null,
-        };
-      }
-
+      
       return {
         'success': false,
-        'message': 'Network error occurred: ${e.message}',
-        'error_details': e.response?.data?.toString() ?? 'No error details',
-        'data': null,
+        'message': 'Failed to fetch groups',
+      };
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print('❌ Error fetching groups: ${e.message}');
+        if (e.response != null) {
+          print('Response: ${e.response?.data}');
+        }
+      }
+      
+      // If unauthorized, try to re-authenticate and retry once
+      if (e.response?.statusCode == 401) {
+        if (kDebugMode) {
+          print('🔄 Unauthorized, re-authenticating and retrying...');
+        }
+        
+        // Clear stored token
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_tokenKey);
+        await prefs.remove(_tokenExpiryKey);
+        
+        // Retry with new token
+        return await getAllGroups(groupType: groupType);
+      }
+      
+      return {
+        'success': false,
+        'message': e.response?.data?['message'] ?? e.message ?? 'Failed to fetch groups',
       };
     } catch (e) {
-
+      if (kDebugMode) {
+        print('❌ Error fetching groups: $e');
+      }
+      
       return {
         'success': false,
-        'message': 'An unexpected error occurred',
-        'error_details': e.toString(),
-        'data': null,
+        'message': 'An unexpected error occurred: ${e.toString()}',
       };
     }
   }
 
-  // ALHAIDER API METHODS
-
-  // Fetch Groups from Alhaider
-  Future<List<dynamic>> fetchAlhaiderGroups(String type) async {
-    selectedRegion2.value = type;
-
-    try {
-      final response = await dio1.request(
-        '$alhaiderBaseUrl/available/groups?type=$type',
-        options: dio.Options(method: 'GET', headers: getAlhaiderHeaders()),
-      );
-
-      if (response.statusCode == 200) {
-        final groups = response.data['groups'] as List;
-        final sampleSize = groups.length > 3 ? 3 : groups.length;
-
-        for (int i = 0; i < sampleSize; i++) {
-        }
-
-        // Print available keys in the response data
-        for (var key in (response.data as Map).keys) {
-        }
-        return response.data['groups'] as List<dynamic>;
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // Fetch Airlines from Alhaider
-  Future<List<dynamic>> fetchAlhaiderAirlines() async {
-    try {
-      final response = await dio1.request(
-        '$alhaiderBaseUrl/available/airlines',
-        options: dio.Options(method: 'GET', headers: getAlhaiderHeaders()),
-      );
-
-      if (response.statusCode == 200) {
-        return response.data['airlines'] as List<dynamic>;
-      } else {
-        return [];
-      }
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // COMBINED API METHODS
-
-  // Fetch combined groups from both services
-  Future<List<dynamic>> fetchCombinedGroups(String type, String type2) async {
-    selectedRegion.value = type;
-
-
-    try {
-      // Fetch groups from both APIs concurrently
-      final travelNetworkFuture = fetchGroups(type);
-      final alhaiderFuture = fetchAlhaiderGroups(type2);
-
-      // Wait for both to complete
-      final travelNetworkGroups = await travelNetworkFuture;
-      final alhaiderGroups = await alhaiderFuture;
-
-      // Combine the results (ensure alhaiderGroups is also a List)
-      final combinedGroups = [...travelNetworkGroups, ...alhaiderGroups];
-
-      return combinedGroups;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // Fetch all airlines from both services
-  Future<List<dynamic>> fetchCombinedAirlinesLogos() async {
-    try {
-      // Fetch airlines from both APIs concurrently
-      final travelNetworkFuture = fetchtravelnetworkAirlines();
-      final alhaiderFuture = fetchAlhaiderAirlines();
-
-      // Wait for both to complete
-      final travelNetworkAirlines = await travelNetworkFuture;
-      final alhaiderAirlines = await alhaiderFuture;
-
-      // Combine the results
-      final combinedAirlines = [...travelNetworkAirlines, ...alhaiderAirlines];
-
-      return combinedAirlines;
-    } catch (e) {
-      return [];
-    }
-  }
-
-  // savebooking into database
-  // Updated saveBooking_into_database function
-  Future<Map<String, dynamic>> saveBooking_into_database({
-    required String bookername,
-    required String bookername_num,
-    required String booker_email,
-    required int groupId,
-    required String agentName,
-    required String agencyName,
-    required String email,
-    required String mobile,
-    required int adults,
-    int? children,
-    int? infants,
-    String? agentNotes,
-    required List<Map<String, dynamic>> passengers,
-    required int groupPriceDetailId,
-    // Additional parameters for the accurate API
-    int? noOfSeats,
-    double? fares,
-    String? airlineName,
+  /// Get specific group details
+  /// GET /group-details?group_id=ID&token=TOKEN
+  /// Create a group booking
+  /// POST /booking with JSON body containing passenger details
+  Future<Map<String, dynamic>> createBooking({
+    required String groupId,
+    required String roe,
+    required int noOfSeat,
+    required String pnr1,
+    String? pnr2,
+    required List<String> paxTitle,
+    required List<String> humanType,
+    required List<String> surName,
+    required List<String> givenName,
+    required List<String> passNo,
+    required List<String> dob,
+    required List<String> doi,
+    required List<String> doe,
+    required List<String> adultPrice,
+    required List<String> childPrice,
+    required List<String> infantPrice,
   }) async {
     try {
-      // Validate passengers data before creating the request
-      for (var passenger in passengers) {
-        if (passenger['firstName'] == null ||
-            passenger['lastName'] == null ||
-            passenger['title'] == null) {
-          return {
-            'success': false,
-            'message': 'Missing required passenger information (name or title)',
-            'data': null,
-          };
-        }
-
-        // Handle potential null dates safely
-        String? dob = passenger['dateOfBirth'];
-        String? doe = passenger['passportExpiry'];
-
-        // Format dates only if they exist
-        if (dob != null && dob.length >= 10) {
-          passenger['dateOfBirth'] = dob.substring(0, 10);
-        }
-
-        if (doe != null && doe.length >= 10) {
-          passenger['passportExpiry'] = doe.substring(0, 10);
-        }
+      final token = await getValidToken();
+      if (token == null) {
+        return {'success': false, 'message': 'Authentication failed. Please try again.'};
       }
 
-      // Get current timestamp for created_at
-      final currentDate = DateTime.now().toIso8601String().substring(0, 10);
-
-      final data = {
-        "group_id": groupId,
-        "booker_data": {
-          "name": bookername.isNotEmpty ? bookername : "OneRoofTravel",
-          "email":
-          booker_email.isNotEmpty ? booker_email : "resOneroof@gmail.com",
-          "mobile": bookername_num.isNotEmpty ? bookername_num : "03001232412",
-        },
-        "agency_info": {
-          "group_id": groupId,
-
-          "agent_name": agentName,
-          "agency_name": agencyName,
-          "created_at": currentDate, // Current timestamp
-          "no_of_seats":
-          (noOfSeats ?? (adults + (children ?? 0) + (infants ?? 0)))
-              .toString(),
-          "fares": fares ?? 642.0, // Default fare or calculated
-          "airline_name":
-          airlineName ?? "Default Airline", // Default airline name
-          "adults": adults,
-          "child": children ?? 0,
-          "infant": infants ?? 0,
-          "agent_notes": agentNotes,
-        },
-        "booking_details":
-        passengers
-            .map(
-              (passenger) => {
-            "surname": passenger['lastName'],
-            "given_name": passenger['firstName'],
-            "title":
-            passenger['title']?.toUpperCase() ??
-                "MR", // Ensure uppercase
-            "passport_no": passenger['passportNumber'] ?? "",
-            "dob": passenger['dateOfBirth'] ?? "",
-            "doe": passenger['passportExpiry'] ?? "",
-          },
-        )
-            .toList(),
-        "group_price_detail_id": groupPriceDetailId,
+      final requestBody = {
+        'roe': roe,
+        'no_of_seat': noOfSeat.toString(),
+        'group_id': groupId,
+        'pnr_1': pnr1,
+        if (pnr2 != null) 'pnr_2': pnr2,
+        'pax_title': paxTitle,
+        'human_type': humanType,
+        'sur_name': surName,
+        'given_name': givenName,
+        'pass_no': passNo,
+        'dob': dob,
+        'doi': doi,
+        'doe': doe,
+        'adult_price': adultPrice,
+        'child_price': childPrice,
+        'infant_price': infantPrice,
       };
 
-
-      // Updated endpoint URL based on the accurate API
-      var response = await dio1.post(
-        'https://onerooftravel.net/api/save-group-ticketing',
-        data: data,
-        options: dio.Options(
-          headers: {'Content-Type': 'application/json'},
-          receiveTimeout: const Duration(seconds: 30),
-          sendTimeout: const Duration(seconds: 30),
+      final response = await dio.post(
+        '/booking',
+        queryParameters: {
+          'token': token,
+        },
+        data: requestBody,
+        options: Options(
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Authorization': 'Token $token',
+          },
         ),
       );
 
+      if (response.statusCode == 200 && response.data != null) {
+        Map<String, dynamic> data;
+        if (response.data is String) {
+          data = jsonDecode(response.data as String);
+        } else if (response.data is Map) {
+          data = response.data as Map<String, dynamic>;
+        } else {
+          return {'success': false, 'message': 'Invalid response format'};
+        }
 
-      if (response.statusCode == 200) {
-        return {
-          'success': true,
-          'message': 'Booking saved to database successfully',
-          'data': response.data,
-        };
-      } else {
-        return {
-          'success': false,
-          'message':
-          'Failed to save booking to database. Status: ${response.statusCode}',
-          'error_details': response.data?.toString() ?? 'No error details',
-          'data': null,
-        };
-      }
-    } on dio.DioException catch (e) {
-
-      if (e.type == dio.DioExceptionType.connectionTimeout ||
-          e.type == dio.DioExceptionType.sendTimeout ||
-          e.type == dio.DioExceptionType.receiveTimeout) {
-        return {
-          'success': false,
-          'message': 'Database request timed out. Please try again.',
-          'error_details': e.message,
-          'data': null,
-        };
-      } else if (e.type == dio.DioExceptionType.badResponse) {
-        final errorData = e.response?.data;
-        String errorMessage = 'Database server returned an error';
-
-        if (errorData is Map<String, dynamic>) {
-          errorMessage = errorData['message'] ?? errorMessage;
+        if (data.containsKey('status') && data['status'] == 'error') {
+          return {'success': false, 'message': data['message'] ?? 'Booking failed'};
         }
 
         return {
+          'success': true,
+          'data': data,
+          'transaction_id': data['transaction_id'] ?? data['booking_id'],
+          'message': data['message'] ?? 'Booking created successfully',
+        };
+      }
+
+      return {'success': false, 'message': 'Booking failed: Invalid response'};
+    } on DioException catch (e) {
+      String errorMessage = 'Failed to create booking';
+      if (e.response != null) {
+        final statusCode = e.response!.statusCode;
+        final responseData = e.response!.data;
+        
+        if (responseData is Map && responseData.containsKey('message')) {
+          errorMessage = responseData['message'].toString();
+        } else if (statusCode == 401) {
+          errorMessage = 'Authentication failed. Please try again.';
+        } else if (statusCode == 400) {
+          errorMessage = 'Invalid booking data. Please check your input.';
+        }
+      } else if (e.type == DioExceptionType.connectionTimeout ||
+                 e.type == DioExceptionType.receiveTimeout) {
+        errorMessage = 'Connection timeout. Please check your internet connection.';
+      }
+
+      if (kDebugMode) {
+        print('❌ Al Saboor Create Booking error: $errorMessage');
+      }
+
+      return {'success': false, 'message': errorMessage};
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Unexpected error creating booking: ${e.toString()}');
+      }
+      return {'success': false, 'message': 'An unexpected error occurred: ${e.toString()}'};
+    }
+  }
+
+  Future<Map<String, dynamic>> getGroupDetails({required String groupId}) async {
+    try {
+      final token = await getValidToken();
+      if (token == null) {
+        return {
           'success': false,
-          'message': errorMessage,
-          'error_details': errorData?.toString(),
-          'status_code': e.response?.statusCode,
-          'data': null,
+          'message': 'Failed to get authentication token',
+        };
+      }
+
+      if (kDebugMode) {
+        print('📋 Fetching group details for $groupId');
+      }
+
+      final response = await dio.get(
+        '/group-details',
+        queryParameters: {
+          'group_id': groupId,
+          'token': token,
+        },
+        options: Options(
+          headers: {
+            'Authorization': 'Token $token',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        dynamic responseData = response.data;
+        if (responseData is String) {
+          responseData = jsonDecode(responseData);
+        }
+        return {
+          'success': true,
+          'data': responseData,
         };
       }
 
       return {
         'success': false,
-        'message': 'Database network error occurred: ${e.message}',
-        'error_details': e.response?.data?.toString() ?? 'No error details',
-        'data': null,
+        'message': 'Failed to fetch group details',
       };
-    } catch (e) {
-
+    } on DioException catch (e) {
+      if (kDebugMode) {
+        print('❌ Error fetching group details: ${e.message}');
+        if (e.response != null) {
+          print('Response: ${e.response?.data}');
+        }
+      }
+      if (e.response?.statusCode == 401) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_tokenKey);
+        await prefs.remove(_tokenExpiryKey);
+        return await getGroupDetails(groupId: groupId);
+      }
       return {
         'success': false,
-        'message': 'An unexpected database error occurred',
-        'error_details': e.toString(),
-        'data': null,
+        'message': e.response?.data?['message'] ?? e.message ?? 'Failed to fetch group details',
+      };
+    } catch (e) {
+      if (kDebugMode) {
+        print('❌ Error fetching group details: $e');
+      }
+      return {
+        'success': false,
+        'message': 'An unexpected error occurred: ${e.toString()}',
       };
     }
   }
 }
+

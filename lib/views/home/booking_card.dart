@@ -7,6 +7,7 @@ import '../../utility/colors.dart';
 import '../../utility/app_constants.dart';
 
 import 'type_selector/type_selector.dart';
+import 'group_tickets/group_tickets_selector.dart';
 
 class BookingCard extends StatefulWidget {
   const BookingCard({super.key});
@@ -46,6 +47,7 @@ class _BookingCardState extends State<BookingCard> {
             // Show the relevant form based on the selected type
             if (selectedType == 'Flights') FlightBookingScreen(),
             if (selectedType == 'Hotels') HotelForm(),
+            if (selectedType == 'Group Tickets') const GroupTicketsSelector(),
           ],
         ),
       ),
