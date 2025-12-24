@@ -127,7 +127,7 @@ class HomeBanner extends StatelessWidget {
 class CustomerServiceSection extends StatelessWidget {
   const CustomerServiceSection({super.key});
 
-  final String mobileNumber = "923007240421";
+  final String mobileNumber = "923219667909";
 
   Future<void> launchWhatsApp(BuildContext context) async {
     try {

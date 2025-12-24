@@ -212,6 +212,9 @@ class OtpVerificationScreen extends StatelessWidget {
               contentPadding: EdgeInsets.zero,
             ),
             onChanged: (value) {
+              // Update OTP length reactively
+              controller.updateOtpLength();
+              
               if (value.isNotEmpty && index < 5) {
                 // Move to next field
                 FocusScope.of(context)
@@ -347,7 +350,7 @@ class OtpVerificationScreen extends StatelessWidget {
       final isEnabled = !controller.isLoading.value &&
           !controller.isOtpExpired.value &&
           !controller.isMaxAttemptsReached.value &&
-          controller.getOtpFromFields().length == 6;
+          controller.otpLength.value == 6;
 
       return SizedBox(
         width: double.infinity,

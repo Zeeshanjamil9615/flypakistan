@@ -16,6 +16,7 @@ class OtpVerificationController extends GetxController {
   final RxString errorMessage = ''.obs;
   final RxBool isOtpExpired = false.obs;
   final RxBool isMaxAttemptsReached = false.obs;
+  final RxInt otpLength = 0.obs; // Track OTP length for button state
 
   // OTP text controllers (6 fields)
   final List<TextEditingController> otpControllers = List.generate(
@@ -39,6 +40,11 @@ class OtpVerificationController extends GetxController {
       email.value = Get.arguments as String;
     } else if (Get.arguments != null && Get.arguments is Map) {
       email.value = Get.arguments['email'] ?? '';
+    }
+
+    // Add listeners to OTP controllers to update reactive length
+    for (var controller in otpControllers) {
+      controller.addListener(updateOtpLength);
     }
 
     // Start the countdown timer
@@ -85,11 +91,18 @@ class OtpVerificationController extends GetxController {
     return otpControllers.map((controller) => controller.text).join();
   }
 
+  // Update OTP length reactively
+  void updateOtpLength() {
+    final length = getOtpFromFields().length;
+    otpLength.value = length;
+  }
+
   // Clear all OTP fields
   void clearOtpFields() {
     for (var controller in otpControllers) {
       controller.clear();
     }
+    otpLength.value = 0;
     otpFocusNodes[0].requestFocus();
   }
 
