@@ -701,7 +701,13 @@ Widget _buildFloatingSelectRoomButton() {
                 ),
                 actions: [
                   TextButton(
-                    onPressed: () => Get.back(),
+                    onPressed: () {
+                      try {
+                        Get.back();
+                      } catch (e) {
+                        // Dialog already closed
+                      }
+                    },
                     style: TextButton.styleFrom(
                       backgroundColor: TColors.primary,
                       shape: RoundedRectangleBorder(
@@ -719,6 +725,7 @@ Widget _buildFloatingSelectRoomButton() {
                   ),
                 ],
               ),
+              barrierDismissible: false,
             );
           } else {
             controller.filterhotler();

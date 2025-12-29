@@ -1145,6 +1145,7 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
           ),
         ],
       ),
+      barrierDismissible: false,
     );
   }
 

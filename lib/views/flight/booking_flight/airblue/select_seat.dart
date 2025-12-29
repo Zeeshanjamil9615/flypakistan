@@ -373,6 +373,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
           ),
         ],
       ),
+      barrierDismissible: false,
     );
   }
 

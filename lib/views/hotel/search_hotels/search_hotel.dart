@@ -1371,6 +1371,7 @@ class _MapScreenState extends State<MapScreen> {
   void _showLegend() {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (context) {
         return AlertDialog(
           title: const Text('Map Legend'),
@@ -1420,7 +1421,13 @@ class _MapScreenState extends State<MapScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Get.back(),
+              onPressed: () {
+                try {
+                  Get.back();
+                } catch (e) {
+                  // Dialog already closed
+                }
+              },
               child: Text('OK', style: TextStyle(color: TColors.primary)),
             ),
           ],

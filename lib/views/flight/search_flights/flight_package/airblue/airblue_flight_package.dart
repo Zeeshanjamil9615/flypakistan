@@ -1023,7 +1023,7 @@ class AirBluePackageSelectionDialog extends StatelessWidget {
           ),
         ),
       ),
-      barrierDismissible: true,
+      barrierDismissible: false,
     );
   }
 

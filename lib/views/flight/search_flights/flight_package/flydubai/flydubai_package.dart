@@ -943,7 +943,7 @@ class FlyDubaiPackageSelectionDialog extends StatelessWidget {
           ),
         ),
       ),
-      barrierDismissible: true,
+      barrierDismissible: false,
     );
   }
 

@@ -196,7 +196,7 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
   void _showFlightDetailsDialog() {
     showDialog(
       context: context,
-      barrierDismissible: true,
+      barrierDismissible: false,
       builder: (BuildContext context) => _buildFlightDetailsDialog(),
     );
   }
@@ -275,7 +275,11 @@ class _EmiratesFlightCardState extends State<EmiratesFlightCard>
                     color: Colors.transparent,
                     child: InkWell(
                       borderRadius: BorderRadius.circular(20),
-                      onTap: () => Navigator.of(context).pop(),
+                      onTap: () {
+                        if (mounted) {
+                          Navigator.of(context).pop();
+                        }
+                      },
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         child: const Icon(

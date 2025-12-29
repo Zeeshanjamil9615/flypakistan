@@ -1,4 +1,3 @@
-import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -45,7 +44,7 @@ class CommonFlightBookingVoucher extends StatelessWidget {
     }
   }
 
-  CommonFlightBookingVoucher({
+  const CommonFlightBookingVoucher({
     super.key,
     required this.flightData,
     this.pnrResponse,

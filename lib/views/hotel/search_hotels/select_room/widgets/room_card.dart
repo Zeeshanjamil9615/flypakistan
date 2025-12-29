@@ -65,6 +65,7 @@ class RoomCard extends StatelessWidget {
           showDialog(
             // ignore: use_build_context_synchronously
             context: context,
+            barrierDismissible: false,
             builder:
                 (context) => Dialog(
                   shape: RoundedRectangleBorder(
@@ -97,7 +98,13 @@ class RoomCard extends StatelessWidget {
                                 Icons.close,
                                 color: TColors.third,
                               ),
-                              onPressed: () => Navigator.pop(context),
+                              onPressed: () {
+                                try {
+                                  Navigator.pop(context);
+                                } catch (e) {
+                                  // Context no longer valid
+                                }
+                              },
                               color: TColors.grey,
                             ),
                           ],
@@ -482,6 +489,7 @@ class RoomCard extends StatelessWidget {
         showDialog(
           // ignore: use_build_context_synchronously
           context: context,
+          barrierDismissible: false,
           builder:
               (context) => Dialog(
                 shape: RoundedRectangleBorder(
@@ -517,7 +525,13 @@ class RoomCard extends StatelessWidget {
                               Icons.close,
                               color: TColors.third,
                             ),
-                            onPressed: () => Navigator.pop(context),
+                            onPressed: () {
+                              try {
+                                Navigator.pop(context);
+                              } catch (e) {
+                                // Context no longer valid
+                              }
+                            },
                           ),
                         ],
                       ),

@@ -180,6 +180,7 @@ class _SelectRoomScreenState extends State<SelectRoomScreen>
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
+      barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Booking Error'),
@@ -188,7 +189,11 @@ class _SelectRoomScreenState extends State<SelectRoomScreen>
             TextButton(
               child: const Text('OK'),
               onPressed: () {
-                Navigator.of(context).pop();
+                try {
+                  Navigator.of(context).pop();
+                } catch (e) {
+                  // Context no longer valid
+                }
               },
             ),
           ],

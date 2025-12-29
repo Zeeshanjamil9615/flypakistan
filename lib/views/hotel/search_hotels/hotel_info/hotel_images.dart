@@ -183,7 +183,9 @@ class _HotelImagesGalleryScreenState extends State<HotelImagesGalleryScreen>
                                   size: 24,
                                 ),
                                 onPressed: () {
-                                  Navigator.of(context).pop();
+                                  if (mounted) {
+                                    Navigator.of(context).pop();
+                                  }
                                 },
                               ),
                             ),
@@ -464,7 +466,11 @@ class _HotelImagesGalleryScreenState extends State<HotelImagesGalleryScreen>
                     ),
                     IconButton(
                       icon: const Icon(Icons.close, color: TColors.white),
-                      onPressed: () => Navigator.pop(context),
+                      onPressed: () {
+                        if (mounted) {
+                          Navigator.pop(context);
+                        }
+                      },
                       style: IconButton.styleFrom(
                         backgroundColor: TColors.grey.withOpacity(0.2),
                         padding: const EdgeInsets.all(8),
@@ -491,12 +497,14 @@ class _HotelImagesGalleryScreenState extends State<HotelImagesGalleryScreen>
                       bool isSelected = _currentIndex == index;
                       return GestureDetector(
                         onTap: () {
-                          Navigator.pop(context);
-                          _pageController.animateToPage(
-                            index,
-                            duration: const Duration(milliseconds: 300),
-                            curve: Curves.easeInOut,
-                          );
+                          if (mounted) {
+                            Navigator.pop(context);
+                            _pageController.animateToPage(
+                              index,
+                              duration: const Duration(milliseconds: 300),
+                              curve: Curves.easeInOut,
+                            );
+                          }
                         },
                         child: AnimatedContainer(
                           duration: const Duration(milliseconds: 200),
