@@ -5,7 +5,7 @@ import 'package:get/get.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:ready_flights/services/api_service_emirates.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/select_seat.dart';
-import 'package:ready_flights/views/flight/booking_flight/emirates%20_ndc/emirates_print_voucher.dart';
+import 'package:ready_flights/views/flight/booking_flight/common_flight_voucher_adapter.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_model.dart';
 import '../../../../../services/api_service_airblue.dart';
@@ -43,6 +43,7 @@ class _EmiratesNdcBookingFlightState extends State<EmiratesNdcBookingFlight> {
   final _formKey = GlobalKey<FormState>();
   final BookingFlightController bookingController = Get.put(
     BookingFlightController(),
+    permanent: true,
   );
   final TravelersController travelersController = Get.put(
     TravelersController(),
@@ -1059,12 +1060,14 @@ ElevatedButton(
             debugPrint('  Total Price: ${pnrResponse['currency']} ${pnrResponse['totalPrice']}');
             debugPrint('===============================\n');
 
-            // Navigate to Emirates Booking Details Screen
+            // Navigate to common flight booking voucher
             Get.to(
-              () => EmiratesBookingDetailsScreen(
+              () => createEmiratesVoucher(
                 flight: widget.flight,
                 selectedPackage: widget.selectedPackage,
                 pnrResponse: pnrResponse,
+                totalPrice: widget.totalPrice,
+                currency: widget.currency,
               ),
             );
             

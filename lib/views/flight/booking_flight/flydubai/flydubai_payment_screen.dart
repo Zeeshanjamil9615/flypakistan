@@ -11,7 +11,7 @@ import '../../search_flights/flydubai/flydubai_model.dart';
 import '../../search_flights/flydubai/flydubai_extras_controller.dart';
 import '../booking_flight_controller.dart';
 import 'flydubai_card_payment_details_screen.dart';
-import 'flydubai_print_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 
 class FlyDubaiPaymentScreen extends StatefulWidget {
   final FlydubaiFlight flight;
@@ -722,13 +722,75 @@ class _FlyDubaiPaymentScreenState extends State<FlyDubaiPaymentScreen> {
     }
 
     try {
+      // Get extras from controller if available
+      Map<String, dynamic>? extrasData;
+      try {
+        final extrasController = Get.find<FlydubaiExtrasController>();
+        print('🔍 DEBUG: Found FlydubaiExtrasController in payment screen');
+        print('   - Baggage count: ${extrasController.selectedBaggage.length}');
+        print('   - Meals count: ${extrasController.selectedMeals.length}');
+        print('   - Seats count: ${extrasController.selectedSeats.length}');
+        
+        // Convert RxMap to regular Map
+        final baggageMap = <String, dynamic>{};
+        extrasController.selectedBaggage.forEach((key, value) {
+          print('   📦 Baggage key: $key, value: $value (type: ${value.runtimeType})');
+          // Ensure value is properly converted
+          if (value is Map) {
+            baggageMap[key] = Map<String, dynamic>.from(value);
+          } else {
+            baggageMap[key] = value;
+          }
+        });
+        
+        final mealsMap = <String, dynamic>{};
+        extrasController.selectedMeals.forEach((key, value) {
+          print('   🍽️ Meal key: $key, value: $value (type: ${value.runtimeType})');
+          // Ensure value is properly converted
+          if (value is Map) {
+            mealsMap[key] = Map<String, dynamic>.from(value);
+          } else {
+            mealsMap[key] = value;
+          }
+        });
+        
+        final seatsMap = <String, dynamic>{};
+        extrasController.selectedSeats.forEach((key, value) {
+          print('   💺 Seat key: $key, value: $value (type: ${value.runtimeType})');
+          // Ensure value is properly converted
+          if (value is Map) {
+            seatsMap[key] = Map<String, dynamic>.from(value);
+          } else {
+            seatsMap[key] = value;
+          }
+        });
+        
+        extrasData = {
+          'selectedBaggage': baggageMap,
+          'selectedMeals': mealsMap,
+          'selectedSeats': seatsMap,
+        };
+        
+        print('✅ DEBUG: Extras data prepared in payment screen:');
+        print('   - Baggage: ${baggageMap.length} items');
+        print('   - Meals: ${mealsMap.length} items');
+        print('   - Seats: ${seatsMap.length} items');
+      } catch (e, stackTrace) {
+        print('❌ DEBUG: Error getting extras in payment screen: $e');
+        print('   Stack trace: $stackTrace');
+        // Extras controller not found, skip
+      }
+
       Get.offAll(
-        () => FlyDubaiBookingDetailsScreen(
+        () => createFlyDubaiVoucher(
           outboundFlight: widget.flight,
           returnFlight: widget.returnFlight,
           outboundFareOption: widget.outboundFare,
           returnFareOption: widget.returnFare,
           pnrResponse: bookingResponse,
+          totalPrice: widget.totalPrice,
+          currency: widget.currency,
+          extras: extrasData,
         ),
       );
     } catch (e) {

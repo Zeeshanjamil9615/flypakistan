@@ -5,15 +5,12 @@ import 'package:http/http.dart' as http;
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/booking_controller.dart';
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/booking_voucher/booking_voucher.dart';
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/payment_hotel/abi_webview.dart';
-import 'package:ready_flights/views/flight/booking_flight/airblue/flight_print_voucher.dart';
+import 'package:ready_flights/views/flight/booking_flight/common_flight_voucher_adapter.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_model.dart';
 import 'package:ready_flights/views/flight/booking_flight/booking_flight_controller.dart';
 import 'package:ready_flights/views/flight/booking_flight/flydubai/flydubai_card_payment_details_screen.dart';
-import 'package:ready_flights/views/flight/booking_flight/flydubai/flydubai_print_voucher.dart';
 import 'package:ready_flights/views/flight/booking_flight/emirates _ndc/emirates_card_payment_details_screen.dart';
-import 'package:ready_flights/views/flight/booking_flight/emirates _ndc/emirates_print_voucher.dart';
 import 'package:ready_flights/views/flight/booking_flight/sabre/sabre_card_payment_details_screen.dart';
-import 'package:ready_flights/views/flight/booking_flight/sabre/sabre_flight_voucher.dart';
 import 'package:ready_flights/views/flight/search_flights/sabre/sabre_flight_models.dart';
 import 'dart:convert';
 import 'package:url_launcher/url_launcher.dart';
@@ -362,7 +359,7 @@ class PaymentController extends GetxController {
       try {
         final sabreFlightData = Get.find<SabreFlightPaymentData>();
         Get.offAll(
-          () => SabreFlightBookingDetailsScreen(
+          () => createSabreVoucher(
             flight: sabreFlightData.flight,
             pnrResponse: sabreFlightData.pnrResponse,
           ),
@@ -376,7 +373,7 @@ class PaymentController extends GetxController {
       try {
         final flydubaiData = Get.find<FlyDubaiFlightPaymentData>();
         Get.offAll(
-          () => FlyDubaiBookingDetailsScreen(
+          () => createFlyDubaiVoucher(
             outboundFlight: flydubaiData.flight,
             returnFlight: flydubaiData.returnFlight,
             outboundFareOption: flydubaiData.outboundFare,
@@ -393,7 +390,7 @@ class PaymentController extends GetxController {
       try {
         final emiratesData = Get.find<EmiratesFlightPaymentData>();
         Get.offAll(
-          () => EmiratesBookingDetailsScreen(
+          () => createEmiratesVoucher(
             flight: emiratesData.flight,
             selectedPackage: emiratesData.outboundPackage,
             pnrResponse: emiratesData.pnrResponse,
@@ -413,17 +410,8 @@ class PaymentController extends GetxController {
             flightData.multicityFareOptions!.whereType<AirBlueFareOption>().toList();
       }
 
-      // Try to get existing booking controller to preserve passenger data
-      BookingFlightController? bookingController;
-      try {
-        bookingController = Get.find<BookingFlightController>();
-      } catch (e) {
-        // Controller not found, will create new one in FlightBookingDetailsScreen
-        bookingController = null;
-      }
-
       Get.offAll(
-        () => FlightBookingDetailsScreen(
+        () => createAirBlueVoucher(
           outboundFlight: flightData.outboundFlight,
           returnFlight: flightData.returnFlight,
           multicityFlights: flightData.multicityFlights,
@@ -432,7 +420,6 @@ class PaymentController extends GetxController {
           multicityFareOptions: cleanedMulticity,
           pnrResponse: flightData.pnrResponse,
           selectedSeats: flightData.selectedSeats,
-          bookingController: bookingController, // Pass controller if found
         ),
       );
     } catch (e) {

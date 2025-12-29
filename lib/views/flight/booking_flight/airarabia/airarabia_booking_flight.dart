@@ -3,7 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:ready_flights/services/api_service_airarabia.dart';
-import 'package:ready_flights/views/flight/booking_flight/airarabia/airarabia_print_voucher.dart';
+import 'package:ready_flights/views/flight/booking_flight/common_flight_voucher_adapter.dart';
 import 'package:ready_flights/views/flight/form/flight_booking_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/airarabia/validation_data/validation_controller.dart';
 
@@ -37,6 +37,7 @@ class _AirArabiaBookingFlightState extends State<AirArabiaBookingFlight> {
   final _formKey = GlobalKey<FormState>();
   final BookingFlightController bookingController = Get.put(
     BookingFlightController(),
+    permanent: true,
   );
   final TravelersController travelersController = Get.put(
     TravelersController(),
@@ -1137,8 +1138,8 @@ Future<void> _handleBookNow() async {
             duration: const Duration(seconds: 2),
           );
 
-          // Navigate to Air Arabia booking confirmation screen
-          Get.off(() => AirArabiaBookingConfirmation(
+          // Navigate to common flight booking voucher
+          Get.off(() => createAirArabiaVoucher(
             flight: widget.flight,
             selectedPackage: widget.selectedPackage,
             bookingResponse: response,

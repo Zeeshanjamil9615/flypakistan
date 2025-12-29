@@ -11,7 +11,7 @@ import '../../search_flights/emirates_ndc/emirates_flight_controller.dart';
 import '../../search_flights/emirates_ndc/emirates_model.dart';
 import '../booking_flight_controller.dart';
 import 'emirates_card_payment_details_screen.dart';
-import 'emirates_print_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 
 class EmiratesPaymentScreen extends StatefulWidget {
   final EmiratesFlight flight;
@@ -687,10 +687,12 @@ class _EmiratesPaymentScreenState extends State<EmiratesPaymentScreen> {
     }
 
     Get.offAll(
-      () => EmiratesBookingDetailsScreen(
+      () => createEmiratesVoucher(
         flight: widget.flight,
         selectedPackage: widget.outboundPackage,
         pnrResponse: widget.pnrResponse,
+        totalPrice: widget.totalPrice,
+        currency: widget.currency,
       ),
     );
   }

@@ -9,7 +9,7 @@ import '../../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/sabre/sabre_flight_models.dart';
 import '../booking_flight_controller.dart';
-import 'sabre_flight_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 import 'sabre_card_payment_details_screen.dart';
 
 class SabrePaymentScreen extends StatefulWidget {
@@ -592,11 +592,13 @@ class _SabrePaymentScreenState extends State<SabrePaymentScreen> {
   }
 
   void _handleBookNow() {
-    // Navigate to Sabre voucher
+    // Navigate to common flight booking voucher
     Get.offAll(
-      () => SabreFlightBookingDetailsScreen(
+      () => createSabreVoucher(
         flight: widget.flight,
         pnrResponse: widget.pnrResponse,
+        totalPrice: widget.totalPrice,
+        currency: widget.currency,
       ),
     );
   }

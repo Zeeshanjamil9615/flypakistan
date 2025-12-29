@@ -8,7 +8,7 @@ import '../../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/sabre/sabre_flight_models.dart';
 import '../../search_flights/search_flight_utils/widgets/sabre_flight_card.dart';
 import '../booking_flight_controller.dart';
-import 'sabre_flight_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 
 class SabreBookingForm extends StatefulWidget {
   final SabreFlight flight;
@@ -23,6 +23,7 @@ class _SabreBookingFormState extends State<SabreBookingForm> {
   final _formKey = GlobalKey<FormState>();
   final BookingFlightController bookingController = Get.put(
     BookingFlightController(),
+    permanent: true,
   );
   final TravelersController travelersController = Get.put(
     TravelersController(),
@@ -1013,7 +1014,7 @@ class _SabreBookingFormState extends State<SabreBookingForm> {
                       isLoading = false; // Stop loading
                     });
 
-                    Get.to(() => SabreFlightBookingDetailsScreen(
+                    Get.to(() => createSabreVoucher(
                       flight: widget.flight,
                       pnrResponse: pnrResponse,
                     ));
@@ -1038,8 +1039,8 @@ class _SabreBookingFormState extends State<SabreBookingForm> {
                       snackPosition: SnackPosition.TOP,
                     );
 
-                    // Still navigate to details screen
-                    Get.to(() => SabreFlightBookingDetailsScreen(
+                    // Still navigate to common flight booking voucher
+                    Get.to(() => createSabreVoucher(
                       flight: widget.flight,
                       pnrResponse: null,
                     ));

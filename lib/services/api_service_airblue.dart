@@ -1051,15 +1051,24 @@ class AirBlueFlightApiService {
       // Parse the pricing information
       List<AirBluePNRPricing> pnrPricing = [];
       try {
-        final ptcBreakdowns = jsonResponse['soap\$Envelope']['soap\$Body']['AirBookResponse']
-        ['AirBookResult']['AirReservation']['PriceInfo']['PTC_FareBreakdowns']['PTC_FareBreakdown'];
+        final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
+            ?['AirBookResult']?['AirReservation'];
+        
+        if (airReservation != null) {
+          final priceInfo = airReservation['PriceInfo'];
+          if (priceInfo != null) {
+            final ptcBreakdowns = priceInfo['PTC_FareBreakdowns']?['PTC_FareBreakdown'];
 
-        if (ptcBreakdowns is List) {
-          for (var breakdown in ptcBreakdowns) {
-            pnrPricing.add(AirBluePNRPricing.fromJson(breakdown));
+            if (ptcBreakdowns != null) {
+              if (ptcBreakdowns is List) {
+                for (var breakdown in ptcBreakdowns) {
+                  pnrPricing.add(AirBluePNRPricing.fromJson(breakdown));
+                }
+              } else if (ptcBreakdowns is Map) {
+                pnrPricing.add(AirBluePNRPricing.fromJson(ptcBreakdowns));
+              }
+            }
           }
-        } else if (ptcBreakdowns is Map) {
-          pnrPricing.add(AirBluePNRPricing.fromJson(ptcBreakdowns));
         }
       } catch (e) {
         if (kDebugMode) {
@@ -1067,32 +1076,81 @@ class AirBlueFlightApiService {
         }
       }
 
-      final pnr = jsonResponse['soap\$Envelope']['soap\$Body']['AirBookResponse']
-      ['AirBookResult']['AirReservation']['BookingReferenceID'][0]['ID'];
-       final Instance = jsonResponse['soap\$Envelope']['soap\$Body']['AirBookResponse']
-      ['AirBookResult']['AirReservation']['BookingReferenceID'][0]['Instance'];
+      // Safely extract PNR and Instance
+      String? pnr;
+      String? Instance;
+      try {
+        final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
+            ?['AirBookResult']?['AirReservation'];
+        
+        if (airReservation != null) {
+          final bookingRefs = airReservation['BookingReferenceID'];
+          if (bookingRefs != null) {
+            final bookingRef = (bookingRefs is List) ? bookingRefs[0] : bookingRefs;
+            if (bookingRef != null) {
+              pnr = bookingRef['ID']?.toString();
+              Instance = bookingRef['Instance']?.toString();
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error parsing PNR/Instance: $e');
+        }
+      }
+      
       print("check pnr");
       print(pnr);
       print("check instance");
       print(Instance);
-      final ticketing = jsonResponse['soap\$Envelope']['soap\$Body']['AirBookResponse']
-      ['AirBookResult']['AirReservation']['Ticketing'];
-
-      final timeLimit = (ticketing is List)
-          ? ticketing[0]['TicketTimeLimit']
-          : ticketing['TicketTimeLimit'];
+      
+      // Safely extract ticketing information
+      String? timeLimit;
+      try {
+        final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
+            ?['AirBookResult']?['AirReservation'];
+        
+        if (airReservation != null) {
+          final ticketing = airReservation['Ticketing'];
+          if (ticketing != null) {
+            if (ticketing is List && ticketing.isNotEmpty) {
+              timeLimit = ticketing[0]?['TicketTimeLimit']?.toString();
+            } else if (ticketing is Map) {
+              timeLimit = ticketing['TicketTimeLimit']?.toString();
+            }
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error parsing ticketing: $e');
+        }
+      }
 
       print("check time limit");
       print(timeLimit);
 
-      // Extract total fare
-      final totalFare = jsonResponse['soap\$Envelope']['soap\$Body']['AirBookResponse']
-      ['AirBookResult']['AirReservation']['PriceInfo']['ItinTotalFare']['TotalFare']['Amount'];
+      // Extract total fare safely
+      String? totalFare;
+      try {
+        final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
+            ?['AirBookResult']?['AirReservation'];
+        
+        if (airReservation != null) {
+          final priceInfo = airReservation['PriceInfo'];
+          if (priceInfo != null) {
+            totalFare = priceInfo['ItinTotalFare']?['TotalFare']?['Amount']?.toString();
+          }
+        }
+      } catch (e) {
+        if (kDebugMode) {
+          print('Error parsing total fare: $e');
+        }
+      }
 
 // Determine booking status (1 for success, 0 for failure)
 // Check if Success element exists and PNR is generated
-      final successElement = jsonResponse['soap\$Envelope']['soap\$Body']['AirBookResponse']
-      ['AirBookResult']['Success'];
+      final successElement = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
+          ?['AirBookResult']?['Success'];
       final status = (successElement != null && pnr != null && pnr.isNotEmpty) ? 1 : 0;
 
 

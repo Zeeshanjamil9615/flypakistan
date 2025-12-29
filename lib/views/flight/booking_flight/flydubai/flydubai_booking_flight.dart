@@ -11,7 +11,7 @@ import '../../search_flights/flydubai/flydubai_controller.dart';
 import '../../search_flights/flydubai/flydubai_extras_controller.dart';
 import '../../search_flights/flydubai/flydubai_model.dart';
 import '../booking_flight_controller.dart';
-import 'flydubai_print_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 
 class FlyDubaiBookingFlight extends StatefulWidget {
   final FlydubaiFlight flight;
@@ -41,6 +41,7 @@ class _FlyDubaiBookingFlightState extends State<FlyDubaiBookingFlight> {
   final _formKey = GlobalKey<FormState>();
   final BookingFlightController bookingController = Get.put(
     BookingFlightController(),
+    permanent: true,
   );
   final TravelersController travelersController = Get.put(
     TravelersController(),
@@ -1244,8 +1245,67 @@ final pnrResult = await apiService.createPNR(
                       if (pnrResult['success'] == true) {
                         print('✅ PNR created successfully: ${pnrResult['confirmationNumber']}');
 
-                        // Navigate to print voucher screen
-                        Get.to(() => FlyDubaiBookingDetailsScreen(
+                        // Get extras from controller if available
+                        Map<String, dynamic>? extrasData;
+                        try {
+                          final extrasController = Get.find<FlydubaiExtrasController>();
+                          print('🔍 DEBUG: Found FlydubaiExtrasController');
+                          print('   - Baggage count: ${extrasController.selectedBaggage.length}');
+                          print('   - Meals count: ${extrasController.selectedMeals.length}');
+                          print('   - Seats count: ${extrasController.selectedSeats.length}');
+                          
+                          // Convert RxMap to regular Map
+                          final baggageMap = <String, dynamic>{};
+                          extrasController.selectedBaggage.forEach((key, value) {
+                            print('   📦 Baggage key: $key, value: $value (type: ${value.runtimeType})');
+                            // Ensure value is properly converted
+                            if (value is Map) {
+                              baggageMap[key] = Map<String, dynamic>.from(value);
+                            } else {
+                              baggageMap[key] = value;
+                            }
+                          });
+                          
+                          final mealsMap = <String, dynamic>{};
+                          extrasController.selectedMeals.forEach((key, value) {
+                            print('   🍽️ Meal key: $key, value: $value (type: ${value.runtimeType})');
+                            // Ensure value is properly converted
+                            if (value is Map) {
+                              mealsMap[key] = Map<String, dynamic>.from(value);
+                            } else {
+                              mealsMap[key] = value;
+                            }
+                          });
+                          
+                          final seatsMap = <String, dynamic>{};
+                          extrasController.selectedSeats.forEach((key, value) {
+                            print('   💺 Seat key: $key, value: $value (type: ${value.runtimeType})');
+                            // Ensure value is properly converted
+                            if (value is Map) {
+                              seatsMap[key] = Map<String, dynamic>.from(value);
+                            } else {
+                              seatsMap[key] = value;
+                            }
+                          });
+                          
+                          extrasData = {
+                            'selectedBaggage': baggageMap,
+                            'selectedMeals': mealsMap,
+                            'selectedSeats': seatsMap,
+                          };
+                          
+                          print('✅ DEBUG: Extras data prepared:');
+                          print('   - Baggage: ${baggageMap.length} items');
+                          print('   - Meals: ${mealsMap.length} items');
+                          print('   - Seats: ${seatsMap.length} items');
+                        } catch (e, stackTrace) {
+                          print('❌ DEBUG: Error getting extras: $e');
+                          print('   Stack trace: $stackTrace');
+                          // Extras controller not found, skip
+                        }
+
+                        // Navigate to common flight booking voucher
+                        Get.to(() => createFlyDubaiVoucher(
                           outboundFlight: widget.flight,
                           returnFlight: widget.returnFlight,
                           multicityFlights: widget.multicityFlights,
@@ -1253,6 +1313,7 @@ final pnrResult = await apiService.createPNR(
                           returnFareOption: widget.returnFareOption,
                           multicityFareOptions: widget.multicityFareOptions,
                           pnrResponse: pnrResult,
+                          extras: extrasData,
                         ));
                       } else {
                         print('❌ PNR creation failed: ${pnrResult['error']}');

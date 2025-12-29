@@ -27,7 +27,7 @@ class PIAFlightBookingForm extends StatefulWidget {
 
 class _PIAFlightBookingFormState extends State<PIAFlightBookingForm> {
   final _formKey = GlobalKey<FormState>();
-  final BookingFlightController bookingController = Get.put(BookingFlightController());
+  final BookingFlightController bookingController = Get.put(BookingFlightController(), permanent: true);
   final TravelersController travelersController = Get.find();
   bool termsAccepted = false;
 

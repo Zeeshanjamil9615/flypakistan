@@ -222,7 +222,7 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
   final BookingFlightController bookingController =
       Get.isRegistered<BookingFlightController>()
           ? Get.find<BookingFlightController>()
-          : Get.put(BookingFlightController());
+          : Get.put(BookingFlightController(), permanent: true);
   final TravelersController travelersController =
       Get.isRegistered<TravelersController>()
           ? Get.find<TravelersController>()

@@ -9,7 +9,7 @@ import '../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/airarabia/airarabia_flight_model.dart';
 import '../booking_flight_controller.dart';
-import 'airarabia_print_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 
 class AirArabiaPaymentScreen extends StatefulWidget {
   final Map<String, dynamic> bookingResponse;
@@ -687,7 +687,7 @@ class _AirArabiaPaymentScreenState extends State<AirArabiaPaymentScreen> {
     });
 
     Get.offAll(
-      () => AirArabiaBookingConfirmation(
+      () => createAirArabiaVoucher(
         bookingResponse: widget.bookingResponse,
         totalPrice: widget.totalPrice,
         currency: widget.currency,

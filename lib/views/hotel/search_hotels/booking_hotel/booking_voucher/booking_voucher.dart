@@ -31,7 +31,7 @@ class HotelBookingThankYouScreen extends StatelessWidget {
   final PaymentController paymentController=Get.put(PaymentController());
   final Map<int, dynamic> selectedRooms = {};
 
-  HotelBookingThankYouScreen({Key? key}) : super(key: key);
+  HotelBookingThankYouScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

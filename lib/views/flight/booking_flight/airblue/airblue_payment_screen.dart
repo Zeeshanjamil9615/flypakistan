@@ -9,7 +9,7 @@ import '../../../../../utility/colors.dart';
 import '../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/airblue/airblue_flight_model.dart';
 import '../booking_flight_controller.dart';
-import 'flight_print_voucher.dart';
+import '../common_flight_voucher_adapter.dart';
 import 'card_payment_details_screen.dart';
 
 class AirBluePaymentScreen extends StatefulWidget {
@@ -626,7 +626,7 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
     }
 
     Get.offAll(
-      () => FlightBookingDetailsScreen(
+      () => createAirBlueVoucher(
         outboundFlight: widget.outboundFlight,
         returnFlight: widget.returnFlight,
         multicityFlights: widget.multicityFlights,
@@ -635,9 +635,9 @@ class _AirBluePaymentScreenState extends State<AirBluePaymentScreen> {
         multicityFareOptions: cleanedMulticityFareOptions,
         pnrResponse: widget.pnrResponse,
         selectedSeats: widget.selectedSeats,
-        seatPrices: widget.seatPrices,
         totalSeatPrice: widget.totalSeatPrice,
-        bookingController: widget.bookingController, // Pass controller to preserve passenger data
+        totalPrice: widget.totalPrice,
+        currency: widget.currency,
       ),
     );
   }
