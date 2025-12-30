@@ -1365,10 +1365,16 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
 
     List<int> _buildYearOptions() {
       if (isDob) {
-        // For DOB, start from current year and go backwards
-        // This ensures we cover the full range including min/max dates
-        final startYear = now.year;
-        return List.generate(resolvedYearRange, (index) => startYear - index);
+        // For DOB, respect the max selectable date (e.g., adults must be 12+ years old)
+        final startYear = (maxSelectableDate ?? now).year;
+        final endYear = (minSelectableDate?.year ?? (now.year - resolvedYearRange));
+        
+        // Generate years from startYear backwards to endYear
+        final yearCount = startYear - endYear + 1;
+        return List.generate(
+          yearCount > 0 ? yearCount : resolvedYearRange,
+          (index) => startYear - index,
+        );
       } else {
         final startYear = (minSelectableDate ?? now).year;
         return List.generate(resolvedYearRange, (index) => startYear + index);
@@ -1622,15 +1628,25 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
 
     final now = DateTime.now();
     final resolvedYearRange = yearRange ?? (isDob ? 120 : 30);
-    // For DOB, start from current year and go backwards to cover full range
-    final startYear = isDob
-        ? now.year
-        : (minSelectableDate ?? now).year;
+    
     if (!yearAlreadySelected) {
-      final years = List.generate(
-        resolvedYearRange,
-        (index) => isDob ? startYear - index : startYear + index,
-      );
+      List<int> years;
+      if (isDob) {
+        // For DOB, respect the max selectable date (e.g., adults must be 12+ years old)
+        final startYear = (maxSelectableDate ?? now).year;
+        final endYear = (minSelectableDate?.year ?? (now.year - resolvedYearRange));
+        
+        // Generate years from startYear backwards to endYear
+        final yearCount = startYear - endYear + 1;
+        years = List.generate(
+          yearCount > 0 ? yearCount : resolvedYearRange,
+          (index) => startYear - index,
+        );
+      } else {
+        final startYear = (minSelectableDate ?? now).year;
+        years = List.generate(resolvedYearRange, (index) => startYear + index);
+      }
+      
       final year = await _showSelectionDialog<int>(
         title: 'Select Year',
         options: years,
@@ -2247,6 +2263,160 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
     _checkLoginStatus();
   }
 
+  bool _validateUniquePassports() {
+    final allTravelers = [
+      ...bookingController.adults,
+      ...bookingController.children,
+      ...bookingController.infants,
+    ];
+
+    final passportNumbers = <String>[];
+    final duplicates = <String>[];
+
+    for (final traveler in allTravelers) {
+      final passport = traveler.passportCnicController.text.trim().toUpperCase();
+      if (passport.isNotEmpty) {
+        if (passportNumbers.contains(passport)) {
+          if (!duplicates.contains(passport)) {
+            duplicates.add(passport);
+          }
+        } else {
+          passportNumbers.add(passport);
+        }
+      }
+    }
+
+    if (duplicates.isNotEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please enter different ${bookingController.isDomesticFlight ? 'CNIC' : 'Passport'} number for each traveler',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        snackPosition: SnackPosition.TOP,
+        duration: const Duration(seconds: 4),
+      );
+      return false;
+    }
+
+    return true;
+  }
+
+  bool _validateUniqueNames() {
+    final allTravelers = [
+      ...bookingController.adults,
+      ...bookingController.children,
+      ...bookingController.infants,
+    ];
+
+    final names = <String>[];
+    final duplicates = <String>[];
+
+    for (final traveler in allTravelers) {
+      final firstName = traveler.firstNameController.text.trim().toUpperCase();
+      final lastName = traveler.lastNameController.text.trim().toUpperCase();
+      final fullName = '$firstName $lastName';
+      
+      if (firstName.isNotEmpty && lastName.isNotEmpty) {
+        if (names.contains(fullName)) {
+          if (!duplicates.contains(fullName)) {
+            duplicates.add(fullName);
+          }
+        } else {
+          names.add(fullName);
+        }
+      }
+    }
+
+    if (duplicates.isNotEmpty) {
+      _showDuplicateNamesDialog();
+      return false;
+    }
+
+    return true;
+  }
+
+  void _showDuplicateNamesDialog() {
+    Get.dialog(
+      Dialog(
+        backgroundColor: Colors.white,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Error icon
+              Container(
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  color: Colors.red.withOpacity(0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.error_outline,
+                  color: Colors.red,
+                  size: 32,
+                ),
+              ),
+              const SizedBox(height: 20),
+              
+              // Title
+              const Text(
+                'Duplicate Names Detected',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              
+              // Message
+              const Text(
+                'We spotted that two or more passengers have the same name. Sadly, our airline partner\'s system doesn\'t allow identical names in one booking. Please contact our support team, and we\'ll help you complete your booking right away.',
+                style: TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  height: 1.5,
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 24),
+              
+              // OK Button
+              SizedBox(
+                width: double.infinity,
+                height: 44,
+                child: ElevatedButton(
+                  onPressed: () => Get.back(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF0B5ED7),
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                  ),
+                  child: const Text(
+                    'OK',
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
   Future<void> _handleContinuePressed() async {
     // Validate form
     if (!(_formKey.currentState?.validate() ?? false)) {
@@ -2267,6 +2437,16 @@ class _AirBlueBookingFlightState extends State<AirBlueBookingFlight> {
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
       );
+      return;
+    }
+
+    // Validate passport numbers are unique
+    if (!_validateUniquePassports()) {
+      return;
+    }
+
+    // Validate names are unique
+    if (!_validateUniqueNames()) {
       return;
     }
 
