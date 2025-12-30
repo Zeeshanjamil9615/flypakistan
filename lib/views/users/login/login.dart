@@ -230,51 +230,51 @@ class _LoginState extends State<Login> {
                         ),
                       ),
 
-                      const SizedBox(height: 32),
+                      // const SizedBox(height: 32),
+                      //
+                      // // Divider with "OR"
+                      // Row(
+                      //   children: [
+                      //     Expanded(child: Divider(color: Colors.grey.shade300)),
+                      //     Padding(
+                      //       padding: const EdgeInsets.symmetric(horizontal: 16),
+                      //       child: Text(
+                      //         "OR",
+                      //         style: TextStyle(
+                      //           color: Colors.grey.shade600,
+                      //           fontSize: 14,
+                      //           fontWeight: FontWeight.w500,
+                      //         ),
+                      //       ),
+                      //     ),
+                      //     Expanded(child: Divider(color: Colors.grey.shade300)),
+                      //   ],
+                      // ),
 
-                      // Divider with "OR"
-                      Row(
-                        children: [
-                          Expanded(child: Divider(color: Colors.grey.shade300)),
-                          Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            child: Text(
-                              "OR",
-                              style: TextStyle(
-                                color: Colors.grey.shade600,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          Expanded(child: Divider(color: Colors.grey.shade300)),
-                        ],
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Social login buttons - Modern design
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildSocialButton(
-                              icon: 'assets/images/google.svg',
-                              label: 'Google',
-                              textScaleFactor: textScaleFactor,
-                              onTap: () {},
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: _buildSocialButton(
-                              icon: 'assets/images/facebook.svg',
-                              label: 'Facebook',
-                              textScaleFactor: textScaleFactor,
-                              onTap: () {},
-                            ),
-                          ),
-                        ],
-                      ),
+                      // const SizedBox(height: 32),
+                      //
+                      // // Social login buttons - Modern design
+                      // Row(
+                      //   children: [
+                      //     Expanded(
+                      //       child: _buildSocialButton(
+                      //         icon: 'assets/images/google.svg',
+                      //         label: 'Google',
+                      //         textScaleFactor: textScaleFactor,
+                      //         onTap: () {},
+                      //       ),
+                      //     ),
+                      //     const SizedBox(width: 12),
+                      //     Expanded(
+                      //       child: _buildSocialButton(
+                      //         icon: 'assets/images/facebook.svg',
+                      //         label: 'Facebook',
+                      //         textScaleFactor: textScaleFactor,
+                      //         onTap: () {},
+                      //       ),
+                      //     ),
+                      //   ],
+                      // ),
 
                       const SizedBox(height: 32),
 
