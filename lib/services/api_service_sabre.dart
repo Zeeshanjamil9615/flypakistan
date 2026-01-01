@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 
 import 'package:get/get.dart';
 import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
@@ -85,54 +84,40 @@ class ApiServiceSabre extends GetxService {
     return null;
   }
 
-  // Add to ApiServiceFlight class
- Future<String> generateToken() async {
-  print("check run saber 5");
-  try {
-    // Use updated credentials from PHP
-    final pcc = '6MD8';
-    final username = '409318';  // Updated username
-    final password = 'SSWRES99';
-    
-    // Step 1: Create key like PHP: 'V1:username:pcc:AA'
-    final key = 'V1:$username:$pcc:AA';
-    final keyBase64 = base64Encode(utf8.encode(key));
-    
-    // Step 2: Encode password
-    final passwordBase64 = base64Encode(utf8.encode(password));
-    
-    // Step 3: Combine like PHP: keyBase64:passwordBase64
-    final finalKey = '$keyBase64:$passwordBase64';
-    final finalKeyBase64 = base64Encode(utf8.encode(finalKey));
-    
-    print("Authorization Key: Basic $finalKeyBase64");
-    
-    final response = await dio.post(
-      '/v2/auth/token',
-      options: Options(
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded',
-          'Authorization': 'Basic $finalKeyBase64',
-          'grant_type': 'client_credentials',  // Added as separate header like PHP
-        },
-      ),
-    );
-    
-    print("check run saber 6");
-    print(response.data);
+  Future<String> generateToken() async {
+    try {
+      final pcc = '6MD8';
+      final username = '409318';
+      final password = 'SSWRES99';
+      
+      final key = 'V1:$username:$pcc:AA';
+      final keyBase64 = base64Encode(utf8.encode(key));
+      final passwordBase64 = base64Encode(utf8.encode(password));
+      final finalKey = '$keyBase64:$passwordBase64';
+      final finalKeyBase64 = base64Encode(utf8.encode(finalKey));
+      
+      final response = await dio.post(
+        '/v2/auth/token',
+        options: Options(
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'Authorization': 'Basic $finalKeyBase64',
+            'grant_type': 'client_credentials',
+          },
+        ),
+      );
 
-    if (response.statusCode == 200 && response.data['access_token'] != null) {
-      final token = response.data['access_token'];
-      await _storeToken(token);
-      return token;
-    } else {
-      throw Exception('Failed to generate token');
+      if (response.statusCode == 200 && response.data['access_token'] != null) {
+        final token = response.data['access_token'];
+        await _storeToken(token);
+        return token;
+      } else {
+        throw Exception('Failed to generate token');
+      }
+    } catch (e) {
+      throw Exception('Error generating token: $e');
     }
-  } catch (e) {
-    print('Error generating token: $e');
-    throw Exception('Error generating token: $e');
   }
-}
   // Sabre 0
   // AirBlue 1
 
@@ -151,14 +136,8 @@ class ApiServiceSabre extends GetxService {
     
   }) async {
     try {
-    print("check run saber 2");
- 
-
       if(flight==0){
-    print("check run saber 3");
-
         final token = await getValidToken() ?? await generateToken();
-        print("check run saber 4 $token");
         // Original Sabre API call
         final sabreResponse = await _searchFlightsWithSabre(
           type: type,
@@ -223,7 +202,6 @@ class ApiServiceSabre extends GetxService {
     required String cabin,
     required String token,
   }) async {
-    print("check run");
     try {
       final originArray = origin.split(',');
       final destinationArray = destination.split(',');
@@ -354,8 +332,6 @@ class ApiServiceSabre extends GetxService {
           }
         }
       };
-      print("Sabre Request");
-      // printJsonPretty(requestBody);
 
       final response = await dio.post(
         '/v3/offers/shop',
@@ -368,8 +344,6 @@ class ApiServiceSabre extends GetxService {
         data: requestBody,
       );
       if (response.statusCode == 200) {
-        print("Sabre Response");
-        // printJsonPretty(response.data);
         return response.data;
       } else {
         throw Exception('Failed to model_controllers flights: ${response.statusCode}');
@@ -434,11 +408,6 @@ class ApiServiceSabre extends GetxService {
   }) async {
     try {
       final token = await getValidToken() ?? await generateToken();
-      print("token:");
-      print(token);
-
-      print("availability request");
-      printJsonPretty(requestBody);
 
       final String endpoint;
       final Map<String, dynamic> requestData;
@@ -473,11 +442,6 @@ class ApiServiceSabre extends GetxService {
         data: requestData,
       );
 
-      print("availability request data");
-      printJsonPretty(requestData);
-
-      print("availability response");
-      printJsonPretty(response.data);
       if (response.statusCode == 200) {
         return response.data;
       } else {
@@ -486,22 +450,6 @@ class ApiServiceSabre extends GetxService {
       }
     } catch (e) {
       throw Exception('Error checking flight availability: $e');
-    }
-  }
-
-  /// Helper function to print large JSON data in readable format
-  /// Prints JSON nicely with chunking
-  void printJsonPretty(dynamic jsonData) {
-    const int chunkSize = 1000;
-    final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
-    for (int i = 0; i < jsonString.length; i += chunkSize) {
-      final chunk = jsonString.substring(
-        i,
-        i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
-      );
-      if (kDebugMode) {
-        print(chunk);
-      }
     }
   }
 
@@ -614,11 +562,6 @@ class ApiServiceSabre extends GetxService {
           "email": email, // Send cs_email if logged in, empty string if not
         },
       );
-
-      print("+++++++++++++++++ Margin Response+++++++++++++++");
-      print(gds);
-      print(airlineCode);
-      print(response.data);
 
       if (response.statusCode == 200) {
         Map<String, dynamic> marginMap = {};
@@ -746,13 +689,11 @@ class ApiServiceSabre extends GetxService {
 
       return pnrResponse;
     } catch (e) {
-      print('Error in createPNRRequest: $e');
-
       // Even if PNR fails, try to save the booking
       try {
         await saveSabreBooking(
           flight: flight,
-          pnrResponse: null, // No PNR response due to error
+          pnrResponse: null,
           token: getValidToken().toString(),
           adults: adults,
           children: children,
@@ -761,7 +702,7 @@ class ApiServiceSabre extends GetxService {
           bookerPhone: bookerPhone,
         );
       } catch (saveError) {
-        print('Failed to save booking after PNR error: $saveError');
+        // Ignore save error
       }
 
       throw Exception('Error creating PNR: $e');
@@ -1073,11 +1014,6 @@ class ApiServiceSabre extends GetxService {
       },
     };
 
-    // Print the request body
-    print('Standard PNR Request Body:');
-    printJsonPretty(requestBody);
-
-    // Make the API call
     final token = await getValidToken() ?? await generateToken();
     final response = await dio.post(
       '/v2.5.0/passenger/records?mode=create',
@@ -1092,13 +1028,9 @@ class ApiServiceSabre extends GetxService {
     );
 
     if (response.statusCode == 200) {
-      print("Standard PNR Response:");
-      printJsonPretty(response.data);
       handlePnrResponse(response.data);
       return response.data;
     } else {
-      print("Standard PNR Error Response:");
-      printJsonPretty(response.data);
       throw Exception('Failed to create standard PNR: ${response.statusCode}');
     }
   }
@@ -1512,14 +1444,7 @@ class ApiServiceSabre extends GetxService {
         }
       };
 
-      print('NDC PNR Request Body:');
-      printJsonPretty(requestBody);
-
-      // Make the API call
       final token = await getValidToken() ?? await generateToken();
-
-      print("Token:");
-      print(token);
 
       final response = await dio.post(
         '/v1/orders/create',
@@ -1534,28 +1459,14 @@ class ApiServiceSabre extends GetxService {
       );
 
       if (response.statusCode == 200) {
-        print("NDC PNR Response:");
-        printJsonPretty(response.data);
-
         final responseData = response.data;
         if (responseData['order'] != null && responseData['order']['id'] != null) {
-          final orderId = responseData['order']['id'];
-          final pnrLocator = responseData['order']['pnrLocator'];
-
-          print('NDC Order created successfully:');
-          print('Order ID: $orderId');
-          print('PNR Locator: $pnrLocator');
           return response.data;
-        } else {
-          print('NDC PNR creation response format unexpected');
         }
       } else {
-        print("NDC PNR Error Response:");
-        printJsonPretty(response.data);
         throw Exception('Failed to create NDC PNR: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error in NDC PNR creation: $e');
       throw Exception('Error creating NDC PNR: $e');
     }
   }
@@ -1564,17 +1475,11 @@ class ApiServiceSabre extends GetxService {
     final pnrData = pnrResponse['CreatePassengerNameRecordRS'];
     if (pnrData['ApplicationResults']['status'] == 'Complete') {
       final itineraryRefId = pnrData['ItineraryRef']['ID'];
-      print('ItineraryRef ID: $itineraryRefId');
-
       try {
-
-        final bookingDetails = await ApiServiceSabre().getBooking(itineraryRefId);
-        print('Booking Details: $bookingDetails');
+        await ApiServiceSabre().getBooking(itineraryRefId);
       } catch (e) {
-        print('Error fetching booking details: $e');
+        // Ignore error
       }
-    } else {
-      print('PNR creation status is not complete.');
     }
   }
 
@@ -1588,11 +1493,6 @@ class ApiServiceSabre extends GetxService {
         "confirmationId": pnrId,
       };
 
-      // Print the request body for debugging
-      print('Get Booking Request Body:');
-      printJsonPretty(requestBody);
-
-      // Make the API call
       final response = await dio.post(
         '/v1/trip/orders/getBooking',
         options: Options(
@@ -1604,20 +1504,12 @@ class ApiServiceSabre extends GetxService {
         data: requestBody,
       );
 
-      // Print the response for debugging
-      print('Get Booking Response:');
-      print(response);
-      printJsonPretty(response.data);
-
       if (response.statusCode == 200) {
-        // Return the response data if the request is successful
         return response.data;
       } else {
-        // Handle errors
         throw Exception('Failed to get booking details: ${response.statusCode}');
       }
     } catch (e) {
-      print('Error in getBooking: $e');
       throw Exception('Error getting booking details: $e');
     }
   }
@@ -1637,7 +1529,7 @@ class ApiServiceSabre extends GetxService {
         return pnrResponse['order']['pnrLocator'] ?? "";
       }
     } catch (e) {
-      print('Error extracting PNR: $e');
+      // Ignore error
     }
     return "";
   }
@@ -1651,7 +1543,7 @@ class ApiServiceSabre extends GetxService {
         return pnrResponse['order']['pnrLocator'] != null;
       }
     } catch (e) {
-      print('Error checking PNR success: $e');
+      // Ignore error
     }
     return false;
   }
@@ -1770,10 +1662,6 @@ class ApiServiceSabre extends GetxService {
         "gds": "sabre"
       };
 
-      print("Sabre Booking Request Body:");
-      printJsonPretty(requestBody);
-
-      // Configure Dio
       final dio = Dio(
         BaseOptions(
           baseUrl: 'https://readyflights.pk/api/',
@@ -1788,10 +1676,7 @@ class ApiServiceSabre extends GetxService {
       // Make the API call
       final response = await dio.post('flight-booking', data: requestBody);
 
-      // Handle response
       if (response.statusCode == 200 || response.statusCode == 201) {
-        print("Sabre Booking Response:");
-        printJsonPretty(response.data);
         return response.data is Map<String, dynamic>
             ? response.data
             : jsonDecode(response.data);
@@ -1799,7 +1684,6 @@ class ApiServiceSabre extends GetxService {
         throw Exception('Failed to save booking: ${response.statusMessage}');
       }
     } catch (e) {
-      print('Error saving Sabre booking: $e');
       throw Exception('Error saving booking: $e');
     }
   }

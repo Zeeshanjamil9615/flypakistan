@@ -1,46 +1,29 @@
 // ignore_for_file: depend_on_referenced_packages, non_constant_identifier_names, empty_catches
 
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
-import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:xml2json/xml2json.dart';
-import 'package:xml/xml.dart' as xml;
+import 'api_client.dart';
 import '../views/flight/booking_flight/booking_flight_controller.dart';
 import '../views/flight/search_flights/airblue/airblue_flight_model.dart';
 import '../views/flight/search_flights/airblue/airblue_pnr_pricing.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
 
 class AirBlueFlightApiService {
-  // final String link = 'https://otatest2.zapways.com/v2.0/OTAAPI.asmx';
   final String link = 'https://ota2.zapways.com/v3.0/OTAAPI.asmx';
-  final String sslCert = 'https://onerooftravel.net/flights/classes/airBlue/newoneroof/cert.pem';
-  final String sslKey = 'https://onerooftravel.net/flights/classes/airBlue/newoneroof/key.pem';
-
-
-  // ****************travelocitytest***************
-  // final String ERSP_UserID = '2012/86B5EFDFF02E2966CBB6EECFF6FC339222';
-  // final String ID = 'travelocityota';
-  // final String MessagePassword = 'nRve2!EzPrc4cdvt';
-  // final String Target = 'Test';
-// *****************travelocity production************************
+  
+  // API Credentials
   final String ERSP_UserID = '2032/A419665871F6EF748748BD6BEA6429FD07';
   final String ID = 'travelocityota';
   final String MessagePassword = 'CT9ip@Z@7c#iXQX';
   final String Target = 'Production';
-
-  // *************************onerooof production**************
-  // final String ERSP_UserID = '1995/5EE590B47346FDCCDBC589A53398F9AF25';
-  // final String ID = 'OneRoofTravelsOTA';
-  // final String MessagePassword = 'Jpn3nZnkd9@fR';
-  // final String Target = 'Production';
   final String Version = '1.04';
   final String Type = '29';
 
+  // ApiClient instance
+  final ApiClient _apiClient = ApiClient();
+
+  /// Search AirBlue flights
   Future<Map<String, dynamic>> airBlueFlightSearch({
     required int type,
     required String origin,
@@ -51,45 +34,28 @@ class AirBlueFlightApiService {
     required int infant,
     required String stop,
     required String cabin,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
-    try {
-      // Process input parameters exactly like PHP version
-      final originArray = origin.split(",");
-      final destinationArray = destination.split(",");
-      final depDateArray = depDate.split(",");
-      //
-      // print("Origins");
-      // print(originArray);
-      // print("destiantions");
-      // print(destinationArray);
-      // print("dates");
-      // print(depDateArray);
+    // Process input parameters
+    final originArray = origin.split(",");
+    final destinationArray = destination.split(",");
+    final depDateArray = depDate.split(",");
 
-      String originDestination = "";
-// Default to Economy
+    String originDestination = "";
 
-      // Cabin type mapping
-      switch (cabin) {
-        case 'Economy':
-          break;
-        case 'Business':
-          break;
-        case 'First-Class':
-          break;
-      }
-
-      // Build origin destination XML exactly like PHP version
-      if (type == 0) {
-        // One-way trip
-        originDestination = '''
+    // Build origin destination XML
+    if (type == 0) {
+      // One-way trip
+      originDestination = '''
   <OriginDestinationInformation RPH="1">
     <DepartureDateTime>${depDateArray[1]}T00:00:00</DepartureDateTime>
     <OriginLocation LocationCode="${originArray[1].toUpperCase()}"></OriginLocation>
     <DestinationLocation LocationCode="${destinationArray[1].toUpperCase()}"></DestinationLocation>
   </OriginDestinationInformation>''';
-      } else if (type == 1) {
-        // Round trip
-        originDestination = '''
+    } else if (type == 1) {
+      // Round trip
+      originDestination = '''
   <OriginDestinationInformation RPH="1">
     <DepartureDateTime>${depDateArray[1]}T00:00:00</DepartureDateTime>
     <OriginLocation LocationCode="${originArray[1].toUpperCase()}"></OriginLocation>
@@ -100,41 +66,38 @@ class AirBlueFlightApiService {
     <OriginLocation LocationCode="${destinationArray[1].toUpperCase()}"></OriginLocation>
     <DestinationLocation LocationCode="${originArray[1].toUpperCase()}"></DestinationLocation>
   </OriginDestinationInformation>''';
-      } else if (type == 2) {
-        // Multi-city trip
-        final loopCount = originArray.length;
-        for (int i = 1; i < loopCount; i++) {
-          originDestination += '''
+    } else if (type == 2) {
+      // Multi-city trip
+      final loopCount = originArray.length;
+      for (int i = 1; i < loopCount; i++) {
+        originDestination += '''
   <OriginDestinationInformation RPH="$i">
     <DepartureDateTime>${depDateArray[i]}T00:00:00</DepartureDateTime>
     <OriginLocation LocationCode="${originArray[i].toUpperCase()}"></OriginLocation>
     <DestinationLocation LocationCode="${destinationArray[i].toUpperCase()}"></DestinationLocation>
   </OriginDestinationInformation>''';
-        }
       }
+    }
 
-      // Build passenger XML exactly like PHP version
-      String passengerArray = '';
-      if (adult != 0) {
-        passengerArray +=
-            '<PassengerTypeQuantity Code="ADT" Quantity="$adult"></PassengerTypeQuantity>';
-      }
-      if (child != 0) {
-        passengerArray +=
-            '<PassengerTypeQuantity Code="CHD" Quantity="$child"></PassengerTypeQuantity>';
-      }
-      if (infant != 0) {
-        passengerArray +=
-            '<PassengerTypeQuantity Code="INF" Quantity="$infant"></PassengerTypeQuantity>';
-      }
+    // Build passenger XML
+    String passengerArray = '';
+    if (adult != 0) {
+      passengerArray +=
+          '<PassengerTypeQuantity Code="ADT" Quantity="$adult"></PassengerTypeQuantity>';
+    }
+    if (child != 0) {
+      passengerArray +=
+          '<PassengerTypeQuantity Code="CHD" Quantity="$child"></PassengerTypeQuantity>';
+    }
+    if (infant != 0) {
+      passengerArray +=
+          '<PassengerTypeQuantity Code="INF" Quantity="$infant"></PassengerTypeQuantity>';
+    }
 
-      // Generate random string for EchoToken (similar to PHP function)
-      // final randomString = _generateRandomString(32);
-      final randomString = "-8586704355136787339";
+    final randomString = "-8586704355136787339";
 
-      // Build the complete XML request exactly like PHP version
-      final request =
-          '''<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
+    // Build the complete XML request
+    final request = '''<Envelope xmlns="http://schemas.xmlsoap.org/soap/envelope/">
   <Header/>
   <Body>
     <AirLowFareSearch xmlns="http://zapways.com/air/ota/3.0">
@@ -155,127 +118,43 @@ class AirBlueFlightApiService {
   </Body>
 </Envelope>''';
 
-      // print("request");
-      final xmlRequest = request.toString();
-      final jsonRequest = _convertXmlToJson(xmlRequest);
-      printDebugData('Air Blue Request', xmlRequest);
-
-
-      printJsonPretty(jsonRequest);
-
-      // Log the request (matching PHP format)
-      // await _logRequest(request, 'Shopping_request');
-
-      // Configure Dio with SSL certificates
-      final ByteData certData = await rootBundle.load('assets/certs/cert.pem');
-      final ByteData keyData = await rootBundle.load('assets/certs/key.pem');
-
-      // Create temporary files for the certificates
-      final Directory tempDir = await getTemporaryDirectory();
-      final File certFile = File('${tempDir.path}/cert.pem');
-      final File keyFile = File('${tempDir.path}/key.pem');
-
-      await certFile.writeAsBytes(certData.buffer.asUint8List());
-      await keyFile.writeAsBytes(keyData.buffer.asUint8List());
-
-
-      // Configure Dio with SSL certificates
-      final dio = Dio(
-        BaseOptions(
-          contentType: 'text/xml; charset=utf-8',
-          headers: {'Content-Type': 'text/xml; charset=utf-8'},
-        ),
-      );
-      // Create SecurityContext with certificates
-      final SecurityContext securityContext = SecurityContext();
-      securityContext.useCertificateChain(certFile.path);
-      securityContext.usePrivateKey(keyFile.path);
-
-      // Configure HttpClient with the security context
-      final HttpClient httpClient = HttpClient(context: securityContext);
-      httpClient.badCertificateCallback = (
-        X509Certificate cert,
-        String host,
-        int port,
-      ) {
-        return true; // Only use this for testing! In production, implement proper validation
-      };
-
-      // Create the Dio client with the custom HttpClient
-      dio.httpClientAdapter = IOHttpClientAdapter(
-        createHttpClient: () => httpClient,
-      );
-      // Make the API call
-      final response = await dio.post(
-        link,
-        data: request,
-        options: Options(
-          contentType: 'text/xml; charset=utf-8',
-          responseType: ResponseType.plain,
-        ),
-      );
-
-      // Convert XML to JSON using xml2json package
-      final xmlResponse = response.data.toString();
-      final jsonResponse = _convertXmlToJson(xmlResponse);
-
-      printDebugData('Air Blue Response', xmlResponse);
-
-      printJsonPretty(jsonResponse);
-
-      // // Log the response (matching PHP format)
-      // await _logResponse(response.data.toString(), 'Shopping_response');
-
-      // Convert XML to JSON
-      return _convertXmlToJson(response.data.toString());
-    } catch (e) {
-      if (kDebugMode) {
-        print('Error in shoppingFlight: $e');
-      }
-      rethrow;
-    }
-  }
-
-  Map<String, dynamic> _convertXmlToJson(String xmlString) {
-    try {
-      final transformer = Xml2Json();
-      transformer.parse(xmlString);
-      final jsonString = transformer.toGData();
-      return jsonDecode(jsonString) as Map<String, dynamic>;
-    } catch (e) {
-      // print('Error converting XML to JSON: $e');
-      return {'error': 'Failed to parse XML response'};
-    }
-  }
-
-  String _generateRandomString(int length) {
-    const chars =
-        'abcdefghij   klmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    final random = Random();
-    return String.fromCharCodes(
-      Iterable.generate(
-        length,
-        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
-      ),
+    // Make the API call using ApiClient
+    final response = await _apiClient.request(
+      url: link,
+      method: HttpMethod.POST,
+      serviceName: 'AIRBLUE SEARCH',
+      body: request,
+      contentType: ContentType.XML,
+      useSSL: true,
+      convertXmlToJson: true,
+      printRequestBody: printRequest,
+      printResponseBody: printResponse,
     );
+
+    if (response.isSuccess && response.responseJson != null) {
+      return response.responseJson!;
+    } else {
+      throw ApiException(
+        message: response.message,
+        statusCode: response.statusCode,
+        errors: {},
+      );
+    }
   }
 
-
-  // Add this to api_service_airblue.dart
-
+  /// Save AirBlue booking to backend
   Future<Map<String, dynamic>> saveAirBlueBooking({
     required BookingFlightController bookingController,
     required AirBlueFlight flight,
     required AirBlueFlight? returnFlight,
-    required List<AirBlueFlight>? multicityFlights, // Add this
+    required List<AirBlueFlight>? multicityFlights,
     required String token,
     required String pnr,
     required String finalPrice,
     required int pnrStatus,
-
-  }) async   {
-
-
+    bool printRequest = false,
+    bool printResponse = false,
+  }) async {
     try {
       // Prepare booking info
       final bookingInfo = {
@@ -291,52 +170,49 @@ class AirBlueFlightApiService {
       };
 
       // Prepare adults data
-      final adults =
-          bookingController.adults.map((adult) {
-            return {
-              "title": adult.titleController.text,
-              "first_name": adult.firstNameController.text,
-              "last_name": adult.lastNameController.text,
-              "dob": adult.dateOfBirthController.text,
-              "nationality": adult.nationalityController.text,
-              "passport": adult.passportCnicController.text,
-              "passport_expiry": adult.passportExpiryController.text,
-              "cnic": adult.passportCnicController.text, // CNIC is not collected in current form, leaving empty
-              "pnr":pnr
-            };
-          }).toList();
+      final adults = bookingController.adults.map((adult) {
+        return {
+          "title": adult.titleController.text,
+          "first_name": adult.firstNameController.text,
+          "last_name": adult.lastNameController.text,
+          "dob": adult.dateOfBirthController.text,
+          "nationality": adult.nationalityController.text,
+          "passport": adult.passportCnicController.text,
+          "passport_expiry": adult.passportExpiryController.text,
+          "cnic": adult.passportCnicController.text,
+          "pnr": pnr
+        };
+      }).toList();
 
       // Prepare children data
-      final children =
-          bookingController.children.map((child) {
-            return {
-              "title": child.titleController.text,
-              "first_name": child.firstNameController.text,
-              "last_name": child.lastNameController.text,
-              "dob": child.dateOfBirthController.text,
-              "nationality": child.nationalityController.text,
-              "passport": child.passportCnicController.text,
-              "passport_expiry": child.passportExpiryController.text,
-              "cnic":child.passportCnicController.text,
-            };
-          }).toList();
+      final children = bookingController.children.map((child) {
+        return {
+          "title": child.titleController.text,
+          "first_name": child.firstNameController.text,
+          "last_name": child.lastNameController.text,
+          "dob": child.dateOfBirthController.text,
+          "nationality": child.nationalityController.text,
+          "passport": child.passportCnicController.text,
+          "passport_expiry": child.passportExpiryController.text,
+          "cnic": child.passportCnicController.text,
+        };
+      }).toList();
 
       // Prepare infants data
-      final infants =
-          bookingController.infants.map((infant) {
-            return {
-              "title": infant.titleController.text,
-              "first_name": infant.firstNameController.text,
-              "last_name": infant.lastNameController.text,
-              "dob": infant.dateOfBirthController.text,
-              "nationality": infant.nationalityController.text,
-              "passport": "a",
-              "passport_expiry": "a",
-              "cnic":"a",
-            };
-          }).toList();
+      final infants = bookingController.infants.map((infant) {
+        return {
+          "title": infant.titleController.text,
+          "first_name": infant.firstNameController.text,
+          "last_name": infant.lastNameController.text,
+          "dob": infant.dateOfBirthController.text,
+          "nationality": infant.nationalityController.text,
+          "passport": "a",
+          "passport_expiry": "a",
+          "cnic": "a",
+        };
+      }).toList();
 
-           // Prepare flights data
+      // Prepare flights data
       final flights = <Map<String, dynamic>>[];
 
       // Only add outbound flight if it's not a multicity trip
@@ -355,8 +231,6 @@ class AirBlueFlightApiService {
         }
       }
 
-
-
       // Prepare final request body
       final requestBody = {
         "booking_info": bookingInfo,
@@ -366,94 +240,50 @@ class AirBlueFlightApiService {
         "flights": flights,
         "pnr": pnr,
         "buyingPrice": finalPrice,
-        "sellingPrice":finalPrice,
+        "sellingPrice": finalPrice,
         "pnrStatus": pnrStatus,
-        "booking_from":"1",
+        "booking_from": "1",
         "gds": "blue"
       };
 
-      // print("bok body");
-      // printJsonPretty(requestBody);
-
-      // Configure Dio
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://readyflights.pk/api/',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          responseType: ResponseType.json,
-        ),
+      // Make the API call using ApiClient
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/flight-booking',
+        method: HttpMethod.POST,
+        serviceName: 'AIRBLUE SAVE BOOKING',
+        body: jsonEncode(requestBody),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      // Make the API call
-      final response = await dio.post('flight-booking', data: requestBody);
-
-      // Handle response
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        print("check booking response");
-        print(response.data);
-        if (response.data is Map<String, dynamic>) {
-          return response.data;
-        } else if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
+      if (response.isSuccess) {
+        if (response.responseJson != null) {
+          return response.responseJson!;
         }
         return {'status': 'success'};
       } else {
-        print(response.statusCode);
-        // Handle error responses
-        dynamic errorData;
-        try {
-          errorData =
-              response.data is String
-                  ? jsonDecode(response.data)
-                  : response.data;
-          print("check errors");
-          print(errorData);
-        } catch (e) {
-          print("error data");
-          print(e);
-          errorData = {'message': response.data?.toString() ?? 'Unknown error'};
-        }
-
-        // Format error message from API response
-        String errorMessage = 'Failed to create booking';
-        if (errorData is Map) {
-          if (errorData['errors'] is Map) {
-            // Handle field-specific errors
-            final errors = (errorData['errors'] as Map).entries
-                .map((e) {
-                  return '${e.key}: ${e.value}';
-                })
-                .join('\n');
-            errorMessage = errors;
-          } else if (errorData['message'] != null) {
-            errorMessage = errorData['message'];
-          }
-        }
-
         throw ApiException(
-          message: errorMessage,
+          message: response.message,
           statusCode: response.statusCode,
-          errors: errorData['errors'] ?? {},
+          errors: {},
         );
       }
     } on DioException catch (e) {
-      // Handle Dio-specific errors
       String errorMessage = 'Network error occurred';
       if (e.response != null) {
         try {
-          final errorData =
-              e.response!.data is String
-                  ? jsonDecode(e.response!.data)
-                  : e.response!.data;
+          final errorData = e.response!.data is String
+              ? jsonDecode(e.response!.data)
+              : e.response!.data;
 
           if (errorData is Map && errorData['errors'] != null) {
-            errorMessage = (errorData['errors'] as Map).entries
-                .map((e) {
-                  return '${e.key}: ${e.value}';
-                })
+            errorMessage = (errorData['errors'] as Map)
+                .entries
+                .map((e) => '${e.key}: ${e.value}')
                 .join('\n');
           } else if (errorData is Map && errorData['message'] != null) {
             errorMessage = errorData['message'];
@@ -468,129 +298,16 @@ class AirBlueFlightApiService {
         errors: {},
       );
     } catch (e) {
+      if (e is ApiException) rethrow;
       throw ApiException(message: e.toString(), statusCode: null, errors: {});
     }
   }
 
-  Map<String, dynamic> _prepareFlightData(AirBlueFlight flight, String type) {
-    // Handle all segments (not just first one)
-    final segments = flight.segmentInfo.isNotEmpty
-        ? flight.segmentInfo
-        : [FlightSegmentInfo(
-      bookingCode: 'Y',
-      cabinCode: 'Y',
-      mealCode: 'M',
-      seatsAvailable: '',
-    )];
-
-    // Handle all legs (not just first one)
-    final legs = flight.legSchedules.isNotEmpty
-        ? flight.legSchedules
-        : [{
-      'departure': {'airport': '', 'time': '', 'dateTime': ''},
-      'arrival': {'airport': '', 'time': '', 'dateTime': ''},
-    }];
-
-    // For multicity, we need to include all flight segments in the data
-    if (type.startsWith('Flight')) {
-      return {
-        "segments": legs.map((leg) {
-          final departureDateTime = DateTime.parse(leg['departure']['dateTime']);
-          final arrivalDateTime = DateTime.parse(leg['arrival']['dateTime']);
-          final duration = arrivalDateTime.difference(departureDateTime);
-          final segment = segments.length > legs.indexOf(leg)
-              ? segments[legs.indexOf(leg)]
-              : segments.first;
-
-          return {
-            "departure": {
-              "airport": leg['departure']['airport'],
-              "date": departureDateTime.toIso8601String().split('T')[0],
-              "time": "${departureDateTime.hour.toString().padLeft(2, '0')}:${departureDateTime.minute.toString().padLeft(2, '0')}",
-              "terminal": leg['departure']['terminal'] ?? 'Main',
-            },
-            "arrival": {
-              "airport": leg['arrival']['airport'],
-              "date": arrivalDateTime.toIso8601String().split('T')[0],
-              "time": "${arrivalDateTime.hour.toString().padLeft(2, '0')}:${arrivalDateTime.minute.toString().padLeft(2, '0')}",
-              "terminal": leg['arrival']['terminal'] ?? 'Main',
-            },
-            "flight_number": flight.id.split('-').first,
-            "airline_code": flight.airlineCode,
-            "operating_flight_number": flight.id.split('-').first,
-            "operating_airline_code": flight.airlineCode,
-            "cabin_class": _getCabinClassName(segment.cabinCode),
-            "sub_class": segment.cabinCode,
-            "hand_baggage": "7kg",
-            "check_baggage": "${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}",
-            "meal": segment.mealCode == 'M' ? 'Meal' : 'None',
-            "layover": legs.length > 1 ? "Yes" : "None",
-            "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
-          };
-        }).toList(),
-        "type": type,
-      };
-    } else {
-      // For one-way/return flights, maintain backward compatibility
-      final firstLeg = legs.first;
-      final departureDateTime = DateTime.parse(firstLeg['departure']['dateTime']);
-      final arrivalDateTime = DateTime.parse(firstLeg['arrival']['dateTime']);
-      final duration = arrivalDateTime.difference(departureDateTime);
-      final segment = segments.first;
-
-      return {
-        "departure": {
-          "airport": firstLeg['departure']['airport'],
-          "date": departureDateTime.toIso8601String().split('T')[0],
-          "time": "${departureDateTime.hour.toString().padLeft(2, '0')}:${departureDateTime.minute.toString().padLeft(2, '0')}",
-          "terminal": firstLeg['departure']['terminal'] ?? 'Main',
-        },
-        "arrival": {
-          "airport": firstLeg['arrival']['airport'],
-          "date": arrivalDateTime.toIso8601String().split('T')[0],
-          "time": "${arrivalDateTime.hour.toString().padLeft(2, '0')}:${arrivalDateTime.minute.toString().padLeft(2, '0')}",
-          "terminal": firstLeg['arrival']['terminal'] ?? 'Main',
-        },
-        "flight_number": flight.id.split('-').first,
-        "airline_code": flight.airlineCode,
-        "operating_flight_number": flight.id.split('-').first,
-        "operating_airline_code": flight.airlineCode,
-        "cabin_class": _getCabinClassName(segment.cabinCode),
-        "sub_class": segment.cabinCode,
-        "hand_baggage": "7kg",
-        "check_baggage": "${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}",
-        "meal": segment.mealCode == 'M' ? 'Meal' : 'None',
-        "layover": legs.length > 1 ? "Yes" : "None",
-        "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
-        "type": type,
-      };
-    }
-  }
-  String _getCabinClassName(String cabinCode) {
-    switch (cabinCode.toUpperCase()) {
-      case 'F':
-        return 'First Class';
-      case 'C':
-        return 'Business Class';
-      case 'J':
-        return 'Premium Business';
-      case 'W':
-        return 'Premium Economy';
-      case 'S':
-        return 'Premium Economy';
-      case 'Y':
-        return 'Economy';
-      default:
-        return 'Economy';
-    }
-  }
-
-  // Add to api_service_airblue.dart
-
+  /// Create AirBlue PNR
   Future<Map<String, dynamic>> createAirBluePNR({
     required AirBlueFlight flight,
     required AirBlueFlight? returnFlight,
-    required List<AirBlueFlight>? multicityFlights, // Add this
+    required List<AirBlueFlight>? multicityFlights,
     required BookingFlightController bookingController,
     required String clientEmail,
     required String clientPhone,
@@ -598,6 +315,8 @@ class AirBlueFlightApiService {
     required AirBlueFareOption? outboundFareOption,
     required AirBlueFareOption? returnFareOption,
     required List<AirBlueFareOption?>? multicityFareOptions,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
       // Prepare booking class array (selected flights)
@@ -622,38 +341,16 @@ class AirBlueFlightApiService {
 
       // Prepare adults, children, infants data
       final adults = bookingController.adults
-          .map(
-            (adult) => _prepareTravelerData(
-          adult,
-          'ADT',
-          clientEmail,
-          clientPhone,
-        ),
-      )
+          .map((adult) => _prepareTravelerData(adult, 'ADT', clientEmail, clientPhone))
           .toList();
 
       final children = bookingController.children
-          .map(
-            (child) => _prepareTravelerData(
-          child,
-          'CHD',
-          clientEmail,
-          clientPhone,
-        ),
-      )
+          .map((child) => _prepareTravelerData(child, 'CHD', clientEmail, clientPhone))
           .toList();
 
       final infants = bookingController.infants
-          .map(
-            (infant) => _prepareTravelerData(
-          infant,
-          'INF',
-          clientEmail,
-          clientPhone,
-        ),
-      )
+          .map((infant) => _prepareTravelerData(infant, 'INF', clientEmail, clientPhone))
           .toList();
-
 
       // Generate random string for EchoToken
       final randomString = _generateRandomString(32);
@@ -663,40 +360,28 @@ class AirBlueFlightApiService {
       String ptcText = '';
       int rphCounter = 1;
 
-      print("Check booking Classs");
-      printJsonPretty(bookingClass);
-
-
       for (var flightData in bookingClass) {
-        final originDestOption = flightData['AirItinerary']['OriginDestinationOptions']
-        ['OriginDestinationOption'];
+        final originDestOption = flightData['AirItinerary']['OriginDestinationOptions']['OriginDestinationOption'];
         final flightSegment = originDestOption['FlightSegment'];
 
-
-
-        // Get the selected fare option for this flight
         // Get the selected fare option for this flight
         AirBlueFareOption? selectedFareOption;
 
-// For outbound flight (first flight in bookingClass)
+        // For outbound flight (first flight in bookingClass)
         if (flightData == bookingClass.first && outboundFareOption != null) {
           selectedFareOption = outboundFareOption;
         }
-// For return flight (second flight in bookingClass)
-        else if (returnFlight != null &&
-            flightData == bookingClass[1] &&
-            returnFareOption != null) {
+        // For return flight (second flight in bookingClass)
+        else if (returnFlight != null && flightData == bookingClass[1] && returnFareOption != null) {
           selectedFareOption = returnFareOption;
         }
-// For multicity flights
-        else if (multicityFareOptions != null &&
-            multicityFareOptions!.isNotEmpty) {
+        // For multicity flights
+        else if (multicityFareOptions != null && multicityFareOptions.isNotEmpty) {
           final index = bookingClass.indexOf(flightData);
-          if (index < multicityFareOptions!.length) {
-            selectedFareOption = multicityFareOptions![index];
+          if (index < multicityFareOptions.length) {
+            selectedFareOption = multicityFareOptions[index];
           }
         }
-
 
         // Build destination XML
         destinationXml += '''
@@ -763,10 +448,8 @@ class AirBlueFlightApiService {
 
           // Build fare info XML
           String fareInfoXml = '';
-          // Use the selected fare info if available
           dynamic fareInfo;
           if (selectedFareOption != null) {
-            // Find the matching fare info from the raw data using fareBasisCode
             final allFareInfos = ptc['FareInfo'] is List ? ptc['FareInfo'] : [ptc['FareInfo']];
             for (var info in allFareInfos) {
               if (info['FareInfo']?['FareBasisCode'] == selectedFareOption.fareBasisCode) {
@@ -776,17 +459,8 @@ class AirBlueFlightApiService {
             }
           }
 
-          print("fare info check");
-          print(fareInfo);
-
           // Fallback to first fare info if no match found
           fareInfo ??= ptc['FareInfo'] is List ? ptc['FareInfo'][0] : ptc['FareInfo'];
-
-          print("fare info 1 that is old");
-          print(fareInfo);
-          print("fare info 1 that is new");
-          print(selectedFareOption?.fareInfoRawData);
-          // fareInfo=selectedFareOption?.fareInfoRawData;
 
           if (fareInfo != null) {
             // Build fare info taxes if exists
@@ -890,7 +564,6 @@ class AirBlueFlightApiService {
       // Build travelers XML
       String paxXml = '';
       int paxItr = 0;
-
       String doctype = isDomestic ? "5" : "2";
 
       // Add adults
@@ -991,69 +664,35 @@ class AirBlueFlightApiService {
   </Body>
 </Envelope>''';
 
-      print("request pnr");
-      print(request);
-
-      printDebugData('PNR REQUEST', request);
-
-
-      // Configure Dio with SSL certificates
-      final ByteData certData = await rootBundle.load('assets/certs/cert.pem');
-      final ByteData keyData = await rootBundle.load('assets/certs/key.pem');
-
-      final Directory tempDir = await getTemporaryDirectory();
-      final File certFile = File('${tempDir.path}/cert.pem');
-      final File keyFile = File('${tempDir.path}/key.pem');
-
-      await certFile.writeAsBytes(certData.buffer.asUint8List());
-      await keyFile.writeAsBytes(keyData.buffer.asUint8List());
-
-      final dio = Dio(
-        BaseOptions(
-          contentType: 'text/xml; charset=utf-8',
-          headers: {'Content-Type': 'text/xml; charset=utf-8'},
-        ),
+      // Make the API call using ApiClient
+      final response = await _apiClient.request(
+        url: link,
+        method: HttpMethod.POST,
+        serviceName: 'AIRBLUE CREATE PNR',
+        body: request,
+        contentType: ContentType.XML,
+        useSSL: true,
+        convertXmlToJson: true,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      final SecurityContext securityContext = SecurityContext();
-      securityContext.useCertificateChain(certFile.path);
-      securityContext.usePrivateKey(keyFile.path);
+      if (!response.isSuccess || response.responseJson == null) {
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
+      }
 
-      final HttpClient httpClient = HttpClient(context: securityContext);
-      httpClient.badCertificateCallback = (
-          X509Certificate cert,
-          String host,
-          int port,
-          ) {
-        return true; // Only for testing - implement proper validation in production
-      };
-
-      dio.httpClientAdapter = IOHttpClientAdapter(
-        createHttpClient: () => httpClient,
-      );
-
-      // Make the API call
-      final response = await dio.post(
-        link,
-        data: request,
-        options: Options(
-          contentType: 'text/xml; charset=utf-8',
-          responseType: ResponseType.plain,
-        ),
-      );
-
-      printDebugData('PNR RESPONSE', response.data.toString());
-
-      // Convert XML to JSON
-      final jsonResponse = _convertXmlToJson(response.data.toString());
-      printJsonPretty(jsonResponse);
+      final jsonResponse = response.responseJson!;
 
       // Parse the pricing information
       List<AirBluePNRPricing> pnrPricing = [];
       try {
         final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
             ?['AirBookResult']?['AirReservation'];
-        
+
         if (airReservation != null) {
           final priceInfo = airReservation['PriceInfo'];
           if (priceInfo != null) {
@@ -1070,11 +709,7 @@ class AirBlueFlightApiService {
             }
           }
         }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error parsing PNR pricing: $e');
-        }
-      }
+      } catch (e) {}
 
       // Safely extract PNR and Instance
       String? pnr;
@@ -1082,7 +717,7 @@ class AirBlueFlightApiService {
       try {
         final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
             ?['AirBookResult']?['AirReservation'];
-        
+
         if (airReservation != null) {
           final bookingRefs = airReservation['BookingReferenceID'];
           if (bookingRefs != null) {
@@ -1093,23 +728,14 @@ class AirBlueFlightApiService {
             }
           }
         }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error parsing PNR/Instance: $e');
-        }
-      }
-      
-      print("check pnr");
-      print(pnr);
-      print("check instance");
-      print(Instance);
-      
+      } catch (e) {}
+
       // Safely extract ticketing information
       String? timeLimit;
       try {
         final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
             ?['AirBookResult']?['AirReservation'];
-        
+
         if (airReservation != null) {
           final ticketing = airReservation['Ticketing'];
           if (ticketing != null) {
@@ -1120,55 +746,43 @@ class AirBlueFlightApiService {
             }
           }
         }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error parsing ticketing: $e');
-        }
-      }
-
-      print("check time limit");
-      print(timeLimit);
+      } catch (e) {}
 
       // Extract total fare safely
       String? totalFare;
       try {
         final airReservation = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
             ?['AirBookResult']?['AirReservation'];
-        
+
         if (airReservation != null) {
           final priceInfo = airReservation['PriceInfo'];
           if (priceInfo != null) {
             totalFare = priceInfo['ItinTotalFare']?['TotalFare']?['Amount']?.toString();
           }
         }
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error parsing total fare: $e');
-        }
-      }
+      } catch (e) {}
 
-// Determine booking status (1 for success, 0 for failure)
-// Check if Success element exists and PNR is generated
+      // Determine booking status (1 for success, 0 for failure)
       final successElement = jsonResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']
           ?['AirBookResult']?['Success'];
       final status = (successElement != null && pnr != null && pnr.isNotEmpty) ? 1 : 0;
 
-
-// Add the pricing info to the return map
+      // Add the pricing info to the return map
       final result = {
         ...jsonResponse,
         'pnrPricing': pnrPricing.map((p) => p.toJson()).toList(),
-        'rawPricingObjects': pnrPricing, // Add the actual objects if needed
-        'pnr':pnr,
-        "Instance":Instance,
-        'timeLimit':timeLimit,
+        'rawPricingObjects': pnrPricing,
+        'pnr': pnr,
+        "Instance": Instance,
+        'timeLimit': timeLimit,
         'pnrJson': jsonResponse,
-        'finalPrice': totalFare, // Add the total fare
-        'status': status, // Add status (1 for success, 0 for failure)
+        'finalPrice': totalFare,
+        'status': status,
       };
 
       return result;
     } catch (e) {
+      if (e is ApiException) rethrow;
       throw ApiException(
         message: 'Failed to create PNR: $e',
         statusCode: null,
@@ -1177,93 +791,21 @@ class AirBlueFlightApiService {
     }
   }
 
-
-  Map<String, dynamic> _prepareTravelerData(
-      TravelerInfo traveler,
-      String type,
-      String clientEmail,
-      String clientPhone,
-      ) {
-    return {
-      'title': traveler.titleController.text,
-      'firstName': traveler.firstNameController.text,
-      'lastName': traveler.lastNameController.text,
-      'birthDate': traveler.dateOfBirthController.text,
-      'passport': traveler.passportCnicController.text,
-      'passportExpiry': traveler.passportExpiryController.text,
-      'type': type,
-    };
-  }
-
-  /// Prints formatted XML in manageable chunks for better console readability
-  void printXmlPretty(String xmlString) {
-    try {
-      // Parse the XML
-      final document = xml.XmlDocument.parse(xmlString);
-
-      // Format with indentation
-      final prettyXml = document.toXmlString(pretty: true, indent: '  ');
-
-      // Print in chunks to avoid truncation in console
-      const int chunkSize = 1000;
-      for (int i = 0; i < prettyXml.length; i += chunkSize) {
-      }
-    } catch (e) {
-      // If XML parsing fails, print as is with a warning
-    }
-  }
-
-  void printDebugData(String label, dynamic data) {
-    print('--- DEBUG: $label ---');
-
-    if (data is String && data.trim().startsWith('<')) {
-      // Handle XML string
-      // printLongText('Raw XML:\n$data');
-
-      try {
-        // Convert XML to JSON
-        final jsonData = _convertXmlToJson(data);
-        printJsonPretty(jsonData);
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error converting XML to JSON: $e');
-        }
-      }
-    } else if (data is String) {
-      // Plain string
-      printLongText('Plain String:\n$data');
-    } else {
-      // JSON/Map or other object
-      printJsonPretty(data);
-    }
-
-    print('--- END DEBUG: $label ---\n');
-  }
-
-  void printLongText(String text) {
-    const chunkSize = 800; // keep below console limit
-    for (var i = 0; i < text.length; i += chunkSize) {
-      final endIndex = (i + chunkSize < text.length) ? i + chunkSize : text.length;
-      debugPrint(text.substring(i, endIndex));
-    }
-  }
-  // Add these methods to your AirBlueFlightApiService class
-// Add these methods to your AirBlueFlightApiService class
-Future<Map<String, dynamic>> getAirBlueSeatMap({
-  required String departureDateTime,
-  required String flightNumber,
-  required String departureAirport,
-  required String arrivalAirport,
-  required String operatingAirlineCode,
-  required String pnr,
-  required String instance,
-  required String fareType,
-  required String resBookDesigCode,
-  required String cabinClass,
-}) async {
-  try {
-    final randomString = _generateRandomString(32);
-
+  /// Get AirBlue seat map
+  Future<Map<String, dynamic>> getAirBlueSeatMap({
+    required String departureDateTime,
+    required String flightNumber,
+    required String departureAirport,
+    required String arrivalAirport,
+    required String operatingAirlineCode,
+    required String pnr,
+    required String instance,
+    required String fareType,
+    required String resBookDesigCode,
+    required String cabinClass,
+    bool printRequest = false,
+    bool printResponse = false,
+  }) async {
     // Extract date and time, keeping original time instead of forcing 00:00:00
     String formattedDateTime;
     if (departureDateTime.contains('T')) {
@@ -1298,125 +840,88 @@ Future<Map<String, dynamic>> getAirBlueSeatMap({
   </Body>
 </Envelope>''';
 
-    printDebugData('Seat Map Request', request);
-
-    final ByteData certData = await rootBundle.load('assets/certs/cert.pem');
-    final ByteData keyData = await rootBundle.load('assets/certs/key.pem');
-    final Directory tempDir = await getTemporaryDirectory();
-    final File certFile = File('${tempDir.path}/cert.pem');
-    final File keyFile = File('${tempDir.path}/key.pem');
-    await certFile.writeAsBytes(certData.buffer.asUint8List());
-    await keyFile.writeAsBytes(keyData.buffer.asUint8List());
-    final dio = Dio(
-      BaseOptions(
-        contentType: 'text/xml; charset=utf-8',
-        headers: {'Content-Type': 'text/xml; charset=utf-8'},
-      ),
+    // Make the API call using ApiClient
+    final response = await _apiClient.request(
+      url: link,
+      method: HttpMethod.POST,
+      serviceName: 'AIRBLUE SEAT MAP',
+      body: request,
+      contentType: ContentType.XML,
+      useSSL: true,
+      convertXmlToJson: true,
+      printRequestBody: printRequest,
+      printResponseBody: printResponse,
     );
 
-    final SecurityContext securityContext = SecurityContext();
-    securityContext.useCertificateChain(certFile.path);
-    securityContext.usePrivateKey(keyFile.path);
-
-    final HttpClient httpClient = HttpClient(context: securityContext);
-    httpClient.badCertificateCallback = (cert, host, port) => true;
-
-    dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () => httpClient,
-    );
-
-    final response = await dio.post(
-      link,
-      data: request,
-      options: Options(
-        contentType: 'text/xml; charset=utf-8',
-        responseType: ResponseType.plain,
-      ),
-    );
-    printDebugData('Seat Map Response', response.data.toString());
-    return _convertXmlToJson(response.data.toString());
-  } catch (e) {
-    throw ApiException(
-      message: 'Failed to get seat map: $e',
-      statusCode: null,
-      errors: {},
-    );
+    if (response.isSuccess && response.responseJson != null) {
+      return response.responseJson!;
+    } else {
+      throw ApiException(
+        message: 'Failed to get seat map: ${response.message}',
+        statusCode: response.statusCode,
+        errors: {},
+      );
+    }
   }
-}
 
-Future<Map<String, dynamic>> updateAirBlueSeats({
-  required String pnr,
-  required String instance,
-  required List<Map<String, dynamic>> seatRequests,
-  Map<String, dynamic>? pnrResponse, // PNR response to extract TravelerRefNumber RPH tokens
-}) async {
-  try {
-    final randomString = _generateRandomString(32);
-
+  /// Update AirBlue seats
+  Future<Map<String, dynamic>> updateAirBlueSeats({
+    required String pnr,
+    required String instance,
+    required List<Map<String, dynamic>> seatRequests,
+    Map<String, dynamic>? pnrResponse,
+    bool printRequest = false,
+    bool printResponse = false,
+  }) async {
     // Extract TravelerRefNumber RPH tokens from PNR response
     Map<int, String> travelerRPHTokens = {};
     if (pnrResponse != null) {
       try {
         final airReservation = pnrResponse['soap\$Envelope']?['soap\$Body']?['AirBookResponse']?['AirBookResult']?['AirReservation'] ??
-                               pnrResponse['AirReservation'] ??
-                               pnrResponse;
-        
+            pnrResponse['AirReservation'] ??
+            pnrResponse;
+
         final travelerInfo = airReservation['TravelerInfo'];
         if (travelerInfo != null) {
           final airTravelers = travelerInfo['AirTraveler'];
           if (airTravelers != null) {
             // Handle both single traveler and multiple travelers
             final travelersList = airTravelers is List ? airTravelers : [airTravelers];
-            
+
             for (int i = 0; i < travelersList.length; i++) {
               final traveler = travelersList[i];
               final travelerRefNumber = traveler['TravelerRefNumber'];
-              
+
               if (travelerRefNumber != null) {
                 // Handle both single TravelerRefNumber and array
                 final refNumberList = travelerRefNumber is List ? travelerRefNumber : [travelerRefNumber];
-                
+
                 for (var refNum in refNumberList) {
-                  // Extract RPH value (it's in the RPH attribute)
                   final rph = refNum['RPH']?.toString();
                   if (rph != null && rph.isNotEmpty) {
-                    // Map traveler index (0-based) to RPH token
                     travelerRPHTokens[i] = rph;
-                    print('📋 Extracted RPH token for traveler ${i + 1} (index $i): $rph');
-                    break; // Use first RPH found for this traveler
+                    break;
                   }
                 }
               }
             }
-            
-            print('📋 Total RPH tokens extracted: ${travelerRPHTokens.length}');
           }
         }
-      } catch (e, stackTrace) {
-        print('⚠️ Warning: Could not extract TravelerRefNumber RPH tokens from PNR: $e');
-        print('Stack trace: $stackTrace');
-      }
+      } catch (e) {}
     }
 
     String seatRequestsXml = '';
     for (var seatRequest in seatRequests) {
       // Get traveler index (convert from 1-based to 0-based)
       final travelerIndex = (int.tryParse(seatRequest['travelerRefNumber'].toString()) ?? 1) - 1;
-      
-      // Use RPH token from PNR response if available, otherwise fallback to number
-      final travelerRPH = seatRequest['travelerRefNumberRPH'] ?? 
-                          travelerRPHTokens[travelerIndex] ?? 
-                          seatRequest['travelerRefNumber'].toString();
-      
-      // Extract only the letter from seat number (e.g., "1F" -> "F", "12A" -> "A")
+
+      final travelerRPH = seatRequest['travelerRefNumberRPH'] ??
+          travelerRPHTokens[travelerIndex] ??
+          seatRequest['travelerRefNumber'].toString();
+
       final fullSeatNumber = seatRequest['seatNumber'].toString();
-      final seatLetter = fullSeatNumber.replaceAll(RegExp(r'[0-9]'), ''); // Remove all digits, keep only letters
-      
-      print('📋 Using RPH for seat request: $travelerRPH (traveler index: $travelerIndex)');
-      print('📋 Seat: $fullSeatNumber -> Row: ${seatRequest['rowNumber']}, Letter: $seatLetter');
-      
-      // Use web format: self-closing tag with all attributes
-      // SeatNumber should only contain the letter (e.g., "F"), not "1F"
+      final seatLetter = fullSeatNumber.replaceAll(RegExp(r'[0-9]'), '');
+
       seatRequestsXml += '''
                 <SeatRequest SeatNumber="$seatLetter" RowNumber="${seatRequest['rowNumber']}" TravelerRefNumberRPHList="$travelerRPH" FlightRefNumberRPHList="${seatRequest['flightRefNumber']}"/>''';
     }
@@ -1448,70 +953,179 @@ Future<Map<String, dynamic>> updateAirBlueSeats({
   </Body>
 </Envelope>''';
 
-    printDebugData('Seat Update Request', request);
+    // Make the API call using ApiClient
+    final response = await _apiClient.request(
+      url: link,
+      method: HttpMethod.POST,
+      serviceName: 'AIRBLUE UPDATE SEATS',
+      body: request,
+      contentType: ContentType.XML,
+      useSSL: true,
+      convertXmlToJson: true,
+      printRequestBody: printRequest,
+      printResponseBody: printResponse,
+    );
 
-    final ByteData certData = await rootBundle.load('assets/certs/cert.pem');
-    final ByteData keyData = await rootBundle.load('assets/certs/key.pem');
-    final Directory tempDir = await getTemporaryDirectory();
-    final File certFile = File('${tempDir.path}/cert.pem');
-    final File keyFile = File('${tempDir.path}/key.pem');
+    if (response.isSuccess && response.responseJson != null) {
+      return response.responseJson!;
+    } else {
+      throw ApiException(
+        message: 'Failed to update seats: ${response.message}',
+        statusCode: response.statusCode,
+        errors: {},
+      );
+    }
+  }
 
-    await certFile.writeAsBytes(certData.buffer.asUint8List());
-    await keyFile.writeAsBytes(keyData.buffer.asUint8List());
+  // ─────────────────────────────────────────────────────────────────────────────
+  // HELPER METHODS
+  // ─────────────────────────────────────────────────────────────────────────────
 
-    final dio = Dio(
-      BaseOptions(
-        contentType: 'text/xml; charset=utf-8',
-        headers: {'Content-Type': 'text/xml; charset=utf-8'},
+  String _generateRandomString(int length) {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+    final random = Random();
+    return String.fromCharCodes(
+      Iterable.generate(
+        length,
+        (_) => chars.codeUnitAt(random.nextInt(chars.length)),
       ),
-    );
-
-    final SecurityContext securityContext = SecurityContext();
-    securityContext.useCertificateChain(certFile.path);
-    securityContext.usePrivateKey(keyFile.path);
-
-    final HttpClient httpClient = HttpClient(context: securityContext);
-    httpClient.badCertificateCallback = (cert, host, port) => true;
-
-    dio.httpClientAdapter = IOHttpClientAdapter(
-      createHttpClient: () => httpClient,
-    );
-
-    final response = await dio.post(
-      'https://ota2.zapways.com/v3.0/OTAAPI.asmx',
-      data: request,
-      options: Options(
-        contentType: 'text/xml; charset=utf-8',
-        responseType: ResponseType.plain,
-      ),
-    );
-
-    printDebugData('Seat Update Response', response.data.toString());
-
-    return _convertXmlToJson(response.data.toString());
-  } catch (e) {
-    throw ApiException(
-      message: 'Failed to update seats: $e',
-      statusCode: null,
-      errors: {},
     );
   }
-}  /// Converts XML string to JSON (Map)
 
+  Map<String, dynamic> _prepareTravelerData(
+    TravelerInfo traveler,
+    String type,
+    String clientEmail,
+    String clientPhone,
+  ) {
+    return {
+      'title': traveler.titleController.text,
+      'firstName': traveler.firstNameController.text,
+      'lastName': traveler.lastNameController.text,
+      'birthDate': traveler.dateOfBirthController.text,
+      'passport': traveler.passportCnicController.text,
+      'passportExpiry': traveler.passportExpiryController.text,
+      'type': type,
+    };
+  }
 
-  /// Prints JSON nicely with chunking
+  Map<String, dynamic> _prepareFlightData(AirBlueFlight flight, String type) {
+    // Handle all segments (not just first one)
+    final segments = flight.segmentInfo.isNotEmpty
+        ? flight.segmentInfo
+        : [
+            FlightSegmentInfo(
+              bookingCode: 'Y',
+              cabinCode: 'Y',
+              mealCode: 'M',
+              seatsAvailable: '',
+            )
+          ];
 
-  void printJsonPretty(dynamic jsonData) {
-    const int chunkSize = 1000;
-    final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
-    for (int i = 0; i < jsonString.length; i += chunkSize) {
-      final chunk = jsonString.substring(
-        i,
-        i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
-      );
-      if (kDebugMode) {
-        // print(chunk);
-      }
+    // Handle all legs (not just first one)
+    final legs = flight.legSchedules.isNotEmpty
+        ? flight.legSchedules
+        : [
+            {
+              'departure': {'airport': '', 'time': '', 'dateTime': ''},
+              'arrival': {'airport': '', 'time': '', 'dateTime': ''},
+            }
+          ];
+
+    // For multicity, we need to include all flight segments in the data
+    if (type.startsWith('Flight')) {
+      return {
+        "segments": legs.map((leg) {
+          final departureDateTime = DateTime.parse(leg['departure']['dateTime']);
+          final arrivalDateTime = DateTime.parse(leg['arrival']['dateTime']);
+          final duration = arrivalDateTime.difference(departureDateTime);
+          final segment = segments.length > legs.indexOf(leg) ? segments[legs.indexOf(leg)] : segments.first;
+
+          return {
+            "departure": {
+              "airport": leg['departure']['airport'],
+              "date": departureDateTime.toIso8601String().split('T')[0],
+              "time":
+                  "${departureDateTime.hour.toString().padLeft(2, '0')}:${departureDateTime.minute.toString().padLeft(2, '0')}",
+              "terminal": leg['departure']['terminal'] ?? 'Main',
+            },
+            "arrival": {
+              "airport": leg['arrival']['airport'],
+              "date": arrivalDateTime.toIso8601String().split('T')[0],
+              "time":
+                  "${arrivalDateTime.hour.toString().padLeft(2, '0')}:${arrivalDateTime.minute.toString().padLeft(2, '0')}",
+              "terminal": leg['arrival']['terminal'] ?? 'Main',
+            },
+            "flight_number": flight.id.split('-').first,
+            "airline_code": flight.airlineCode,
+            "operating_flight_number": flight.id.split('-').first,
+            "operating_airline_code": flight.airlineCode,
+            "cabin_class": _getCabinClassName(segment.cabinCode),
+            "sub_class": segment.cabinCode,
+            "hand_baggage": "7kg",
+            "check_baggage": "${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}",
+            "meal": segment.mealCode == 'M' ? 'Meal' : 'None',
+            "layover": legs.length > 1 ? "Yes" : "None",
+            "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+          };
+        }).toList(),
+        "type": type,
+      };
+    } else {
+      // For one-way/return flights, maintain backward compatibility
+      final firstLeg = legs.first;
+      final departureDateTime = DateTime.parse(firstLeg['departure']['dateTime']);
+      final arrivalDateTime = DateTime.parse(firstLeg['arrival']['dateTime']);
+      final duration = arrivalDateTime.difference(departureDateTime);
+      final segment = segments.first;
+
+      return {
+        "departure": {
+          "airport": firstLeg['departure']['airport'],
+          "date": departureDateTime.toIso8601String().split('T')[0],
+          "time":
+              "${departureDateTime.hour.toString().padLeft(2, '0')}:${departureDateTime.minute.toString().padLeft(2, '0')}",
+          "terminal": firstLeg['departure']['terminal'] ?? 'Main',
+        },
+        "arrival": {
+          "airport": firstLeg['arrival']['airport'],
+          "date": arrivalDateTime.toIso8601String().split('T')[0],
+          "time":
+              "${arrivalDateTime.hour.toString().padLeft(2, '0')}:${arrivalDateTime.minute.toString().padLeft(2, '0')}",
+          "terminal": firstLeg['arrival']['terminal'] ?? 'Main',
+        },
+        "flight_number": flight.id.split('-').first,
+        "airline_code": flight.airlineCode,
+        "operating_flight_number": flight.id.split('-').first,
+        "operating_airline_code": flight.airlineCode,
+        "cabin_class": _getCabinClassName(segment.cabinCode),
+        "sub_class": segment.cabinCode,
+        "hand_baggage": "7kg",
+        "check_baggage": "${flight.baggageAllowance.weight} ${flight.baggageAllowance.unit}",
+        "meal": segment.mealCode == 'M' ? 'Meal' : 'None',
+        "layover": legs.length > 1 ? "Yes" : "None",
+        "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+        "type": type,
+      };
+    }
+  }
+
+  String _getCabinClassName(String cabinCode) {
+    switch (cabinCode.toUpperCase()) {
+      case 'F':
+        return 'First Class';
+      case 'C':
+        return 'Business Class';
+      case 'J':
+        return 'Premium Business';
+      case 'W':
+        return 'Premium Economy';
+      case 'S':
+        return 'Premium Economy';
+      case 'Y':
+        return 'Economy';
+      default:
+        return 'Economy';
     }
   }
 }

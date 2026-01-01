@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiServiceGroupTickets {
@@ -29,13 +28,6 @@ class ApiServiceGroupTickets {
         },
       ),
     );
-    
-    // Add logging interceptor in debug mode
-    if (kDebugMode) {
-      dio.interceptors.add(
-        LogInterceptor(requestBody: true, responseBody: true),
-      );
-    }
   }
   
   /// Authenticate with Al Saboor API
@@ -43,21 +35,11 @@ class ApiServiceGroupTickets {
   /// According to docs: POST /login with formdata (email, password, Agent_code)
   Future<Map<String, dynamic>> authenticate() async {
     try {
-      if (kDebugMode) {
-        print('🔐 Authenticating with Al Saboor API...');
-      }
-      
-      // Use FormData.fromMap() as per working Postman example
-      // Note: Field name is 'agent_code' (lowercase), not 'Agent_code'
       final formData = FormData.fromMap({
         'email': _email,
         'password': _password,
-        'agent_code': _agentCode, // lowercase as per working example
+        'agent_code': _agentCode,
       });
-      
-      if (kDebugMode) {
-        print('📤 Form data: email=${_email}, password=***, agent_code=${_agentCode}');
-      }
       
       final response = await dio.post(
         '/login',
@@ -126,14 +108,7 @@ class ApiServiceGroupTickets {
             expiryTimestamp = (DateTime.now().millisecondsSinceEpoch ~/ 1000) + 3600;
           }
           
-          // Store token and expiry
           await _storeToken(token.toString(), expiryTimestamp);
-          
-          if (kDebugMode) {
-            print('✅ Al Saboor Authentication successful');
-            print('🔐 Token: ${token.toString().substring(0, 20)}...');
-            print('🔐 Token expires at: ${DateTime.fromMillisecondsSinceEpoch(expiryTimestamp * 1000)}');
-          }
           
           return {
             'success': true,
@@ -148,14 +123,6 @@ class ApiServiceGroupTickets {
         'message': 'Authentication failed: Invalid response',
       };
     } on DioException catch (e) {
-      if (kDebugMode) {
-        print('❌ Al Saboor Authentication error: ${e.message}');
-        if (e.response != null) {
-          print('Response: ${e.response?.data}');
-        }
-      }
-      
-      // Try to extract error message from response
       String errorMessage = e.message ?? 'Authentication failed';
       if (e.response?.data != null) {
         try {
@@ -178,10 +145,6 @@ class ApiServiceGroupTickets {
         'message': errorMessage,
       };
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Al Saboor Authentication error: $e');
-      }
-      
       return {
         'success': false,
         'message': 'An unexpected error occurred: ${e.toString()}',
@@ -203,21 +166,12 @@ class ApiServiceGroupTickets {
     final expiryTimestamp = prefs.getInt(_tokenExpiryKey);
     
     if (token == null || expiryTimestamp == null) {
-      // No token stored, need to authenticate
-      if (kDebugMode) {
-        print('🔐 No token found, authenticating...');
-      }
       final authResult = await authenticate();
       return authResult['success'] == true ? authResult['token'] as String? : null;
     }
     
-    // Check if token is expired
     final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     if (now >= expiryTimestamp) {
-      // Token expired, authenticate again
-      if (kDebugMode) {
-        print('🔐 Token expired, re-authenticating...');
-      }
       final authResult = await authenticate();
       return authResult['success'] == true ? authResult['token'] as String? : null;
     }
@@ -242,18 +196,11 @@ class ApiServiceGroupTickets {
         };
       }
       
-      // Map group type for API - remove spaces for ONE WAY GROUP
       String apiGroupType = groupType;
       if (groupType == 'ONE WAY GROUP') {
         apiGroupType = 'ONEWAY';
       }
       
-      if (kDebugMode) {
-        print('📋 Fetching $groupType (API: $apiGroupType) from Al Saboor API...');
-      }
-      
-      // According to docs, token is passed as query parameter, not header
-      // Authorization header format: Token YOUR_API_KEY (but token is in query param)
       final response = await dio.get(
         '/groups',
         queryParameters: {
@@ -268,11 +215,6 @@ class ApiServiceGroupTickets {
       );
       
       if (response.statusCode == 200 && response.data != null) {
-        if (kDebugMode) {
-          print('✅ Groups fetched successfully');
-        }
-        
-        // Handle response - it might be a Map or String (JSON string)
         dynamic responseData = response.data;
         if (responseData is String) {
           // Parse JSON string
@@ -290,20 +232,7 @@ class ApiServiceGroupTickets {
         'message': 'Failed to fetch groups',
       };
     } on DioException catch (e) {
-      if (kDebugMode) {
-        print('❌ Error fetching groups: ${e.message}');
-        if (e.response != null) {
-          print('Response: ${e.response?.data}');
-        }
-      }
-      
-      // If unauthorized, try to re-authenticate and retry once
       if (e.response?.statusCode == 401) {
-        if (kDebugMode) {
-          print('🔄 Unauthorized, re-authenticating and retrying...');
-        }
-        
-        // Clear stored token
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
         await prefs.remove(_tokenExpiryKey);
@@ -317,10 +246,6 @@ class ApiServiceGroupTickets {
         'message': e.response?.data?['message'] ?? e.message ?? 'Failed to fetch groups',
       };
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error fetching groups: $e');
-      }
-      
       return {
         'success': false,
         'message': 'An unexpected error occurred: ${e.toString()}',
@@ -431,15 +356,8 @@ class ApiServiceGroupTickets {
         errorMessage = 'Connection timeout. Please check your internet connection.';
       }
 
-      if (kDebugMode) {
-        print('❌ Al Saboor Create Booking error: $errorMessage');
-      }
-
       return {'success': false, 'message': errorMessage};
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Unexpected error creating booking: ${e.toString()}');
-      }
       return {'success': false, 'message': 'An unexpected error occurred: ${e.toString()}'};
     }
   }
@@ -452,10 +370,6 @@ class ApiServiceGroupTickets {
           'success': false,
           'message': 'Failed to get authentication token',
         };
-      }
-
-      if (kDebugMode) {
-        print('📋 Fetching group details for $groupId');
       }
 
       final response = await dio.get(
@@ -487,12 +401,6 @@ class ApiServiceGroupTickets {
         'message': 'Failed to fetch group details',
       };
     } on DioException catch (e) {
-      if (kDebugMode) {
-        print('❌ Error fetching group details: ${e.message}');
-        if (e.response != null) {
-          print('Response: ${e.response?.data}');
-        }
-      }
       if (e.response?.statusCode == 401) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
@@ -504,9 +412,6 @@ class ApiServiceGroupTickets {
         'message': e.response?.data?['message'] ?? e.message ?? 'Failed to fetch group details',
       };
     } catch (e) {
-      if (kDebugMode) {
-        print('❌ Error fetching group details: $e');
-      }
       return {
         'success': false,
         'message': 'An unexpected error occurred: ${e.toString()}',

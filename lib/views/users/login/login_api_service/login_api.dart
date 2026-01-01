@@ -1,6 +1,5 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -21,7 +20,6 @@ class AuthController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Initialize Dio
     dio = Dio(
       BaseOptions(
         baseUrl: _baseUrl,
@@ -30,14 +28,6 @@ class AuthController extends GetxController {
       ),
     );
 
-    // Add logging interceptor in debug mode
-    if (kDebugMode) {
-      dio.interceptors.add(
-        LogInterceptor(requestBody: true, responseBody: true),
-      );
-    }
-
-    // Check login status at startup
     checkLoginStatus();
   }
 
@@ -64,18 +54,12 @@ class AuthController extends GetxController {
       return null; // No token stored
     }
 
-    // Check if token is expired
-    final now =
-        DateTime.now().millisecondsSinceEpoch ~/
-        1000; // Current time in seconds
+    final now = DateTime.now().millisecondsSinceEpoch ~/ 1000;
     if (now >= expiryTimestamp) {
-      if (kDebugMode) {
-        print('Token expired, needs refresh');
-      }
-      return null; // Token expired
+      return null;
     }
 
-    return token; // Valid token
+    return token;
   }
 
   // Store token with expiry and user data
@@ -89,15 +73,6 @@ class AuthController extends GetxController {
     await prefs.setInt(_tokenExpiryKey, expiryTimestamp);
     await prefs.setString(_userDataKey, jsonEncode(userData));
 
-    if (kDebugMode) {
-      final expiryDate = DateTime.fromMillisecondsSinceEpoch(
-        expiryTimestamp * 1000,
-      );
-      print('Token stored, expires on: $expiryDate');
-      print('User data stored: $userData');
-    }
-
-    // Update login status and user data
     isLoggedInValue.value = true;
     this.userData.value = userData;
   }
@@ -125,12 +100,9 @@ class AuthController extends GetxController {
       );
 
       if (response.statusCode == 200 && response.data != null) {
-        // Parse token, expiry and user data
         final token = response.data['token'];
         final expiryTimestamp = response.data['expire'];
         final userData = response.data['UserData'] ?? {};
-        print("user login data");
-        print(userData);
 
         if (token != null && expiryTimestamp != null) {
           // Store token with expiry and user data
@@ -242,15 +214,6 @@ class AuthController extends GetxController {
         }
     }
 
-    // Log the error in debug mode
-    if (kDebugMode) {
-      print('$operation API Error: $errorMessage');
-      if (e.response != null) {
-        print('Response status: ${e.response!.statusCode}');
-        print('Response data: ${e.response!.data}');
-      }
-    }
-
     return {'success': false, 'message': errorMessage};
   }
 
@@ -279,12 +242,6 @@ class AuthController extends GetxController {
         },
       );
 
-      // Debug log the raw response
-      if (kDebugMode) {
-        print('Registration request response: ${response.data}');
-      }
-
-      // Parse the response data
       var responseData = response.data;
       if (responseData is String) {
         try {
@@ -343,10 +300,6 @@ class AuthController extends GetxController {
       isLoading.value = false;
       return _handleDioError(e, 'Registration Request');
     } catch (e) {
-      if (kDebugMode) {
-        print('Registration request exception: ${e.toString()}');
-        print('Stack trace: ${StackTrace.current}');
-      }
       isLoading.value = false;
       return {
         'success': false,
@@ -370,12 +323,6 @@ class AuthController extends GetxController {
         },
       );
 
-      // Debug log the raw response
-      if (kDebugMode) {
-        print('Registration verify response: ${response.data}');
-      }
-
-      // Parse the response data
       var responseData = response.data;
       if (responseData is String) {
         try {
@@ -385,7 +332,6 @@ class AuthController extends GetxController {
         }
       }
 
-      // Check the status field in the response
       if (responseData is Map && responseData.containsKey('status')) {
         // Check if status is error, 400 (OTP mismatch), or 410 (OTP expired)
         if (responseData['status'] == 'error' ||
@@ -434,10 +380,6 @@ class AuthController extends GetxController {
       isLoading.value = false;
       return _handleDioError(e, 'Registration Verify');
     } catch (e) {
-      if (kDebugMode) {
-        print('Registration verify exception: ${e.toString()}');
-        print('Stack trace: ${StackTrace.current}');
-      }
       isLoading.value = false;
       return {
         'success': false,
@@ -445,8 +387,6 @@ class AuthController extends GetxController {
       };
     }
   }
-
-  // Add this method to your AuthController class
 
   Future<Map<String, dynamic>> getHotelBookings() async {
     isLoading.value = true;
@@ -466,16 +406,10 @@ class AuthController extends GetxController {
       // Set up headers with the token
       final headers = {'Authorization': 'Bearer $token'};
 
-      // Make the API request
       final response = await dio.get(
         '$_baseUrl/hotel-booking',
         options: Options(headers: headers),
       );
-
-      // Debug log the response
-      if (kDebugMode) {
-        print('Hotel bookings response: ${response.data}');
-      }
 
       if (response.statusCode == 200) {
         isLoading.value = false;
@@ -503,10 +437,6 @@ class AuthController extends GetxController {
       isLoading.value = false;
       return _handleDioError(e, 'Hotel Bookings');
     } catch (e) {
-      if (kDebugMode) {
-        print('Hotel bookings exception: ${e.toString()}');
-        print('Stack trace: ${StackTrace.current}');
-      }
       isLoading.value = false;
       return {
         'success': false,
@@ -515,7 +445,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // Updated getGroupBookings function with proper null safety handling
   Future<Map<String, dynamic>> getGroupBookings({
     required String fromDate,
     required String toDate,
@@ -546,17 +475,11 @@ class AuthController extends GetxController {
         'to_date': toDate,
       };
 
-      // Make the API request with POST method and date parameters
       final response = await dio.post(
         '$_baseUrl/group-bookings',
         options: Options(headers: headers),
         data: requestData,
       );
-
-      // Debug log the response
-      if (kDebugMode) {
-        print('Group bookings response: ${response.data}');
-      }
 
       if (response.statusCode == 200) {
         isLoading.value = false;
@@ -584,10 +507,6 @@ class AuthController extends GetxController {
       isLoading.value = false;
       return _handleDioError(e, 'Group Bookings');
     } catch (e) {
-      if (kDebugMode) {
-        print('Group bookings exception: ${e.toString()}');
-        print('Stack trace: ${StackTrace.current}');
-      }
       isLoading.value = false;
       return {
         'success': false,
@@ -626,17 +545,11 @@ class AuthController extends GetxController {
         'to_date': toDate,
       };
 
-      // Make the API request with POST method and date parameters
       final response = await dio.post(
         '$_baseUrl/all-flights',
         options: Options(headers: headers),
         data: requestData,
       );
-
-      // Debug log the response
-      if (kDebugMode) {
-        print('Group bookings response: ${response.data}');
-      }
 
       if (response.statusCode == 200) {
         isLoading.value = false;
@@ -664,10 +577,6 @@ class AuthController extends GetxController {
       isLoading.value = false;
       return _handleDioError(e, 'Group Bookings');
     } catch (e) {
-      if (kDebugMode) {
-        print('Group bookings exception: ${e.toString()}');
-        print('Stack trace: ${StackTrace.current}');
-      }
       isLoading.value = false;
       return {
         'success': false,

@@ -2,7 +2,6 @@
 
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
@@ -45,10 +44,7 @@ class ApiServiceHotel extends GetxService {
     try {
       return DateFormat('yyyy-MM-dd').format(DateTime.parse(isoDate));
     } catch (e) {
-      if (kDebugMode) {
-        print('Date formatting error: $e');
-      }
-      return isoDate; // Fallback to the original format if parsing fails.
+      return isoDate;
     }
   }
 
@@ -73,18 +69,7 @@ class ApiServiceHotel extends GetxService {
               "login": 1,
               "email": userEmail
             };
-            if (kDebugMode) {
-              print('Fetching margin for logged-in user: $userEmail');
-            }
           }
-        } else {
-          if (kDebugMode) {
-            print('Fetching margin for guest user');
-          }
-        }
-      } else {
-        if (kDebugMode) {
-          print('AuthController not registered, fetching guest margin');
         }
       }
 
@@ -105,34 +90,16 @@ class ApiServiceHotel extends GetxService {
           try {
             data = json.decode(data);
           } catch (e) {
-            if (kDebugMode) {
-              print('Error decoding margin API response: $e');
-            }
             return;
           }
         }
 
         if (data is Map && data['status'] == 'success') {
-          // Only update margin and ROE - nothing else
           currentROE = double.tryParse(data['currency_roe_to_pkr'].toString()) ?? 296.0;
           currentMargin = double.tryParse(data['margin_per'].toString()) ?? 10.0;
-
-          if (kDebugMode) {
-            print('Updated: ROE=$currentROE, Margin=$currentMargin%');
-          }
-        }
-      } else {
-        if (kDebugMode) {
-          print('Failed to fetch margin: ${response.statusCode}');
         }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching margin and ROE: $e');
-      }
-
-
-
       // Keep default values if API fails
     }
   }
@@ -202,7 +169,6 @@ class ApiServiceHotel extends GetxService {
     }
   }
 
-  // Updated fetchHotels method with margin and ROE
   Future<void> fetchHotels({
     required String destinationCode,
     required String countryCode,
@@ -212,12 +178,8 @@ class ApiServiceHotel extends GetxService {
     required String checkOutDate,
     required List<Map<String, dynamic>> rooms,
   }) async {
-
-    print("checking workinbg");
-
     final searchController = Get.find<SearchHotelController>();
 
-    // Fetch margin and ROE before processing hotels     
     await fetchMarginAndROE();
 
     final requestBody = {
@@ -241,7 +203,6 @@ class ApiServiceHotel extends GetxService {
         "TassProInfo": {"CustomerCode": "4805", "RegionID": "123"},
       },
     };
-    print(requestBody);
 
     try {
       final response = await dio.post(
@@ -252,7 +213,6 @@ class ApiServiceHotel extends GetxService {
 
       if (response.statusCode == 200) {
         final data = response.data;
-        print(response.data);
         final hotels = data['hotels']?['hotel'] ?? [];
         final sessionId = data['generalInfo']?['sessionId'];
         final destinationCode = data['audit']?['destination']['code'];
@@ -260,7 +220,6 @@ class ApiServiceHotel extends GetxService {
         searchController.sessionId.value = sessionId ?? '';
         searchController.destinationCode.value = destinationCode ?? '';
         searchController.hotels.value = hotels.map<Map<String, dynamic>>((hotel) {
-          // Get original price and apply only ROE and margin
           double originalPrice = double.tryParse(hotel['minPrice']?.toString() ?? '0') ?? 0;
           double finalPrice = applyPricingLogic(originalPrice);
 
@@ -276,23 +235,9 @@ class ApiServiceHotel extends GetxService {
             'hotelCity': hotel['hotelInfo']?['city'] ?? '',
           };
         }).toList();
-
-      } else {
-        if (kDebugMode) {
-          print('Failed to fetch hotels: ${response.statusCode}');
-        }
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching hotels: $e');
-      }
-    }
-  }
-
-  void _printLongText(String text) {
-    const int chunkSize = 800;
-    for (var i = 0; i < text.length; i += chunkSize) {
-      print(text.substring(i, i + chunkSize > text.length ? text.length : i + chunkSize));
+      // Error fetching hotels
     }
   }
 
@@ -315,43 +260,22 @@ class ApiServiceHotel extends GetxService {
       );
 
       if (response.statusCode == 200) {
-        if (kDebugMode) {
-          print('Hotel Details Response: ${response.data}');
-        }
-
-        // Handle the case where response.data is a String (JSON string)
         if (response.data is String) {
           try {
             var decodedData = json.decode(response.data);
             return decodedData as Map<String, dynamic>?;
           } catch (e) {
-            if (kDebugMode) {
-              print('Error decoding JSON string: $e');
-            }
             return null;
           }
-        }
-        // Handle the case where response.data is already a Map
-        else if (response.data is Map<String, dynamic>) {
+        } else if (response.data is Map<String, dynamic>) {
           return response.data as Map<String, dynamic>?;
-        }
-        // Handle unexpected response type
-        else {
-          if (kDebugMode) {
-            print('Unexpected response type: ${response.data.runtimeType}');
-          }
+        } else {
           return null;
         }
       } else {
-        if (kDebugMode) {
-          print('Failed to fetch hotel details: ${response.statusMessage}');
-        }
         return null;
       }
     } catch (e) {
-      if (kDebugMode) {
-        print('Error fetching hotel details: $e');
-      }
       return null;
     }
   }
@@ -383,7 +307,6 @@ class ApiServiceHotel extends GetxService {
       "Rooms": {"Room": rooms},
     },
   };
-  print(requestBody);
 
   try {
     final response = await dio.post(
@@ -394,19 +317,11 @@ class ApiServiceHotel extends GetxService {
 
     if (response.statusCode == 200) {
       final data = response.data;
-      final prettyJson = const JsonEncoder.withIndent('  ').convert(response.data);
-      _printLongText(prettyJson);
 
-      // Extract specific hotel info
       final hotelInfo = data['hotel']?['hotelInfo'];
       final roomData = data['hotel']?['rooms']?['room'];
 
-      // Check if hotel info or room data is null/empty
       if (hotelInfo == null || roomData == null || (roomData is List && roomData.isEmpty)) {
-        if (kDebugMode) {
-          print("No hotel info or rooms found in response.");
-        }
-        // Set empty rooms to trigger UI message
         searchController.roomsdata.value = [];
         searchController.hotelName.value = '';
         searchController.image.value = '';
@@ -472,16 +387,10 @@ class ApiServiceHotel extends GetxService {
       }).toList();
 
       searchController.roomsdata.value = updatedRoomData;
-
-      print("Hotel Name: ${hotelInfo['name']}");
-      print("Rooms Count: ${updatedRoomData.length}");
-      print("Applied ROE: $currentROE, Margin: $currentMargin%");
     } else {
-      print("❌ Failed: ${response.statusCode}");
       searchController.roomsdata.value = [];
     }
   } catch (e) {
-    print("❌ Error: $e");
     searchController.roomsdata.value = [];
   }
 }/// Pre-book a room.
@@ -629,34 +538,23 @@ class ApiServiceHotel extends GetxService {
         ),
       );
 
-      print("Request body: $requestBody");
-      print("Raw response: ${response.data}");
-
       if (response.data != null) {
-        // ✅ Agar response string hai to decode karo
         final decoded = response.data is String
             ? jsonDecode(response.data)
             : response.data;
-
-        print("Decoded response: $decoded");
 
         if (decoded is Map && decoded['BookingNO'] != null) {
           String bookingStr = decoded['BookingNO'].toString();
           bookingStr = bookingStr.replaceAll('SHBK-', '');
           bookingcontroller.booking_num.value = int.tryParse(bookingStr) ?? 0;
-
-          print("Saved booking number: ${bookingcontroller.booking_num.value}");
           return true;
         }
       }
 
       return false;
     } on DioException catch (e) {
-      print("Dio error: ${e.message}");
       return false;
     } catch (e, st) {
-      print("General error: $e");
-      print(st);
       return false;
     }
   }

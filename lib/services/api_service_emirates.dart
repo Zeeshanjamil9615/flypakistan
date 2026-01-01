@@ -1,7 +1,6 @@
 // services/api_service_emirates.dart
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:xml/xml.dart' as xml;
 
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
@@ -80,8 +79,6 @@ class ApiServiceEmirates {
               (segment['date'] ?? segment['departureDate'] ?? segment['depDate'] ?? '').trim();
 
           if (originCode.isEmpty || destinationCode.isEmpty || dateValue.isEmpty) {
-            print(
-                '⚠️ Emirates search: Skipping incomplete multi-city segment -> origin: "$originCode", destination: "$destinationCode", date: "$dateValue"');
             continue;
           }
 
@@ -130,8 +127,7 @@ class ApiServiceEmirates {
         if (originsList.length != segmentCount ||
             destinationsList.length != segmentCount ||
             datesList.length != segmentCount) {
-          print(
-              '⚠️ Emirates search: Segment data length mismatch (origins: ${originsList.length}, destinations: ${destinationsList.length}, dates: ${datesList.length}). Using first $segmentCount segment(s).');
+          // Segment data length mismatch - using first segments
         }
 
         for (int i = 0; i < segmentCount; i++) {
@@ -336,13 +332,6 @@ $sectorDetail
         throw Exception('Failed to load Emirates flights: ${response.statusCode}');
       }
     } catch (e, stackTrace) {
-      print('===============================================');
-      print('ERROR IN EMIRATES API');
-      print('===============================================');
-      print('Error: $e');
-      print('Stack Trace: $stackTrace');
-      print('===============================================');
-      
       return {
         'success': false,
         'error': 'Error: ${e.toString()}',
@@ -350,23 +339,6 @@ $sectorDetail
     }
   }
             
-  // Helper method to print large text in chunks
-  void _printLargeText(String text, String label) {
-    const int chunkSize = 800; // Android Studio console limit per print
-    final int length = text.length;
-    
-    // print("📄 $label (Total: $length characters)");
-    // print("───────────────────────────────────────────────");
-    //
-    // for (int i = 0; i < length; i += chunkSize) {
-    //   final end = (i + chunkSize < length) ? i + chunkSize : length;
-    //   final chunk = text.substring(i, end);
-    //   print(chunk);
-    // }
-    //
-    // print("───────────────────────────────────────────────");
-    // print("✅ End of $label\n");
-  }
 
   String _generateTransactionId() {
     return DateTime.now().millisecondsSinceEpoch.toRadixString(16);
@@ -374,12 +346,7 @@ $sectorDetail
 
   Map<String, dynamic> _parseXmlResponse(String xmlResponse) {
     try {
-      // print('=== PARSING XML RESPONSE ===');
-      // print('XML Length: ${xmlResponse.length} characters');
-      // print('===========================');
-      //
       if (xmlResponse.contains('<Error>') || xmlResponse.contains('error')) {
-        print('⚠️ Error detected in XML response');
         return {
           'success': false,
           'error': 'Emirates API returned an error',
@@ -387,31 +354,8 @@ $sectorDetail
         };
       }
       
-      // Parse XML
-      print('📋 Parsing XML document...');
       final document = xml.XmlDocument.parse(xmlResponse);
-      print('✅ XML document parsed successfully');
-      
-      // Extract the structured data we need
-      print('🔍 Extracting structured data...');
       final structuredData = _extractStructuredData(document);
-      
-      print('✅ Structured data extracted successfully');
-      print('Found ${structuredData['offers']?.length ?? 0} offers');
-      
-      // Print detailed offer information
-      if (structuredData['offers'] != null) {
-        print('\n🎫 OFFERS SUMMARY:');
-        print('─────────────────────────────────────');
-        final offers = structuredData['offers'] as List;
-        for (int i = 0; i < offers.length; i++) {
-          print('Offer ${i + 1}/${offers.length}:');
-          print('  OfferID: ${offers[i]['OfferID'] ?? 'N/A'}');
-          print('  Total Price: ${_extractTotalPrice(offers[i])}');
-          print('  OfferItems: ${_countOfferItems(offers[i])}');
-        }
-        print('─────────────────────────────────────\n');
-      }
       
       return {
         'success': true,
@@ -420,8 +364,6 @@ $sectorDetail
         'message': 'XML successfully parsed',
       };
     } catch (e, stackTrace) {
-      print('❌ ERROR parsing XML: $e');
-      print('Stack trace: $stackTrace');
       return {
         'success': false,
         'error': 'Failed to parse XML response: $e',
@@ -467,41 +409,15 @@ $sectorDetail
     final result = <String, dynamic>{};
     
     try {
-      print('🔎 Looking for AirShoppingRS element...');
-      // Navigate to AirShoppingRS
       final airShoppingRS = document.findAllElements('AirShoppingRS').firstOrNull;
       
       if (airShoppingRS == null) {
-        print('❌ AirShoppingRS not found');
         return result;
       }
-      print('✅ AirShoppingRS found');
 
-      // Extract DataLists first (needed for offer enrichment)
-      print('📊 Extracting DataLists...');
       final dataLists = _extractDataLists(airShoppingRS);
       result['DataLists'] = dataLists;
-      print('✅ DataLists extracted');
       
-      // Print DataLists summary
-      print('\n📋 DATA LISTS SUMMARY:');
-      print('─────────────────────────────────────');
-      if (dataLists['FlightSegmentList'] != null) {
-        final segments = dataLists['FlightSegmentList']['FlightSegment'];
-        print('Flight Segments: ${segments is Map ? segments.length : 0}');
-      }
-      if (dataLists['BaggageAllowanceList'] != null) {
-        final baggage = dataLists['BaggageAllowanceList']['BaggageAllowance'];
-        print('Baggage Allowances: ${baggage is Map ? baggage.length : 0}');
-      }
-      if (dataLists['PriceClassList'] != null) {
-        final priceClasses = dataLists['PriceClassList']['PriceClass'];
-        print('Price Classes: ${priceClasses is Map ? priceClasses.length : 0}');
-      }
-      print('─────────────────────────────────────\n');
-      
-      // Extract Offers
-      print('🎯 Extracting Offers...');
       final offersGroup = airShoppingRS.findElements('OffersGroup').firstOrNull;
       if (offersGroup != null) {
         final airlineOffers = offersGroup.findElements('AirlineOffers').firstOrNull;
@@ -514,17 +430,11 @@ $sectorDetail
           }
           
           result['offers'] = offers;
-          print('✅ Extracted ${offers.length} offers');
-        } else {
-          print('⚠️ AirlineOffers not found');
         }
-      } else {
-        print('⚠️ OffersGroup not found');
       }
       
     } catch (e, stackTrace) {
-      print('❌ Error extracting structured data: $e');
-      print('Stack trace: $stackTrace');
+      // Error extracting structured data
     }
     
     return result;
@@ -583,7 +493,7 @@ $sectorDetail
       }
 
     } catch (e) {
-      print('Error extracting DataLists: $e');
+      // Error extracting DataLists
     }
     
     return dataLists;
@@ -660,15 +570,10 @@ $sectorDetail
     final offers = <Map<String, dynamic>>[];
     
     try {
-      debugPrint('🔍 Extracting offers from response...');
-      
-      // Get the data from the response
       final data = response['data'] ?? response;
       
-      // Check if we have the offers array
       if (data.containsKey('offers') && data['offers'] is List) {
         final offersList = data['offers'] as List;
-        debugPrint('✅ Found ${offersList.length} offers in structured data');
         
         for (var offer in offersList) {
           if (offer is Map<String, dynamic>) {
@@ -676,16 +581,11 @@ $sectorDetail
           }
         }
       } else {
-        debugPrint('⚠️ No offers found in structured format, trying alternative extraction...');
-        // Fallback to deep search
         offers.addAll(_deepSearchOffers(data));
       }
       
-      debugPrint('📦 Total offers extracted: ${offers.length}');
-      
     } catch (e, stackTrace) {
-      debugPrint('❌ Error extracting offers: $e');
-      debugPrint('Stack trace: $stackTrace');
+      // Error extracting offers
     }
     
     return offers;
@@ -700,7 +600,6 @@ $sectorDetail
           final currentPath = path.isEmpty ? key : '$path.$key';
           
           if (key == 'Offer' || key == 'offer') {
-            debugPrint('🎯 Found offer at path: $currentPath');
             if (value is Map) {
               offers.add(Map<String, dynamic>.from(value));
             } else if (value is List) {
@@ -722,31 +621,9 @@ $sectorDetail
     }
     
     search(data);
-    debugPrint('🔍 Deep search found ${offers.length} offers');
     return offers;
   }
 
-  void printJsonPretty(dynamic jsonData) {
-    const int chunkSize = 800;
-    final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
-    final int totalLength = jsonString.length;
-    
-    // print('📊 JSON Output (Total: $totalLength characters)');
-    // print('═══════════════════════════════════════════════');
-    //
-    // for (int i = 0; i < totalLength; i += chunkSize) {
-    //   final chunk = jsonString.substring(
-    //     i,
-    //     i + chunkSize < totalLength ? i + chunkSize : totalLength,
-    //   );
-    //   if (kDebugMode) {
-    //     print(chunk);
-    //   }
-    // }
-    //
-    // print('═══════════════════════════════════════════════');
-    // print('✅ End of JSON Output\n');
-  }
   // Add this method to your existing ApiServiceEmirates class
 
 Future<Map<String, dynamic>> createEmiratesNdcPnr({
@@ -755,23 +632,16 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
 }) async {
   try {
     if (selectedOffers.isEmpty) {
-      debugPrint('❌ createEmiratesNdcPnr called without offers.');
       return {
         'success': false,
         'error': 'No offers provided for PNR creation.',
       };
     }
 
-    debugPrint('createEmiratesNdcPnr -> Start');
-    debugPrint('Selected offer count: ${selectedOffers.length}');
-
-    // Build passenger list XML with proper infant linking (matching PHP logic)
     String passengerListXml = '';
     int passengerIndex = 1;
     final passengerRefsOrdered = <String>[];
     final validPassengerIds = <String>{};
-
-    debugPrint('Building passenger XML...');
 
     final int adultCount = bookingController.adults.length;
     final int childCount = bookingController.children.length;
@@ -814,7 +684,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                     </Passenger>''';
 
         infantRef = '<InfantRef>$infantId</InfantRef>';
-        debugPrint('Linked infant to adult index $i with ID $infantId');
       }
 
       passengerListXml += '''
@@ -843,9 +712,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                      </Passenger>''';
 
       passengerListXml += infantDetails;
-
-      debugPrint(
-          'Added adult passenger: ${adult.firstNameController.text} ${adult.lastNameController.text}');
 
       passengerIndex++;
     }
@@ -883,16 +749,11 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
 
       passengerListXml += ''' 
                      </Passenger>''';
-      debugPrint(
-          'Added child passenger: ${child.firstNameController.text} ${child.lastNameController.text}');
       passengerIndex++;
     }
 
     final defaultPassengerRefs =
         passengerRefsOrdered.isNotEmpty ? passengerRefsOrdered.join(' ') : 'T1';
-
-    debugPrint('PassengerRefs (default): $defaultPassengerRefs');
-    debugPrint('Total Adults: $adultCount, Children: $childCount, Infants: $infantCount');
 
     final resolvedOffers = <Map<String, dynamic>>[];
     final seenOfferKeys = <String>{};
@@ -911,7 +772,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
           extractedOfferId.isNotEmpty ? extractedOfferId : offerIdFromEntry;
 
       if (resolvedOfferId.isEmpty) {
-        debugPrint('⚠️ Skipping offer[$index]: Unable to resolve OfferID.');
         continue;
       }
 
@@ -919,7 +779,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       final responseId = _resolveResponseId(offerData, resolvedOfferId);
 
       if (responseId.isEmpty) {
-        debugPrint('⚠️ Skipping offer[$index]: Unable to resolve ResponseID for $resolvedOfferId.');
         continue;
       }
 
@@ -949,8 +808,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
 
       if (resolvedItems.isEmpty) {
         final fallbackItemId = '$resolvedOfferId-1';
-        debugPrint(
-            '⚠️ Offer $resolvedOfferId has no OfferItem data; using fallback OfferItemID $fallbackItemId');
         resolvedItems.add({
           'id': fallbackItemId,
           'passengerRefs': defaultPassengerRefs,
@@ -959,7 +816,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
 
       final dedupeKey = '${resolvedOfferId}::${resolvedItems.map((e) => e['id']).join(',')}';
       if (seenOfferKeys.contains(dedupeKey)) {
-        debugPrint('⚠️ Skipping duplicate offer entry for $resolvedOfferId');
         continue;
       }
       seenOfferKeys.add(dedupeKey);
@@ -979,17 +835,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
       };
     }
 
-    debugPrint('Resolved offers for OrderCreate:');
-    for (final offer in resolvedOffers) {
-      final items = offer['items'] as List<Map<String, String>>;
-      debugPrint(
-          '  Offer ${offer['offerId']} (ResponseID: ${offer['responseId']}, Owner: ${offer['owner']}) -> ${items.length} item(s)');
-      for (final item in items) {
-        debugPrint(
-            '    - OfferItem ${item['id']} | PassengerRefs: ${item['passengerRefs']}');
-      }
-    }
-
     final offersXmlBuffer = StringBuffer();
     for (final offer in resolvedOffers) {
       offersXmlBuffer.writeln(
@@ -1005,7 +850,6 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
 
     final offersXml = offersXmlBuffer.toString();
 
-    // ✅ Using EPAO/travelocity credentials (PROD) to match working PHP implementation
     final xmlData =
         '''<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
   <SOAP-ENV:Header>
@@ -1078,9 +922,6 @@ $passengerListXml
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>''';
 
-    debugPrint('XML payload prepared (length: ${xmlData.length})');
-
-    // ✅ Matching headers with EPAO/travelocity credential set
     final headers = {
       'Ocp-Apim-Subscription-Key': '0d3150002a8b417082aab2be54bb963a',
       'SOAPAction': 'OrderCreateRQ',
@@ -1094,9 +935,6 @@ $passengerListXml
       'Content-Type': 'application/xml',
     };
 
-    debugPrint('Headers set: $headers');
-
-    // ✅ Use production endpoint (same as PHP script)
     final response = await _dio.request(
       'https://ek.farelogix.com:443/prod/oc',
       options: Options(
@@ -1122,22 +960,7 @@ $passengerListXml
     
     if (response.statusCode == 200) {
       parsedResponse = _parsePnrResponse(response.data.toString());
-
-      debugPrint("\n📋 === PNR PARSING RESULT ===");
-      debugPrint("Success: ${parsedResponse['success']}");
-      if (parsedResponse['success']) {
-        debugPrint("PNR: ${parsedResponse['pnr']}");
-        debugPrint("Order ID: ${parsedResponse['orderId']}");
-        debugPrint("Total Price: ${parsedResponse['totalPrice']}");
-      } else {
-        debugPrint("Error: ${parsedResponse['error']}");
-      }
-      debugPrint("============================\n");
     } else {
-      debugPrint("\n❌ SERVER ERROR RESPONSE:");
-      debugPrint("Status: ${response.statusCode}");
-      debugPrint("Response: ${response.data}");
-
       parsedResponse = {
         'success': false,
         'error': 'Server error ${response.statusCode}: ${response.data}',
@@ -1152,15 +975,11 @@ $passengerListXml
         bookingController: bookingController,
       );
     } catch (saveError) {
-      debugPrint('⚠️ Failed to save booking after PNR creation: $saveError');
       // Don't throw - continue with PNR response
     }
 
     return parsedResponse;
   } catch (e, stackTrace) {
-    debugPrint('❌ ERROR creating Emirates PNR: $e');
-    debugPrint('Stack trace: $stackTrace');
-    
     final errorResponse = {
       'success': false,
       'error': 'Error: ${e.toString()}',
@@ -1174,7 +993,7 @@ $passengerListXml
         bookingController: bookingController,
       );
     } catch (saveError) {
-      debugPrint('⚠️ Failed to save booking after PNR error: $saveError');
+      // Ignore save error
     }
 
     return errorResponse;
@@ -1381,18 +1200,6 @@ String _deepSearchForResponseId(dynamic node) {
 
         final headers = _buildOfferPriceHeaders(credential);
 
-        debugPrint("===============================================");
-        debugPrint("EMIRATES OFFER PRICE REQUEST (${credential.credentialName})");
-        debugPrint("===============================================");
-        debugPrint("URL: ${credential.endpoint}");
-        debugPrint("Headers:");
-        headers.forEach((key, value) {
-          debugPrint("  $key: $value");
-        });
-        debugPrint("XML Body:");
-        _printLargeText(xmlData, "OFFER PRICE REQUEST XML");
-        debugPrint("===============================================\n");
-
       Map<String, dynamic>? lastError;
 
         try {
@@ -1406,14 +1213,6 @@ String _deepSearchForResponseId(dynamic node) {
             ),
             data: xmlData,
           );
-
-          debugPrint("===============================================");
-          debugPrint("EMIRATES OFFER PRICE RESPONSE (${credential.credentialName})");
-          debugPrint("===============================================");
-          debugPrint("Status Code: ${response.statusCode}");
-          debugPrint("Response Length: ${response.data.toString().length} characters");
-          _printLargeText(response.data.toString(), "OFFER PRICE RESPONSE XML");
-          debugPrint("===============================================\n");
 
           if (response.statusCode == 200) {
             final parsedResponse = _parseOfferPriceResponse(response.data.toString());
@@ -1430,8 +1229,6 @@ String _deepSearchForResponseId(dynamic node) {
 
           lastError = errorMap;
         } catch (e, stackTrace) {
-          debugPrint('❌ ERROR pricing Emirates offer with ${credential.credentialName}: $e');
-          debugPrint('Stack trace: $stackTrace');
           lastError = {
             'success': false,
             'error': 'Error (${credential.credentialName}): ${e.toString()}',
@@ -1444,8 +1241,6 @@ String _deepSearchForResponseId(dynamic node) {
             'error': 'Offer pricing failed',
           };
     } catch (e, stackTrace) {
-      debugPrint('❌ ERROR pricing Emirates offer: $e');
-      debugPrint('Stack trace: $stackTrace');
       return {
         'success': false,
         'error': 'Error: ${e.toString()}',
@@ -1693,8 +1488,6 @@ Map<String, dynamic> _parseOfferPriceResponse(String xmlResponse) {
       'message': 'Offer priced successfully',
     };
   } catch (e, stackTrace) {
-    debugPrint('❌ ERROR parsing OfferPrice response: $e');
-    debugPrint('Stack trace: $stackTrace');
     return {
       'success': false,
       'error': 'Failed to parse OfferPrice response: $e',
@@ -1800,11 +1593,8 @@ Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
       'rawResponse': xmlResponse,
     };
   } catch (e, stackTrace) {
-    debugPrint('❌ Error parsing PNR response: $e');
-    debugPrint('Stack trace: $stackTrace');
     return {
       'success': false,
-      
       'error': 'Failed to parse PNR response: $e',
     };
   }
@@ -1835,16 +1625,12 @@ String _buildIdentityDocumentBlock({
                          </IdentityDocument>''';
 }
 
-// Save Emirates booking to company portal
 Future<Map<String, dynamic>> saveEmiratesBooking({
   required List<Map<String, dynamic>> selectedOffers,
   required Map<String, dynamic> pnrResponse,
   required dynamic bookingController,
 }) async {
   try {
-    debugPrint('💾 Saving Emirates booking to portal...');
-
-    // Prepare booking info
     final bookingInfo = {
       "bfname": bookingController.firstNameController.text,
       "blname": bookingController.lastNameController.text,
@@ -1924,10 +1710,6 @@ Future<Map<String, dynamic>> saveEmiratesBooking({
       "gds": "Emirates"
     };
 
-    debugPrint("💾 Emirates Booking Request Body:");
-    debugPrint("PNR: $pnr, Status: $pnrStatus, Price: $totalPrice");
-
-    // Configure Dio
     final dio = Dio(
       BaseOptions(
         baseUrl: 'https://readyflights.pk/api/',
@@ -1943,9 +1725,7 @@ Future<Map<String, dynamic>> saveEmiratesBooking({
     // Make the API call
     final response = await dio.post('flight-booking', data: requestBody);
 
-    // Handle response
     if (response.statusCode == 200 || response.statusCode == 201) {
-      debugPrint("✅ Emirates booking saved successfully");
       if (response.data is Map<String, dynamic>) {
         return response.data;
       } else if (response.data is String) {
@@ -1953,13 +1733,9 @@ Future<Map<String, dynamic>> saveEmiratesBooking({
       }
       return {'status': 'success'};
     } else {
-      debugPrint("⚠️ Failed to save Emirates booking: ${response.statusCode}");
       throw Exception('Failed to save booking: ${response.statusMessage}');
     }
   } catch (e, stackTrace) {
-    debugPrint('❌ Error saving Emirates booking: $e');
-    debugPrint('Stack trace: $stackTrace');
-    // Don't throw - just log the error
     return {
       'success': false,
       'error': 'Error saving booking: ${e.toString()}',
@@ -1990,7 +1766,7 @@ double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
       }
     }
   } catch (e) {
-    debugPrint('Error extracting total price: $e');
+    // Error extracting total price
   }
   return totalPrice > 0 ? totalPrice : 0.0;
 }
@@ -2025,7 +1801,7 @@ double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
         _airlineMap = tempAirlineMap;
       }
     } catch (e) {
-      debugPrint('Error fetching airline data: $e');
+      // Error fetching airline data
     }
 
     return tempAirlineMap;
@@ -2172,8 +1948,7 @@ Future<List<Map<String, dynamic>>> _prepareEmiratesFlightData(List<Map<String, d
       }
     }
   } catch (e, stackTrace) {
-    debugPrint('❌ Error preparing Emirates flight data: $e');
-    debugPrint('Stack trace: $stackTrace');
+    // Error preparing Emirates flight data
   }
 
   return flights;

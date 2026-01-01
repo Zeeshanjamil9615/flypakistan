@@ -1,29 +1,11 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-import 'package:xml2json/xml2json.dart';
 
 class ApiServiceAirArabia {
   final Dio _dio = Dio();
 
-  // Helper method to print full request details
-  void printFullRequest(String methodName, String url, Map<String, dynamic> headers, Map<String, dynamic> data) {
-    print("===============================================");
-    print("$methodName - FULL REQUEST DETAILS");
-    print("===============================================");
-    print("URL: $url");
-    print("Method: POST");
-    print("Headers:");
-    headers.forEach((key, value) {
-      print("  $key: $value");
-    });
-    print("Request Body:");
-    debugPrint(const JsonEncoder.withIndent('  ').convert(data), wrapWidth: 1024);
-    print("===============================================");
-  }
-
-  // NEW: Get Air Arabia margin
+  // Get Air Arabia margin
   Future<Map<String, dynamic>> getAirArabiaMargin(String? email) async {
     try {
       final headers = {
@@ -34,9 +16,6 @@ class ApiServiceAirArabia {
         if (email != null && email.isNotEmpty) "email": email,
       };
 
-      print("Air Arabia Margin Request *********************");
-      print(data);
-
       final response = await _dio.request(
         'https://readyflights.pk/api/flight-margin-arabia',
         options: Options(
@@ -45,9 +24,6 @@ class ApiServiceAirArabia {
         ),
         data: data,
       );
-
-      print("*************** Air Arabia Margin Response *********");
-      print(response.data);
 
       if (response.statusCode == 200) {
         if (response.data is String) {
@@ -58,8 +34,6 @@ class ApiServiceAirArabia {
         throw Exception('Failed to get Air Arabia margin: ${response.statusMessage}');
       }
     } catch (e) {
-      print('Error getting Air Arabia margin: $e');
-      // Return default margin on error
       return {
         'margin_val': '0.00',
         'margin_per': 0,
@@ -73,31 +47,21 @@ class ApiServiceAirArabia {
       final marginVal = double.tryParse(marginData['margin_val']?.toString() ?? '0') ?? 0.0;
       final marginPer = double.tryParse(marginData['margin_per']?.toString() ?? '0') ?? 0.0;
 
-      // Validate that at least one margin type has a value
       if (marginVal == 0 && marginPer == 0) {
-        print('Warning: Both margin values are zero, returning base price');
-        // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
         return basePrice.ceil().toDouble();
       }
 
-      // Apply percentage margin first (if exists)
       double finalPrice = basePrice;
       if (marginPer > 0) {
         finalPrice = basePrice * (1 + (marginPer / 100));
-        print('Applied percentage margin: $marginPer% -> Price: $finalPrice');
       }
 
-      // Add value margin (if exists)
       if (marginVal > 0) {
         finalPrice += marginVal;
-        print('Added value margin: $marginVal -> Final Price: $finalPrice');
       }
 
-      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
       return finalPrice.ceil().toDouble();
     } catch (e) {
-      print('Error calculating margin: $e');
-      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
       return basePrice.ceil().toDouble();
     }
   }
@@ -228,7 +192,6 @@ class ApiServiceAirArabia {
         throw Exception('Failed to load Air Arabia packages: ${response.statusMessage}');
       }
     } catch (e) {
-      print('Error getting Air Arabia packages: $e');
       rethrow;
     }
   }
@@ -305,7 +268,6 @@ class ApiServiceAirArabia {
         throw Exception('Failed to revalidate Air Arabia package: ${response.statusMessage}');
       }
     } catch (e) {
-      print('Error revalidating Air Arabia package: $e');
       rethrow;
     }
   }
@@ -415,48 +377,7 @@ class ApiServiceAirArabia {
         throw Exception('Failed to create Air Arabia booking: ${response.statusMessage}');
       }
     } catch (e) {
-      print('Error creating Air Arabia booking: $e');
       rethrow;
-    }
-  }
-
-  Map<String, dynamic> _convertXmlToJson(String xmlString) {
-    try {
-      final transformer = Xml2Json();
-      transformer.parse(xmlString);
-      final jsonString = transformer.toGData();
-      return jsonDecode(jsonString) as Map<String, dynamic>;
-    } catch (e) {
-      return {'error': 'Failed to parse XML response'};
-    }
-  }
-
-  void printDebugData(String label, dynamic data) {
-    if (data is String && data.trim().startsWith('<')) {
-      try {
-        final jsonData = _convertXmlToJson(data);
-        printJsonPretty(jsonData);
-      } catch (e) {
-        if (kDebugMode) {
-          print('Error converting XML to JSON: $e');
-        }
-      }
-    } else {
-      printJsonPretty(data);
-    }
-  }
-
-  void printJsonPretty(dynamic jsonData) {
-    const int chunkSize = 1000;
-    final jsonString = const JsonEncoder.withIndent('  ').convert(jsonData);
-    for (int i = 0; i < jsonString.length; i += chunkSize) {
-      final chunk = jsonString.substring(
-        i,
-        i + chunkSize < jsonString.length ? i + chunkSize : jsonString.length,
-      );
-      if (kDebugMode) {
-        print(chunk);
-      }
     }
   }
 }
