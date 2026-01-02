@@ -391,7 +391,7 @@ extension FlightDateTimeExtension on SabreFlightController {
           // Fetch margin for this airline if not already cached (MUST be before packages processing)
           if (!marginCache.containsKey(airlineCode)) {
             try {
-              final margin = await apiService.getMargin(airlineCode, 'sabre');
+              final margin = await apiService.getMargin(airlineCode, 'sabre', "Sabre");
               marginCache[airlineCode] = margin;
             } catch (e) {
               // If margin fetch fails, use empty margin (will return buying price)
@@ -623,7 +623,7 @@ extension FlightDateTimeExtension on SabreFlightController {
             // Fetch margin for this airline if not cached
             if (!marginCache.containsKey(airlineCode)) {
               try {
-                final margin = await apiService.getMargin(airlineCode, 'sabre');
+                final margin = await apiService.getMargin(airlineCode, 'sabre', "Sabre");
                 marginCache[airlineCode] = margin;
               } catch (e) {
                 // If margin fetch fails, use empty margin (will return buying price)

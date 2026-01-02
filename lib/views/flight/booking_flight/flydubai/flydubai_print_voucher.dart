@@ -212,7 +212,7 @@ class _FlyDubaiBookingDetailsScreenState extends State<FlyDubaiBookingDetailsScr
     try {
       if (marginData.isEmpty) {
         final apiService = Get.find<ApiServiceSabre>();
-        marginData = await apiService.getMargin(widget.outboundFlight.airlineCode, widget.outboundFlight.airlineName);
+        marginData = await apiService.getMargin(widget.outboundFlight.airlineCode, widget.outboundFlight.airlineName, "Fly dubai voucher");
       }
     } catch (e) {}
   }

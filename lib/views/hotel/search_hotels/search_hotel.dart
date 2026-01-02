@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:get/get.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
@@ -167,63 +168,73 @@ class _HotelScreenState extends State<HotelScreen> {
       ),
       body: Column(
         children: [
-          // Header Section with Search Text Field and Buttons
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Search Text Field
-                SizedBox(
-                  height: 50,
-                  child: TextField(
-                    style: const TextStyle(color: Colors.black87),
-                    onChanged: (value) {
-                      controller.searchHotelsByName(value);
-                    },
-                    decoration: InputDecoration(
-                      hintText: 'Search for hotels...',
-                      hintStyle: TextStyle(color: Colors.grey.shade600),
-                      prefixIcon: Icon(Icons.search, color: TColors.primary),
-                      fillColor: Colors.white,
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade200),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: TColors.primary),
+          // Header Section with Search Text Field and Buttons - Only show when not loading
+          Obx(() {
+            if (controller.isLoading.value) {
+              return const SizedBox.shrink();
+            }
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Search Text Field
+                  SizedBox(
+                    height: 50,
+                    child: TextField(
+                      style: const TextStyle(color: Colors.black87),
+                      onChanged: (value) {
+                        controller.searchHotelsByName(value);
+                      },
+                      decoration: InputDecoration(
+                        hintText: 'Search for hotels...',
+                        hintStyle: TextStyle(color: Colors.grey.shade600),
+                        prefixIcon: Icon(Icons.search, color: TColors.primary),
+                        fillColor: Colors.white,
+                        filled: true,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: Colors.grey.shade200),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: BorderSide(color: TColors.primary),
+                        ),
                       ),
                     ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                // Buttons: Filter, Sort, Price
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    _buildButton(context, Icons.filter_list, 'Filter', () {
-                      showFilterSheet(context);
-                    }),
-                    _buildButton(context, Icons.sort, 'Sort', () {
-                      _showSortOptionsBottomSheet(context, controller);
-                    }),
-                    _buildButton(context, Icons.attach_money, 'Price', () {
-                      _showPriceRangeBottomSheet(context, controller);
-                    }),
-                  ],
-                ),
-              ],
-            ),
-          ),
+                  const SizedBox(height: 16),
+                  // Buttons: Filter, Sort, Price
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildButton(context, Icons.filter_list, 'Filter', () {
+                        showFilterSheet(context);
+                      }),
+                      _buildButton(context, Icons.sort, 'Sort', () {
+                        _showSortOptionsBottomSheet(context, controller);
+                      }),
+                      _buildButton(context, Icons.attach_money, 'Price', () {
+                        _showPriceRangeBottomSheet(context, controller);
+                      }),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          }),
           // Hotel List Section
           Expanded(
             child: Obx(() {
+              // Show skeleton loader when loading
+              if (controller.isLoading.value) {
+                return _buildInitialLoadingState(context);
+              }
+              
               var hotels = controller.hotels;
               if (hotels.isEmpty) {
                 return const Center(
@@ -484,6 +495,143 @@ class _HotelScreenState extends State<HotelScreen> {
           },
         );
       },
+    );
+  }
+
+  Widget _buildInitialLoadingState(BuildContext context) {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildSkeletonBar(widthFactor: 0.6),
+            const SizedBox(height: 12),
+            _buildSkeletonBar(widthFactor: 0.45),
+            const SizedBox(height: 24),
+            _buildLoadingInfoCard(context),
+            const SizedBox(height: 24),
+            ...List.generate(3, (index) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: _buildSkeletonCard(),
+              );
+            }),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingInfoCard(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 20,
+            offset: const Offset(0, 12),
+          ),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SvgPicture.asset(
+            'assets/images/hotel-search.svg',
+            height: 160,
+          ),
+          const SizedBox(height: 24),
+          const Text(
+            'Please wait while we are searching best hotel deals for you',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 16,
+              color: TColors.text,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 12),
+          const Text(
+            'Our payment plans are flexible—you can pay cash, bank transfer, or choose to pay by credit card.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              color: TColors.grey,
+              height: 1.4,
+            ),
+          ),
+          const SizedBox(height: 20),
+          const SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(strokeWidth: 3),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonBar({required double widthFactor}) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 14,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            colors: [
+              Colors.grey.shade200,
+              Colors.grey.shade100,
+              Colors.grey.shade200,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSkeletonCard() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.03),
+            blurRadius: 12,
+            offset: const Offset(0, 6),
+          ),
+        ],
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSkeletonLine(widthFactor: 0.5),
+          const SizedBox(height: 12),
+          _buildSkeletonLine(widthFactor: 0.8),
+          const SizedBox(height: 12),
+          _buildSkeletonLine(widthFactor: 0.65),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonLine({required double widthFactor}) {
+    return FractionallySizedBox(
+      widthFactor: widthFactor,
+      child: Container(
+        height: 12,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          color: Colors.grey.shade200,
+        ),
+      ),
     );
   }
 }

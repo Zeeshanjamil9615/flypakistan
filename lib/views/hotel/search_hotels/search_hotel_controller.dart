@@ -12,6 +12,9 @@ class SearchHotelController extends GetxController {
   final RxList<Map<String, dynamic>> originalHotels =
       <Map<String, dynamic>>[].obs;
   final RxList<bool> selectedRatings = List<bool>.filled(5, false).obs;
+  
+  // Loading state
+  final isLoading = false.obs;
 
   var dio = Dio();
 

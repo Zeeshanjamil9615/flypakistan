@@ -86,8 +86,6 @@ class AirBlueFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
     final segmentCount = bookingController.cityPairs.length;
 
-    print('DEBUG: Initializing multi-city selection for $segmentCount segments');
-
     // Clear and initialize lists with correct size
     selectedMultiCityFlights.clear();
     selectedMultiCityFareOptions.clear();
@@ -100,9 +98,6 @@ class AirBlueFlightController extends GetxController {
 
     // Start from segment 0 (0-based indexing)
     currentMultiCitySegment.value = 0;
-
-    print('DEBUG: Initialized lists with ${selectedMultiCityFlights.length} segments each');
-    print('DEBUG: Starting with segment 0');
   }
 
   // FIXED: Check if all multi-city segments are selected
@@ -110,23 +105,16 @@ class AirBlueFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
     final requiredSegments = bookingController.cityPairs.length;
 
-    print('DEBUG: Checking if all segments selected - Required: $requiredSegments');
-    print('DEBUG: Current flights list size: ${selectedMultiCityFlights.length}');
-    print('DEBUG: Current options list size: ${selectedMultiCityFareOptions.length}');
-
     // Check if we have selections for all segments
     for (int i = 0; i < requiredSegments; i++) {
       bool flightMissing = i >= selectedMultiCityFlights.length || selectedMultiCityFlights[i] == null;
       bool fareOptionMissing = i >= selectedMultiCityFareOptions.length || selectedMultiCityFareOptions[i] == null;
-
-      print('DEBUG: Segment $i - Flight missing: $flightMissing, Fare option missing: $fareOptionMissing');
 
       if (flightMissing || fareOptionMissing) {
         return false;
       }
     }
 
-    print('DEBUG: All segments are selected!');
     return true;
   }
 
@@ -135,25 +123,16 @@ class AirBlueFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
     final requiredSegments = bookingController.cityPairs.length;
 
-    print('DEBUG: Looking for next unselected segment');
-    print('DEBUG: Required segments: $requiredSegments');
-    print('DEBUG: Current selectedMultiCityFlights: ${selectedMultiCityFlights.length}');
-    print('DEBUG: Current selectedMultiCityFareOptions: ${selectedMultiCityFareOptions.length}');
-
     for (int i = 0; i < requiredSegments; i++) {
       // Check if this segment needs both flight and fare option
       bool flightMissing = i >= selectedMultiCityFlights.length || selectedMultiCityFlights[i] == null;
       bool fareOptionMissing = i >= selectedMultiCityFareOptions.length || selectedMultiCityFareOptions[i] == null;
 
-      print('DEBUG: Segment $i - Flight missing: $flightMissing, Fare option missing: $fareOptionMissing');
-
       if (flightMissing || fareOptionMissing) {
-        print('DEBUG: Next unselected segment found: $i');
         return i;
       }
     }
 
-    print('DEBUG: All segments selected, returning -1');
     return -1; // All segments selected
   }
 
@@ -172,7 +151,7 @@ class AirBlueFlightController extends GetxController {
       // Fetch margin for AirBlue (airline code PA)
       Map<String, dynamic> marginData = {};
       try {
-        marginData = await apiService.getMargin('PA', 'blue');
+        marginData = await apiService.getMargin('PA', 'blue', "Air Blue");
       } catch (e) {
         print('DEBUG: Error fetching AirBlue margin: $e');
       }
@@ -208,7 +187,6 @@ class AirBlueFlightController extends GetxController {
             }
             flightsByRefNumber[segmentIndex]!.add(Map<String, dynamic>.from(itinerary));
           } catch (e) {
-            print('DEBUG: Error processing itinerary: $e');
           }
         }
       } else if (pricedItineraries is Map) {
@@ -217,15 +195,11 @@ class AirBlueFlightController extends GetxController {
           final segmentIndex = refNumber - 1; // Convert to 0-based index
           flightsByRefNumber[segmentIndex] = [Map<String, dynamic>.from(pricedItineraries)];
         } catch (e) {
-          print('DEBUG: Error processing single itinerary: $e');
         }
       }
 
-      print('DEBUG: Found flights for segments: ${flightsByRefNumber.keys.toList()}');
-
       // Process each segment's flights
       flightsByRefNumber.forEach((segmentIndex, itineraries) {
-        print('DEBUG: Processing segment $segmentIndex with ${itineraries.length} itineraries');
 
         // Group itineraries by RPH for this segment
         Map<String, List<Map<String, dynamic>>> itinerariesByRPH = {};
@@ -240,7 +214,6 @@ class AirBlueFlightController extends GetxController {
             }
             itinerariesByRPH[rph]!.add(itinerary);
           } catch (e) {
-            print('DEBUG: Error processing itinerary RPH: $e');
           }
         }
 
@@ -266,7 +239,6 @@ class AirBlueFlightController extends GetxController {
                 );
                 fareOptions.add(AirBlueFareOption.fromFlight(flight, itinerary));
               } catch (e) {
-                print('DEBUG: Error creating fare option: $e');
               }
             }
 
@@ -288,8 +260,6 @@ class AirBlueFlightController extends GetxController {
 
               fareOptionsByRPH[fareKey] = fareOptions;
 
-              print('DEBUG: Storing fare options with key: $fareKey (${fareOptions.length} options)');
-
               final lowestPriceOption = fareOptions.first;
               // Get buying price for representative flight
               final repPricingInfo = lowestPriceOption.rawData['AirItineraryPricingInfo'];
@@ -304,11 +274,8 @@ class AirBlueFlightController extends GetxController {
               ).copyWithFareOptions(fareOptions);
 
               segmentFlights.add(representativeFlight);
-
-              print('DEBUG: Added flight for segment $segmentIndex, RPH $rph');
             }
           } catch (e) {
-            print('DEBUG: Error processing RPH $rph: $e');
           }
         });
 
@@ -321,8 +288,6 @@ class AirBlueFlightController extends GetxController {
           if (segmentIndex == 0) {
             _originalFlights.addAll(segmentFlights);
           }
-
-          print('DEBUG: Stored ${segmentFlights.length} flights for segment $segmentIndex');
         }
       });
 
@@ -332,12 +297,9 @@ class AirBlueFlightController extends GetxController {
       // Initialize filtered flights with segment 0 flights
       filteredFlights.assignAll(_originalFlights);
 
-      print('DEBUG: Total segments with flights: ${flightsBySegment.length}');
-      print('DEBUG: Original flights (segment 0): ${_originalFlights.length}');
-
     } catch (e) {
       errorMessage.value = 'Failed to load AirBlue flights: $e';
-      print('DEBUG: Error in parseApiResponse: $e');
+      print('Error in parseApiResponse: $e');
     } finally {
       isLoading.value = false;
     }
@@ -390,21 +352,16 @@ class AirBlueFlightController extends GetxController {
       rphKey = flight.rph;
     }
 
-    print('DEBUG: Getting fare options for flight with RPH: ${flight.rph}');
-    print('DEBUG: Using key: $rphKey');
-    print('DEBUG: Available keys: ${fareOptionsByRPH.keys.toList()}');
+
 
     // Rest of the method remains the same...
     final options = fareOptionsByRPH[rphKey] ?? [];
 
     if (options.isEmpty) {
-      print('DEBUG: No options found for key $rphKey, trying fallback approaches');
-
       // Fallback 1: Try without segment prefix for multi-city
       if (tripType == TripType.multiCity) {
         final fallbackOptions = fareOptionsByRPH[flight.rph] ?? [];
         if (fallbackOptions.isNotEmpty) {
-          print('DEBUG: Found ${fallbackOptions.length} options without segment prefix');
           return fallbackOptions;
         }
       }
@@ -416,7 +373,6 @@ class AirBlueFlightController extends GetxController {
           .toList();
 
       if (matchingOptions.isNotEmpty) {
-        print('DEBUG: Found ${matchingOptions.length} options by RPH matching');
         return matchingOptions;
       }
     }
@@ -425,15 +381,9 @@ class AirBlueFlightController extends GetxController {
   }// ALSO NEED TO FIX: Update the AirBluePackageSelectionDialog usage
 // The issue is also in how the fare options are retrieved in the dialog// FIXED: Handle flight selection - properly store flight immediately
   void handleMultiCityFlightSelection(AirBlueFlight flight, int segmentIndex) {
-    print('DEBUG: handleMultiCityFlightSelection called with segment $segmentIndex');
-
     // Ensure the lists are properly sized
     final bookingController = Get.find<FlightBookingController>();
     final requiredSize = bookingController.cityPairs.length;
-
-    print('DEBUG: Required size: $requiredSize');
-    print('DEBUG: Current flights list size: ${selectedMultiCityFlights.length}');
-    print('DEBUG: Current options list size: ${selectedMultiCityFareOptions.length}');
 
     // Ensure both lists have the correct size
     while (selectedMultiCityFlights.length < requiredSize) {
@@ -446,10 +396,6 @@ class AirBlueFlightController extends GetxController {
     // Store the flight IMMEDIATELY
     selectedMultiCityFlights[segmentIndex] = flight;
     currentMultiCitySegment.value = segmentIndex;
-
-    print('DEBUG: Flight stored for segment $segmentIndex');
-    print('DEBUG: Flight route: ${flight.legSchedules.first['departure']['airport']} -> ${flight.legSchedules.last['arrival']['airport']}');
-    print('DEBUG: Selected flights after storage: ${selectedMultiCityFlights.map((f) => f != null ? '${f!.legSchedules.first['departure']['airport']}->${f.legSchedules.last['arrival']['airport']}' : 'null').toList()}');
 
     // Open package selection
     Get.off(
@@ -468,9 +414,6 @@ class AirBlueFlightController extends GetxController {
     final flightBookingController = Get.find<FlightBookingController>();
     final requiredSize = flightBookingController.cityPairs.length;
 
-    print('DEBUG: handleMultiCityPackageSelection called with segment $segmentIndex');
-    print('DEBUG: Required segments: $requiredSize');
-
     // Ensure the fare options list is properly sized
     while (selectedMultiCityFareOptions.length < requiredSize) {
       selectedMultiCityFareOptions.add(null);
@@ -478,21 +421,6 @@ class AirBlueFlightController extends GetxController {
 
     // Store the fare option
     selectedMultiCityFareOptions[segmentIndex] = option;
-
-    print('DEBUG: Package selected for segment $segmentIndex');
-    print('DEBUG: Package brand: ${option.brandName}');
-
-    // Print current selections for debugging
-    for (int i = 0; i < requiredSize; i++) {
-      final hasF = i < selectedMultiCityFlights.length && selectedMultiCityFlights[i] != null;
-      final hasO = i < selectedMultiCityFareOptions.length && selectedMultiCityFareOptions[i] != null;
-      print('DEBUG: Segment $i - Flight: $hasF, Option: $hasO');
-      if (hasF && hasO) {
-        final flight = selectedMultiCityFlights[i]!;
-        final option = selectedMultiCityFareOptions[i]!;
-        print('DEBUG: Segment $i - Route: ${flight.legSchedules.first['departure']['airport']}->${flight.legSchedules.last['arrival']['airport']}, Package: ${option.brandName}');
-      }
-    }
 
     // Force trigger the reactive update
     selectedMultiCityFlights.refresh();
@@ -502,10 +430,8 @@ class AirBlueFlightController extends GetxController {
     Future.delayed(Duration(milliseconds: 100), () {
       // Check if all segments are selected
       if (isAllMultiCitySegmentsSelected) {
-        print('DEBUG: All segments selected, proceeding to review');
         _proceedToMultiCityReview();
       } else {
-        print('DEBUG: Moving to next segment');
         proceedToNextMultiCitySegment();
       }
     });
@@ -522,9 +448,6 @@ class AirBlueFlightController extends GetxController {
     // Get flights from the segment-specific storage
     final segmentFlights = flightsBySegment[segmentIndex] ?? [];
 
-    print('DEBUG: Getting flights for segment $segmentIndex');
-    print('DEBUG: Found ${segmentFlights.length} flights directly from segment storage');
-
     if (segmentFlights.isNotEmpty) {
       return segmentFlights;
     }
@@ -534,9 +457,6 @@ class AirBlueFlightController extends GetxController {
     final fromCity = cityPair.fromCity.value;
     final toCity = cityPair.toCity.value;
     final departureDate = DateFormat('yyyy-MM-dd').format(cityPair.departureDateTime.value);
-
-    print('DEBUG: Fallback route matching for segment $segmentIndex');
-    print('DEBUG: Route: $fromCity -> $toCity on $departureDate');
 
     // Filter flights that match this segment from all flights
     final matchingFlights = _originalFlights.where((flight) {
@@ -554,43 +474,31 @@ class AirBlueFlightController extends GetxController {
             flightTo == toCity &&
             flightDate == departureDate;
 
-        if (matches) {
-          print('DEBUG: Found matching flight via fallback: $flightFrom -> $flightTo on $flightDate');
-        }
-
         return matches;
       } catch (e) {
         return false;
       }
     }).toList();
 
-    print('DEBUG: Found ${matchingFlights.length} matching flights for segment $segmentIndex via fallback');
     return matchingFlights;
   }
 
   void proceedToNextMultiCitySegment() {
-    print('DEBUG: proceedToNextMultiCitySegment called');
-
     final nextSegment = getNextUnselectedSegment();
-    print('DEBUG: Next segment to select: $nextSegment');
 
     if (nextSegment != -1) {
       // Check if we're already on this segment to prevent loops
       if (currentMultiCitySegment.value == nextSegment) {
-        print('DEBUG: Already on segment $nextSegment, forcing navigation');
         _showMultiCityFlightSelection(nextSegment);
         return;
       }
 
       currentMultiCitySegment.value = nextSegment;
-      print('DEBUG: Updated current segment to: $nextSegment');
 
       // Get flights for the next segment
       final segmentFlights = getFlightsForSegment(nextSegment);
-      print('DEBUG: Found ${segmentFlights.length} flights for segment $nextSegment');
 
       if (segmentFlights.isEmpty) {
-        print('DEBUG: No flights found for segment $nextSegment');
         Get.snackbar(
           'No Flights Available',
           'No flights found for this segment. Please try different dates or routes.',
@@ -614,14 +522,12 @@ class AirBlueFlightController extends GetxController {
           _proceedToMultiCityReview();
         }
       } else {
-        print('DEBUG: Showing flight selection for segment $nextSegment');
         // Use a small delay to ensure the UI is ready
         Future.delayed(Duration(milliseconds: 300), () {
           _showMultiCityFlightSelection(nextSegment);
         });
       }
     } else {
-      print('DEBUG: All segments processed, proceeding to review');
       _proceedToMultiCityReview();
     }
   }
@@ -630,17 +536,11 @@ class AirBlueFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
 
     if (segmentIndex >= bookingController.cityPairs.length) {
-      print('DEBUG: Invalid segment index: $segmentIndex');
       return;
     }
 
     final cityPair = bookingController.cityPairs[segmentIndex];
     final segmentFlights = getFlightsForSegment(segmentIndex);
-
-    print('DEBUG: _showMultiCityFlightSelection for segment $segmentIndex');
-    print('DEBUG: Route: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
-    print('DEBUG: Date: ${cityPair.departureDateTime.value}');
-    print('DEBUG: Available flights for segment: ${segmentFlights.length}');
 
     // Update current segment before showing selection
     currentMultiCitySegment.value = segmentIndex;
@@ -675,13 +575,8 @@ class AirBlueFlightController extends GetxController {
 
   // Proceed to multi-city booking (skip review, go directly to booking form)
   void _proceedToMultiCityReview() {
-    print('DEBUG: Proceeding to multi-city booking (skipping review)');
-
     final selectedFlightsList = selectedMultiCityFlights.where((f) => f != null).cast<AirBlueFlight>().toList();
     final selectedOptionsList = selectedMultiCityFareOptions.where((f) => f != null).cast<AirBlueFareOption>().toList();
-
-    print('DEBUG: Selected flights: ${selectedFlightsList.length}');
-    print('DEBUG: Selected options: ${selectedOptionsList.length}');
 
     if (selectedFlightsList.isEmpty || selectedOptionsList.isEmpty) {
       Get.snackbar(
@@ -736,7 +631,6 @@ class AirBlueFlightController extends GetxController {
 
   // FIXED: Method to start multi-city flow
   void startMultiCityFlightSelection() {
-    print('DEBUG: Starting multi-city flight selection');
     initializeMultiCitySelection();
     _showMultiCityFlightSelection(0); // Start with segment 0
   }
@@ -769,7 +663,6 @@ class AirBlueFlightController extends GetxController {
     } else if (tripType == TripType.multiCity) {
       // For multi-city, return flights would be in their respective segments
       // This method shouldn't be called for multi-city trips
-      print('DEBUG: getReturnFlights called for multi-city trip - not supported');
     }
 
     // Sort return flights by price
@@ -879,43 +772,7 @@ class AirBlueFlightController extends GetxController {
 
   // DEBUGGING: Method to print current multi-city state
   void debugMultiCityState() {
-    final bookingController = Get.find<FlightBookingController>();
-    print('=== DEBUG MULTI-CITY STATE ===');
-    print('Required segments: ${bookingController.cityPairs.length}');
-    print('Current segment: ${currentMultiCitySegment.value}');
-    print('Selected flights list size: ${selectedMultiCityFlights.length}');
-    print('Selected options list size: ${selectedMultiCityFareOptions.length}');
-    print('Flights by segment: ${flightsBySegment.keys.toList()}');
-
-    // Print segment details
-    flightsBySegment.forEach((segmentIndex, flights) {
-      print('Segment $segmentIndex has ${flights.length} flights available');
-      if (flights.isNotEmpty) {
-        final firstFlight = flights.first;
-        print('  First flight: ${firstFlight.legSchedules.first['departure']['airport']} -> ${firstFlight.legSchedules.last['arrival']['airport']}');
-      }
-    });
-
-    for (int i = 0; i < bookingController.cityPairs.length; i++) {
-      final cityPair = bookingController.cityPairs[i];
-      final hasFlight = i < selectedMultiCityFlights.length && selectedMultiCityFlights[i] != null;
-      final hasOption = i < selectedMultiCityFareOptions.length && selectedMultiCityFareOptions[i] != null;
-
-      print('Segment $i: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
-      print('  Flight selected: $hasFlight');
-      print('  Option selected: $hasOption');
-
-      if (hasFlight) {
-        final flight = selectedMultiCityFlights[i]!;
-        print('  Flight route: ${flight.legSchedules.first['departure']['airport']} -> ${flight.legSchedules.last['arrival']['airport']}');
-      }
-
-      if (hasOption) {
-        final option = selectedMultiCityFareOptions[i]!;
-        print('  Package: ${option.brandName} - ${option.price}');
-      }
-    }
-    print('=== END DEBUG STATE ===');
+    // Debug method removed - all print statements cleaned up
   }
 
   void resetLoadingState() {

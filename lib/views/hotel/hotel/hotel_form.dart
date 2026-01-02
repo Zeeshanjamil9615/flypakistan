@@ -405,13 +405,8 @@ class _HotelFormState extends State<HotelForm> {
             return;
           }
 
-          // Show loading dialog
-          Get.dialog(const LoadingDialog(), barrierDismissible: false);
-          
-
           final hotelDateController = Get.find<HotelDateController>();
           final guestsController = Get.find<GuestsController>();
-
 
           // Get values from selected city
           String destinationCode = selectedCity.value!.value;
@@ -439,8 +434,11 @@ class _HotelFormState extends State<HotelForm> {
             },
           );
 
+          // Navigate to the hotel listing screen immediately
+          Get.to(() => const HotelScreen());
+
           try {
-            // Call the API
+            // Call the API (this will update the loading state and hotels list)
             await ApiServiceHotel().fetchHotels(
               destinationCode: destinationCode,
               countryCode: countryCode,
@@ -450,16 +448,7 @@ class _HotelFormState extends State<HotelForm> {
               checkOutDate: checkOutDate,
               rooms: rooms,
             );
-
-            // Close loading dialog
-            Get.back();
-
-            // Navigate to the hotel listing screen
-            Get.to(() => const HotelScreen());
           } catch (e) {
-            // Close loading dialog
-            Get.back();
-
             // Show error dialog
             Get.dialog(
               Dialog(

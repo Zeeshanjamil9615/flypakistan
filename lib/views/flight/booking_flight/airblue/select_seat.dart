@@ -472,6 +472,43 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
     }
   }
 
+  String _getPassengerName(int index) {
+    try {
+      final adults = widget.bookingController.adults;
+      final children = widget.bookingController.children;
+      final infants = widget.bookingController.infants;
+
+      if (index < adults.length) {
+        final adult = adults[index];
+        final firstName = adult.firstNameController.text.trim();
+        final lastName = adult.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      } else if (index < adults.length + children.length) {
+        final childIndex = index - adults.length;
+        final child = children[childIndex];
+        final firstName = child.firstNameController.text.trim();
+        final lastName = child.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      } else if (index < adults.length + children.length + infants.length) {
+        final infantIndex = index - adults.length - children.length;
+        final infant = infants[infantIndex];
+        final firstName = infant.firstNameController.text.trim();
+        final lastName = infant.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting passenger name: $e');
+    }
+    // Fallback to P1, P2, etc. if name is not available
+    return 'P${index + 1}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final bodyContent = isLoading
@@ -757,7 +794,7 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Text(
-                          'P${index + 1}',
+                          _getPassengerName(index),
                           style: TextStyle(
                             color: isSelected ? Colors.white : Colors.black87,
                             fontWeight: FontWeight.w600,
@@ -1173,12 +1210,14 @@ class _SeatSelectionScreenState extends State<SeatSelectionScreen> {
                                 ),
                                 child: Center(
                                   child: Text(
-                                    'P$passengerNum',
+                                    _getPassengerName(entry.key),
                                     style: const TextStyle(
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                       color: TColors.primary,
                                     ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ),

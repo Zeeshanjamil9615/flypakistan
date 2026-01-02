@@ -197,6 +197,7 @@ class _EmiratesBookingDetailsScreenState
         marginData = await apiService.getMargin(
           widget.flight.airlineCode,
           widget.flight.airlineName,
+          "Emirates NDC voucher"
         );
       }
     } catch (e) {

@@ -1,10 +1,10 @@
 // services/api_service_emirates.dart
 import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:xml/xml.dart' as xml;
-
+import 'api_client.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
 import '../views/flight/search_flights/search_flight_utils/helper_functions.dart';
+import 'api_service_airblue.dart';
 
 class _EmiratesSegment {
   final String origin;
@@ -43,17 +43,11 @@ class OfferPricingEntry {
 }
 
 class ApiServiceEmirates {
-  final Dio _dio = Dio(
-    BaseOptions(
-      connectTimeout: const Duration(seconds: 30),
-      receiveTimeout: const Duration(seconds: 30),
-      validateStatus: (status) => status! < 500,
-    ),
-  );
+  // ApiClient instance
+  final ApiClient _apiClient = ApiClient();
 
   // Airline map for airline name lookup
   static Map<String, AirlineInfo>? _airlineMap;
-  static final Dio _dioForAirline = Dio();
 
   Future<Map<String, dynamic>> searchFlights({
     required int type,
@@ -65,6 +59,8 @@ class ApiServiceEmirates {
     required int infant,
     required String cabin,
     List<Map<String, String>>? multiCitySegments,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
       final segments = <_EmiratesSegment>[];
@@ -72,11 +68,11 @@ class ApiServiceEmirates {
       if (multiCitySegments != null && multiCitySegments.isNotEmpty) {
         for (final segment in multiCitySegments) {
           final originCode =
-              (segment['origin'] ?? segment['from'] ?? segment['departure'] ?? '').trim().toUpperCase();
+          (segment['origin'] ?? segment['from'] ?? segment['departure'] ?? '').trim().toUpperCase();
           final destinationCode =
-              (segment['destination'] ?? segment['to'] ?? segment['arrival'] ?? '').trim().toUpperCase();
+          (segment['destination'] ?? segment['to'] ?? segment['arrival'] ?? '').trim().toUpperCase();
           final dateValue =
-              (segment['date'] ?? segment['departureDate'] ?? segment['depDate'] ?? '').trim();
+          (segment['date'] ?? segment['departureDate'] ?? segment['depDate'] ?? '').trim();
 
           if (originCode.isEmpty || destinationCode.isEmpty || dateValue.isEmpty) {
             continue;
@@ -121,13 +117,11 @@ class ApiServiceEmirates {
         }
 
         if (segmentCount == 0) {
-          throw Exception('No valid travel segments provided for Emirates search');
-        }
-
-        if (originsList.length != segmentCount ||
-            destinationsList.length != segmentCount ||
-            datesList.length != segmentCount) {
-          // Segment data length mismatch - using first segments
+          throw ApiException(
+            message: 'No valid travel segments provided for Emirates search',
+            statusCode: null,
+            errors: {},
+          );
         }
 
         for (int i = 0; i < segmentCount; i++) {
@@ -142,11 +136,12 @@ class ApiServiceEmirates {
       }
 
       if (segments.isEmpty) {
-        throw Exception('Failed to prepare Emirates travel segments');
+        throw ApiException(
+          message: 'Failed to prepare Emirates travel segments',
+          statusCode: null,
+          errors: {},
+        );
       }
-
-      // print(
-      //     '🛫 Emirates search segments (${segments.length}): ${segments.map((s) => '${s.origin}->${s.destination} (${s.date})').join(', ')}');
 
       final originDestinationsBuffer = StringBuffer();
       for (int i = 0; i < segments.length; i++) {
@@ -174,14 +169,14 @@ class ApiServiceEmirates {
       String cabinCode = cabin == 'Economy' ? 'Y' : cabin == 'Business' ? 'J' : 'F';
 
       String passengerListXml = '';
-      
+
       if (adult != 0) {
         for (int i = 1; i <= adult; i++) {
           passengerListXml += '''
       <Passenger PassengerID="T$i">
         <PTC>ADT</PTC>
       </Passenger>''';
-          
+
           if (infant >= i) {
             passengerListXml += '''
       <Passenger PassengerID="T$i.1">
@@ -190,7 +185,7 @@ class ApiServiceEmirates {
           }
         }
       }
-      
+
       if (child != 0) {
         for (int j = 1; j <= child; j++) {
           int i = adult + j;
@@ -200,8 +195,6 @@ class ApiServiceEmirates {
       </Passenger>''';
         }
       }
-
-      const endpoint = 'https://ek.farelogix.com:443/prod/oc';
 
       final xmlData = '''<?xml version="1.0"?>
 <SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
@@ -279,66 +272,37 @@ $sectorDetail
         'clientIp': '91.108.109.86',
         'contEnc': '',
         'agencyName': '',
-        'Content-Type': 'application/xml',
       };
-      //
-      // print("===============================================");
-      // print("EMIRATES SOAP REQUEST");
-      // print("===============================================");
-      // print("URL: $endpoint");
-      // print("Headers:");
-      // headers.forEach((key, value) {
-      //   print("  $key: $value");
-      // });
-      // print("XML Body:");
-      // print(xmlData);
-      // print("===============================================");
 
-      final response = await _dio.request(
-        endpoint,
-        options: Options(
-          method: 'POST',
-          headers: headers,
-          responseType: ResponseType.plain,
-        ),
-        data: xmlData,
+      final response = await _apiClient.request(
+        url: 'https://ek.farelogix.com:443/prod/oc',
+        method: HttpMethod.POST,
+        serviceName: 'EMIRATES SEARCH',
+        body: xmlData,
+        headers: headers,
+        contentType: ContentType.XML,
+        convertXmlToJson: false,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      // print("===============================================");
-      // print("EMIRATES SOAP RESPONSE - RAW XML");
-      // print("===============================================");
-      // print("Status Code: ${response.statusCode}");
-      // print("Response Length: ${response.data.toString().length} characters");
-      // print("===============================================");
-      //
-      // // Print the entire raw XML response in chunks
-      // _printLargeText(response.data.toString(), "RAW XML RESPONSE");
-      //
-      // print("===============================================");
-
-      if (response.statusCode == 200) {
-        // print("✅ Emirates response received - Starting parsing...");
-        var data = _parseXmlResponse(response.data.toString());
-        
-        // // Print the parsed structured data
-        // print("\n===============================================");
-        // print("PARSED STRUCTURED DATA (JSON FORMAT)");
-        // print("===============================================");
-        // printJsonPretty(data);
-        // print("===============================================\n");
-        //
-        return data;
+      if (response.isSuccess) {
+        return _parseXmlResponse(response.responseBody);
       } else {
-        throw Exception('Failed to load Emirates flights: ${response.statusCode}');
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
       }
     } catch (e, stackTrace) {
+      if (e is ApiException) rethrow;
       return {
         'success': false,
         'error': 'Error: ${e.toString()}',
       };
     }
   }
-            
 
   String _generateTransactionId() {
     return DateTime.now().millisecondsSinceEpoch.toRadixString(16);
@@ -353,10 +317,10 @@ $sectorDetail
           'raw_xml': xmlResponse,
         };
       }
-      
+
       final document = xml.XmlDocument.parse(xmlResponse);
       final structuredData = _extractStructuredData(document);
-      
+
       return {
         'success': true,
         'data': structuredData,
@@ -407,42 +371,42 @@ $sectorDetail
 
   Map<String, dynamic> _extractStructuredData(xml.XmlDocument document) {
     final result = <String, dynamic>{};
-    
+
     try {
       final airShoppingRS = document.findAllElements('AirShoppingRS').firstOrNull;
-      
+
       if (airShoppingRS == null) {
         return result;
       }
 
       final dataLists = _extractDataLists(airShoppingRS);
       result['DataLists'] = dataLists;
-      
+
       final offersGroup = airShoppingRS.findElements('OffersGroup').firstOrNull;
       if (offersGroup != null) {
         final airlineOffers = offersGroup.findElements('AirlineOffers').firstOrNull;
         if (airlineOffers != null) {
           final offers = <Map<String, dynamic>>[];
-          
+
           for (var offerElement in airlineOffers.findElements('Offer')) {
             final offer = _extractOffer(offerElement, dataLists);
             offers.add(offer);
           }
-          
+
           result['offers'] = offers;
         }
       }
-      
+
     } catch (e, stackTrace) {
       // Error extracting structured data
     }
-    
+
     return result;
   }
 
   Map<String, dynamic> _extractDataLists(xml.XmlElement airShoppingRS) {
     final dataLists = <String, dynamic>{};
-    
+
     try {
       final dataListsElement = airShoppingRS.findElements('DataLists').firstOrNull;
       if (dataListsElement == null) return dataLists;
@@ -495,34 +459,34 @@ $sectorDetail
     } catch (e) {
       // Error extracting DataLists
     }
-    
+
     return dataLists;
   }
 
   Map<String, dynamic> _extractOffer(xml.XmlElement offerElement, Map<String, dynamic> dataLists) {
     final offer = _xmlElementToMap(offerElement);
-    
+
     // Add DataLists reference to the offer for easy access
     offer['DataLists'] = dataLists;
-    
+
     return offer;
   }
 
   Map<String, dynamic> _xmlElementToMap(xml.XmlElement element) {
     final map = <String, dynamic>{};
-    
+
     // Add attributes
     for (var attr in element.attributes) {
       map[attr.name.local] = attr.value;
     }
-    
+
     // Process child elements
     final childElements = element.children.whereType<xml.XmlElement>();
-    
+
     for (var child in childElements) {
       final key = child.name.local;
       final value = _processXmlNode(child);
-      
+
       if (map.containsKey(key)) {
         // Handle multiple elements with same name
         if (map[key] is List) {
@@ -534,18 +498,18 @@ $sectorDetail
         map[key] = value;
       }
     }
-    
+
     // If no children, add text content
     if (childElements.isEmpty && element.text.trim().isNotEmpty) {
       map['\$t'] = element.text.trim();
     }
-    
+
     return map;
   }
 
   dynamic _processXmlNode(xml.XmlElement element) {
     final childElements = element.children.whereType<xml.XmlElement>();
-    
+
     if (childElements.isEmpty) {
       // Leaf node - return text or map with attributes
       if (element.attributes.isEmpty) {
@@ -568,13 +532,13 @@ $sectorDetail
 
   List<Map<String, dynamic>> extractOffersFromResponse(Map<String, dynamic> response) {
     final offers = <Map<String, dynamic>>[];
-    
+
     try {
       final data = response['data'] ?? response;
-      
+
       if (data.containsKey('offers') && data['offers'] is List) {
         final offersList = data['offers'] as List;
-        
+
         for (var offer in offersList) {
           if (offer is Map<String, dynamic>) {
             offers.add(offer);
@@ -583,22 +547,22 @@ $sectorDetail
       } else {
         offers.addAll(_deepSearchOffers(data));
       }
-      
+
     } catch (e, stackTrace) {
       // Error extracting offers
     }
-    
+
     return offers;
   }
 
   List<Map<String, dynamic>> _deepSearchOffers(Map<String, dynamic> data) {
     final offers = <Map<String, dynamic>>[];
-    
+
     void search(dynamic obj, [String path = '']) {
       if (obj is Map) {
         obj.forEach((key, value) {
           final currentPath = path.isEmpty ? key : '$path.$key';
-          
+
           if (key == 'Offer' || key == 'offer') {
             if (value is Map) {
               offers.add(Map<String, dynamic>.from(value));
@@ -619,59 +583,59 @@ $sectorDetail
         }
       }
     }
-    
+
     search(data);
     return offers;
   }
 
-  // Add this method to your existing ApiServiceEmirates class
+  Future<Map<String, dynamic>> createEmiratesNdcPnr({
+    required List<Map<String, dynamic>> selectedOffers,
+    required dynamic bookingController,
+    bool printRequest = false,
+    bool printResponse = false,
+  }) async {
+    try {
+      if (selectedOffers.isEmpty) {
+        return {
+          'success': false,
+          'error': 'No offers provided for PNR creation.',
+        };
+      }
 
-Future<Map<String, dynamic>> createEmiratesNdcPnr({
-  required List<Map<String, dynamic>> selectedOffers,
-  required dynamic bookingController,
-}) async {
-  try {
-    if (selectedOffers.isEmpty) {
-      return {
-        'success': false,
-        'error': 'No offers provided for PNR creation.',
-      };
-    }
+      String passengerListXml = '';
+      int passengerIndex = 1;
+      final passengerRefsOrdered = <String>[];
+      final validPassengerIds = <String>{};
 
-    String passengerListXml = '';
-    int passengerIndex = 1;
-    final passengerRefsOrdered = <String>[];
-    final validPassengerIds = <String>{};
+      final int adultCount = bookingController.adults.length;
+      final int childCount = bookingController.children.length;
+      final int infantCount = bookingController.infants.length;
 
-    final int adultCount = bookingController.adults.length;
-    final int childCount = bookingController.children.length;
-    final int infantCount = bookingController.infants.length;
+      // Add adults with optional linked infants
+      for (int i = 0; i < adultCount; i++) {
+        final adult = bookingController.adults[i];
 
-    // Add adults with optional linked infants
-    for (int i = 0; i < adultCount; i++) {
-      final adult = bookingController.adults[i];
+        final currentRef = 'T$passengerIndex';
+        passengerRefsOrdered.add(currentRef);
+        validPassengerIds.add(currentRef);
 
-      final currentRef = 'T$passengerIndex';
-      passengerRefsOrdered.add(currentRef);
-      validPassengerIds.add(currentRef);
+        final adultNationalityCode = adult.nationalityCountry.value?.countryCode ?? 'PK';
+        final adultIdentityDocumentXml = _buildIdentityDocumentBlock(
+          documentNumber: adult.passportCnicController.text.trim(),
+          expiryDate: adult.passportExpiryController.text.trim(),
+          issuingCountry: adultNationalityCode,
+          nationalityCountry: adultNationalityCode,
+        );
 
-      final adultNationalityCode = adult.nationalityCountry.value?.countryCode ?? 'PK';
-      final adultIdentityDocumentXml = _buildIdentityDocumentBlock(
-        documentNumber: adult.passportCnicController.text.trim(),
-        expiryDate: adult.passportExpiryController.text.trim(),
-        issuingCountry: adultNationalityCode,
-        nationalityCountry: adultNationalityCode,
-      );
+        String infantRef = '';
+        String infantDetails = '';
 
-      String infantRef = '';
-      String infantDetails = '';
+        if (i < infantCount) {
+          final infant = bookingController.infants[i];
+          final infantId = '$currentRef.1';
+          validPassengerIds.add(infantId);
 
-      if (i < infantCount) {
-        final infant = bookingController.infants[i];
-        final infantId = '$currentRef.1';
-        validPassengerIds.add(infantId);
-
-        infantDetails = '''
+          infantDetails = '''
                     <Passenger PassengerID="$infantId">
                         <PTC>INF</PTC>
                         <ResidenceCountryCode>${infant.nationalityCountry.value?.countryCode ?? 'PK'}</ResidenceCountryCode>
@@ -683,10 +647,10 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                         </Individual>
                     </Passenger>''';
 
-        infantRef = '<InfantRef>$infantId</InfantRef>';
-      }
+          infantRef = '<InfantRef>$infantId</InfantRef>';
+        }
 
-      passengerListXml += '''
+        passengerListXml += '''
                 <Passenger PassengerID="$currentRef">
                          <PTC>ADT</PTC>
                          <ResidenceCountryCode>$adultNationalityCode</ResidenceCountryCode>
@@ -698,40 +662,40 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                              <Surname>${adult.lastNameController.text}</Surname>
                          </Individual>''';
 
-      if (adultIdentityDocumentXml.isNotEmpty) {
-        passengerListXml += adultIdentityDocumentXml;
-      }
+        if (adultIdentityDocumentXml.isNotEmpty) {
+          passengerListXml += adultIdentityDocumentXml;
+        }
 
-      if (i == 0) {
-        passengerListXml += '''
+        if (i == 0) {
+          passengerListXml += '''
                          <ContactInfoRef>CID1</ContactInfoRef>''';
-      }
+        }
 
-      passengerListXml += '''
+        passengerListXml += '''
                          $infantRef
                      </Passenger>''';
 
-      passengerListXml += infantDetails;
+        passengerListXml += infantDetails;
 
-      passengerIndex++;
-    }
+        passengerIndex++;
+      }
 
-    // Add children
-    for (int i = 0; i < childCount; i++) {
-      final child = bookingController.children[i];
-      final currentRef = 'T$passengerIndex';
-      passengerRefsOrdered.add(currentRef);
-      validPassengerIds.add(currentRef);
+      // Add children
+      for (int i = 0; i < childCount; i++) {
+        final child = bookingController.children[i];
+        final currentRef = 'T$passengerIndex';
+        passengerRefsOrdered.add(currentRef);
+        validPassengerIds.add(currentRef);
 
-      final childNationalityCode = child.nationalityCountry.value?.countryCode ?? 'PK';
-      final childIdentityDocumentXml = _buildIdentityDocumentBlock(
-        documentNumber: child.passportCnicController.text.trim(),
-        expiryDate: child.passportExpiryController.text.trim(),
-        issuingCountry: childNationalityCode,
-        nationalityCountry: childNationalityCode,
-      );
+        final childNationalityCode = child.nationalityCountry.value?.countryCode ?? 'PK';
+        final childIdentityDocumentXml = _buildIdentityDocumentBlock(
+          documentNumber: child.passportCnicController.text.trim(),
+          expiryDate: child.passportExpiryController.text.trim(),
+          issuingCountry: childNationalityCode,
+          nationalityCountry: childNationalityCode,
+        );
 
-      passengerListXml += '''
+        passengerListXml += '''
                 <Passenger PassengerID="$currentRef">
                          <PTC>CNN</PTC>
                          <ResidenceCountryCode>$childNationalityCode</ResidenceCountryCode>
@@ -743,115 +707,115 @@ Future<Map<String, dynamic>> createEmiratesNdcPnr({
                              <Surname>${child.lastNameController.text}</Surname>
                          </Individual>''';
 
-      if (childIdentityDocumentXml.isNotEmpty) {
-        passengerListXml += childIdentityDocumentXml;
-      }
-
-      passengerListXml += ''' 
-                     </Passenger>''';
-      passengerIndex++;
-    }
-
-    final defaultPassengerRefs =
-        passengerRefsOrdered.isNotEmpty ? passengerRefsOrdered.join(' ') : 'T1';
-
-    final resolvedOffers = <Map<String, dynamic>>[];
-    final seenOfferKeys = <String>{};
-
-    for (int index = 0; index < selectedOffers.length; index++) {
-      final rawEntry = selectedOffers[index];
-      final offerData = _coerceOfferDataMap(
-        rawEntry['offerData'] ??
-            rawEntry['data'] ??
-            rawEntry['rawFlightData'] ??
-            rawEntry,
-      );
-      final offerIdFromEntry = rawEntry['offerId']?.toString() ?? '';
-      final extractedOfferId = _extractNodeText(offerData['OfferID']);
-      final resolvedOfferId =
-          extractedOfferId.isNotEmpty ? extractedOfferId : offerIdFromEntry;
-
-      if (resolvedOfferId.isEmpty) {
-        continue;
-      }
-
-      final owner = offerData['Owner']?.toString() ?? 'EK';
-      final responseId = _resolveResponseId(offerData, resolvedOfferId);
-
-      if (responseId.isEmpty) {
-        continue;
-      }
-
-      final offerItemsRaw = _normalizeOfferItems(offerData['OfferItem']);
-      final resolvedItems = <Map<String, String>>[];
-
-      for (final item in offerItemsRaw) {
-        final itemId = _extractNodeText(item['OfferItemID']);
-        if (itemId.isEmpty) continue;
-
-        var passengerRefsTokens =
-            _extractPassengerIdsFromNode(item['PassengerRefs'], validPassengerIds);
-        if (passengerRefsTokens.isEmpty) {
-          passengerRefsTokens =
-              _extractPassengerIdsFromNode(item['Service'], validPassengerIds);
+        if (childIdentityDocumentXml.isNotEmpty) {
+          passengerListXml += childIdentityDocumentXml;
         }
 
-        final passengerRefsForItem = passengerRefsTokens.isNotEmpty
-            ? passengerRefsTokens.join(' ')
-            : defaultPassengerRefs;
+        passengerListXml += ''' 
+                     </Passenger>''';
+        passengerIndex++;
+      }
 
-        resolvedItems.add({
-          'id': itemId,
-          'passengerRefs': passengerRefsForItem,
+      final defaultPassengerRefs =
+      passengerRefsOrdered.isNotEmpty ? passengerRefsOrdered.join(' ') : 'T1';
+
+      final resolvedOffers = <Map<String, dynamic>>[];
+      final seenOfferKeys = <String>{};
+
+      for (int index = 0; index < selectedOffers.length; index++) {
+        final rawEntry = selectedOffers[index];
+        final offerData = _coerceOfferDataMap(
+          rawEntry['offerData'] ??
+              rawEntry['data'] ??
+              rawEntry['rawFlightData'] ??
+              rawEntry,
+        );
+        final offerIdFromEntry = rawEntry['offerId']?.toString() ?? '';
+        final extractedOfferId = _extractNodeText(offerData['OfferID']);
+        final resolvedOfferId =
+        extractedOfferId.isNotEmpty ? extractedOfferId : offerIdFromEntry;
+
+        if (resolvedOfferId.isEmpty) {
+          continue;
+        }
+
+        final owner = offerData['Owner']?.toString() ?? 'EK';
+        final responseId = _resolveResponseId(offerData, resolvedOfferId);
+
+        if (responseId.isEmpty) {
+          continue;
+        }
+
+        final offerItemsRaw = _normalizeOfferItems(offerData['OfferItem']);
+        final resolvedItems = <Map<String, String>>[];
+
+        for (final item in offerItemsRaw) {
+          final itemId = _extractNodeText(item['OfferItemID']);
+          if (itemId.isEmpty) continue;
+
+          var passengerRefsTokens =
+          _extractPassengerIdsFromNode(item['PassengerRefs'], validPassengerIds);
+          if (passengerRefsTokens.isEmpty) {
+            passengerRefsTokens =
+                _extractPassengerIdsFromNode(item['Service'], validPassengerIds);
+          }
+
+          final passengerRefsForItem = passengerRefsTokens.isNotEmpty
+              ? passengerRefsTokens.join(' ')
+              : defaultPassengerRefs;
+
+          resolvedItems.add({
+            'id': itemId,
+            'passengerRefs': passengerRefsForItem,
+          });
+        }
+
+        if (resolvedItems.isEmpty) {
+          final fallbackItemId = '$resolvedOfferId-1';
+          resolvedItems.add({
+            'id': fallbackItemId,
+            'passengerRefs': defaultPassengerRefs,
+          });
+        }
+
+        final dedupeKey = '${resolvedOfferId}::${resolvedItems.map((e) => e['id']).join(',')}';
+        if (seenOfferKeys.contains(dedupeKey)) {
+          continue;
+        }
+        seenOfferKeys.add(dedupeKey);
+
+        resolvedOffers.add({
+          'offerId': resolvedOfferId,
+          'owner': owner,
+          'responseId': responseId,
+          'items': resolvedItems,
         });
       }
 
-      if (resolvedItems.isEmpty) {
-        final fallbackItemId = '$resolvedOfferId-1';
-        resolvedItems.add({
-          'id': fallbackItemId,
-          'passengerRefs': defaultPassengerRefs,
-        });
+      if (resolvedOffers.isEmpty) {
+        return {
+          'success': false,
+          'error': 'Unable to resolve offer data for PNR creation.',
+        };
       }
 
-      final dedupeKey = '${resolvedOfferId}::${resolvedItems.map((e) => e['id']).join(',')}';
-      if (seenOfferKeys.contains(dedupeKey)) {
-        continue;
-      }
-      seenOfferKeys.add(dedupeKey);
-
-      resolvedOffers.add({
-        'offerId': resolvedOfferId,
-        'owner': owner,
-        'responseId': responseId,
-        'items': resolvedItems,
-      });
-    }
-
-    if (resolvedOffers.isEmpty) {
-      return {
-        'success': false,
-        'error': 'Unable to resolve offer data for PNR creation.',
-      };
-    }
-
-    final offersXmlBuffer = StringBuffer();
-    for (final offer in resolvedOffers) {
-      offersXmlBuffer.writeln(
-          '            <Offer OfferID="${offer['offerId']}" Owner="${offer['owner']}" ResponseID="${offer['responseId']}">');
-      for (final item in offer['items'] as List<Map<String, String>>) {
-        offersXmlBuffer.writeln('              <OfferItem OfferItemID="${item['id']}">');
+      final offersXmlBuffer = StringBuffer();
+      for (final offer in resolvedOffers) {
         offersXmlBuffer.writeln(
-            '                <PassengerRefs>${item['passengerRefs']}</PassengerRefs>');
-        offersXmlBuffer.writeln('              </OfferItem>');
+            '            <Offer OfferID="${offer['offerId']}" Owner="${offer['owner']}" ResponseID="${offer['responseId']}">');
+        for (final item in offer['items'] as List<Map<String, String>>) {
+          offersXmlBuffer.writeln('              <OfferItem OfferItemID="${item['id']}">');
+          offersXmlBuffer.writeln(
+              '                <PassengerRefs>${item['passengerRefs']}</PassengerRefs>');
+          offersXmlBuffer.writeln('              </OfferItem>');
+        }
+        offersXmlBuffer.writeln('            </Offer>');
       }
-      offersXmlBuffer.writeln('            </Offer>');
-    }
 
-    final offersXml = offersXmlBuffer.toString();
+      final offersXml = offersXmlBuffer.toString();
 
-    final xmlData =
-        '''<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
+      final xmlData =
+      '''<SOAP-ENV:Envelope xmlns:SOAP-ENV="http://schemas.xmlsoap.org/soap/envelope/">
   <SOAP-ENV:Header>
     <t:TransactionControl>
       <tc>
@@ -922,245 +886,237 @@ $passengerListXml
   </SOAP-ENV:Body>
 </SOAP-ENV:Envelope>''';
 
-    final headers = {
-      'Ocp-Apim-Subscription-Key': '0d3150002a8b417082aab2be54bb963a',
-      'SOAPAction': 'OrderCreateRQ',
-      'Agency': 'travelocityemir',
-      'IATA': '27304023',
-      'PCC': 'EPAO',
-      'apiTraceId': '77d1147a-e370-16e4-d5db-24cf01b61f19',
-      'clientIp': '91.108.109.86',
-      'contEnc': '',
-      'agencyName': '',
-      'Content-Type': 'application/xml',
-    };
-
-    final response = await _dio.request(
-      'https://ek.farelogix.com:443/prod/oc',
-      options: Options(
-        method: 'POST',
-        headers: headers,
-        responseType: ResponseType.plain,
-        validateStatus: (status) => status! < 600,
-      ),
-      data: xmlData,
-    );
-
-    // debugPrint('Response received with status code: ${response.statusCode}');
-    //
-    // debugPrint("===============================================");
-    // debugPrint("EMIRATES ORDER CREATE RESPONSE");
-    // debugPrint("===============================================");
-    // debugPrint("Status Code: ${response.statusCode}");
-    // debugPrint("Response Length: ${response.data.toString().length} characters");
-    // _printLargeText(response.data.toString(), "ORDER CREATE RAW XML");
-    // debugPrint("===============================================\n");
-
-    Map<String, dynamic> parsedResponse;
-    
-    if (response.statusCode == 200) {
-      parsedResponse = _parsePnrResponse(response.data.toString());
-    } else {
-      parsedResponse = {
-        'success': false,
-        'error': 'Server error ${response.statusCode}: ${response.data}',
+      final headers = {
+        'Ocp-Apim-Subscription-Key': '0d3150002a8b417082aab2be54bb963a',
+        'SOAPAction': 'OrderCreateRQ',
+        'Agency': 'travelocityemir',
+        'IATA': '27304023',
+        'PCC': 'EPAO',
+        'apiTraceId': '77d1147a-e370-16e4-d5db-24cf01b61f19',
+        'clientIp': '91.108.109.86',
+        'contEnc': '',
+        'agencyName': '',
       };
-    }
 
-    // Save booking regardless of PNR success/failure
-    try {
-      await saveEmiratesBooking(
-        selectedOffers: selectedOffers,
-        pnrResponse: parsedResponse,
-        bookingController: bookingController,
+      final response = await _apiClient.request(
+        url: 'https://ek.farelogix.com:443/prod/oc',
+        method: HttpMethod.POST,
+        serviceName: 'EMIRATES CREATE PNR',
+        body: xmlData,
+        headers: headers,
+        contentType: ContentType.XML,
+        convertXmlToJson: false,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
-    } catch (saveError) {
-      // Don't throw - continue with PNR response
+
+      Map<String, dynamic> parsedResponse;
+
+      if (response.isSuccess) {
+        parsedResponse = _parsePnrResponse(response.responseBody);
+      } else {
+        parsedResponse = {
+          'success': false,
+          'error': 'Server error ${response.statusCode}: ${response.responseBody}',
+        };
+      }
+
+      // Save booking regardless of PNR success/failure
+      try {
+        await saveEmiratesBooking(
+          selectedOffers: selectedOffers,
+          pnrResponse: parsedResponse,
+          bookingController: bookingController,
+        );
+      } catch (saveError) {
+        // Don't throw - continue with PNR response
+      }
+
+      return parsedResponse;
+    } catch (e, stackTrace) {
+      final errorResponse = {
+        'success': false,
+        'error': 'Error: ${e.toString()}',
+      };
+
+      // Even if PNR fails, try to save the booking
+      try {
+        await saveEmiratesBooking(
+          selectedOffers: selectedOffers,
+          pnrResponse: errorResponse,
+          bookingController: bookingController,
+        );
+      } catch (saveError) {
+        // Ignore save error
+      }
+
+      return errorResponse;
+    }
+  }
+
+  Map<String, dynamic> _coerceOfferDataMap(dynamic value) {
+    if (value is Map<String, dynamic>) {
+      return value;
+    }
+    if (value is Map) {
+      return value.map((key, val) => MapEntry(key.toString(), val));
+    }
+    return <String, dynamic>{};
+  }
+
+  List<Map<String, dynamic>> _normalizeOfferItems(dynamic node) {
+    if (node is List) {
+      return node
+          .whereType<Map>()
+          .map((item) => _coerceOfferDataMap(item))
+          .toList();
+    }
+    if (node is Map) {
+      return [_coerceOfferDataMap(node)];
+    }
+    return const [];
+  }
+
+  List<String> _extractPassengerIdsFromNode(
+      dynamic node,
+      Set<String> validPassengerIds,
+      ) {
+    if (node == null) return const [];
+
+    final collected = <String>[];
+
+    bool isValidId(String value) {
+      if (value.isEmpty) return false;
+      if (validPassengerIds.isNotEmpty) {
+        return validPassengerIds.contains(value);
+      }
+      return value.startsWith('T');
     }
 
-    return parsedResponse;
-  } catch (e, stackTrace) {
-    final errorResponse = {
-      'success': false,
-      'error': 'Error: ${e.toString()}',
-    };
+    void collect(dynamic current) {
+      if (current == null) return;
 
-    // Even if PNR fails, try to save the booking
-    try {
-      await saveEmiratesBooking(
-        selectedOffers: selectedOffers,
-        pnrResponse: errorResponse,
-        bookingController: bookingController,
-      );
-    } catch (saveError) {
-      // Ignore save error
-    }
-
-    return errorResponse;
-  }
-}
-
-Map<String, dynamic> _coerceOfferDataMap(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return value;
-  }
-  if (value is Map) {
-    return value.map((key, val) => MapEntry(key.toString(), val));
-  }
-  return <String, dynamic>{};
-}
-
-List<Map<String, dynamic>> _normalizeOfferItems(dynamic node) {
-  if (node is List) {
-    return node
-        .whereType<Map>()
-        .map((item) => _coerceOfferDataMap(item))
-        .toList();
-  }
-  if (node is Map) {
-    return [_coerceOfferDataMap(node)];
-  }
-  return const [];
-}
-
-List<String> _extractPassengerIdsFromNode(
-  dynamic node,
-  Set<String> validPassengerIds,
-) {
-  if (node == null) return const [];
-
-  final collected = <String>[];
-
-  bool isValidId(String value) {
-    if (value.isEmpty) return false;
-    if (validPassengerIds.isNotEmpty) {
-      return validPassengerIds.contains(value);
-    }
-    return value.startsWith('T');
-  }
-
-  void collect(dynamic current) {
-    if (current == null) return;
-
-    if (current is String) {
-      for (final token in current.split(RegExp(r'\s+'))) {
-        final trimmed = token.trim();
-        if (isValidId(trimmed)) {
-          collected.add(trimmed);
+      if (current is String) {
+        for (final token in current.split(RegExp(r'\s+'))) {
+          final trimmed = token.trim();
+          if (isValidId(trimmed)) {
+            collected.add(trimmed);
+          }
         }
-      }
-      return;
-    }
-
-    if (current is Map) {
-      if (current.containsKey('\$t')) {
-        collect(current['\$t']);
         return;
       }
-      if (current.containsKey('value')) {
-        collect(current['value']);
+
+      if (current is Map) {
+        if (current.containsKey('\$t')) {
+          collect(current['\$t']);
+          return;
+        }
+        if (current.containsKey('value')) {
+          collect(current['value']);
+          return;
+        }
+        if (current.containsKey('PassengerRefs')) {
+          collect(current['PassengerRefs']);
+        }
+        for (final value in current.values) {
+          collect(value);
+        }
         return;
       }
-      if (current.containsKey('PassengerRefs')) {
-        collect(current['PassengerRefs']);
+
+      if (current is Iterable) {
+        for (final value in current) {
+          collect(value);
+        }
+        return;
       }
-      for (final value in current.values) {
-        collect(value);
+
+      collect(current.toString());
+    }
+
+    collect(node);
+
+    final seen = <String>{};
+    final ordered = <String>[];
+    for (final id in collected) {
+      if (seen.add(id)) {
+        ordered.add(id);
       }
-      return;
     }
+    return ordered;
+  }
 
-    if (current is Iterable) {
-      for (final value in current) {
-        collect(value);
+  String _resolveResponseId(Map<String, dynamic> offerData, String offerId) {
+    var responseId = _extractNodeText(offerData['ResponseID']);
+
+    if (responseId.isEmpty && offerData['ShoppingResponseID'] != null) {
+      final shoppingResponse = offerData['ShoppingResponseID'];
+      if (shoppingResponse is Map) {
+        responseId = _extractNodeText(shoppingResponse['ResponseID']);
       }
-      return;
     }
 
-    collect(current.toString());
-  }
-
-  collect(node);
-
-  final seen = <String>{};
-  final ordered = <String>[];
-  for (final id in collected) {
-    if (seen.add(id)) {
-      ordered.add(id);
+    if (responseId.isEmpty) {
+      responseId = _deepSearchForResponseId(offerData);
     }
-  }
-  return ordered;
-}
 
-String _resolveResponseId(Map<String, dynamic> offerData, String offerId) {
-  var responseId = _extractNodeText(offerData['ResponseID']);
-
-  if (responseId.isEmpty && offerData['ShoppingResponseID'] != null) {
-    final shoppingResponse = offerData['ShoppingResponseID'];
-    if (shoppingResponse is Map) {
-      responseId = _extractNodeText(shoppingResponse['ResponseID']);
+    if (responseId.isEmpty && offerId.isNotEmpty) {
+      final lastDash = offerId.lastIndexOf('-');
+      responseId = lastDash > 0 ? offerId.substring(0, lastDash) : offerId;
     }
+
+    return responseId;
   }
 
-  if (responseId.isEmpty) {
-    responseId = _deepSearchForResponseId(offerData);
-  }
+  String _deepSearchForResponseId(dynamic node) {
+    if (node == null) return '';
 
-  if (responseId.isEmpty && offerId.isNotEmpty) {
-    final lastDash = offerId.lastIndexOf('-');
-    responseId = lastDash > 0 ? offerId.substring(0, lastDash) : offerId;
-  }
-
-  return responseId;
-}
-
-String _deepSearchForResponseId(dynamic node) {
-  if (node == null) return '';
-
-  if (node is Map) {
-    if (node.containsKey('ResponseID')) {
-      final extracted = _extractNodeText(node['ResponseID']);
-      if (extracted.isNotEmpty) return extracted;
+    if (node is Map) {
+      if (node.containsKey('ResponseID')) {
+        final extracted = _extractNodeText(node['ResponseID']);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      for (final entry in node.entries) {
+        final found = _deepSearchForResponseId(entry.value);
+        if (found.isNotEmpty) return found;
+      }
+      return '';
     }
-    for (final entry in node.entries) {
-      final found = _deepSearchForResponseId(entry.value);
-      if (found.isNotEmpty) return found;
+
+    if (node is Iterable) {
+      for (final item in node) {
+        final found = _deepSearchForResponseId(item);
+        if (found.isNotEmpty) return found;
+      }
+      return '';
     }
+
     return '';
   }
-
-  if (node is Iterable) {
-    for (final item in node) {
-      final found = _deepSearchForResponseId(item);
-      if (found.isNotEmpty) return found;
-    }
-    return '';
-  }
-
-  return '';
-}
 
   Future<Map<String, dynamic>> priceEmiratesOffer({
     required List<OfferPricingEntry> offers,
     required List<Map<String, String>> passengerDetails,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
       final passengerListXml = _buildPassengerListXml(passengerDetails);
       final sanitizedOffers = offers
           .map((offer) {
-            final cleanedItems = offer.items
-                .where((item) => item.offerItemId.trim().isNotEmpty)
-                .toList();
-            if (cleanedItems.isEmpty) {
-              return null;
-            }
-            return OfferPricingEntry(
-              offerId: offer.offerId,
-              owner: offer.owner,
-              responseId: offer.responseId,
-              items: cleanedItems,
-            );
-          })
+        final cleanedItems = offer.items
+            .where((item) => item.offerItemId.trim().isNotEmpty)
+            .toList();
+        if (cleanedItems.isEmpty) {
+          return null;
+        }
+        return OfferPricingEntry(
+          offerId: offer.offerId,
+          owner: offer.owner,
+          responseId: offer.responseId,
+          items: cleanedItems,
+        );
+      })
           .whereType<OfferPricingEntry>()
           .toList();
 
@@ -1192,48 +1148,49 @@ String _deepSearchForResponseId(dynamic node) {
         scriptEngine: 'FLXDM',
       );
 
-        final xmlData = _buildOfferPriceEnvelope(
-          credential: credential,
-          offers: sanitizedOffers,
-          passengerListXml: passengerListXml,
-        );
+      final xmlData = _buildOfferPriceEnvelope(
+        credential: credential,
+        offers: sanitizedOffers,
+        passengerListXml: passengerListXml,
+      );
 
-        final headers = _buildOfferPriceHeaders(credential);
+      final headers = _buildOfferPriceHeaders(credential);
 
       Map<String, dynamic>? lastError;
 
-        try {
-          final response = await _dio.request(
-            credential.endpoint,
-            options: Options(
-              method: 'POST',
-              headers: headers,
-              responseType: ResponseType.plain,
-              validateStatus: (status) => status! < 600,
-            ),
-            data: xmlData,
-          );
+      try {
+        final response = await _apiClient.request(
+          url: credential.endpoint,
+          method: HttpMethod.POST,
+          serviceName: 'EMIRATES PRICE OFFER',
+          body: xmlData,
+          headers: headers,
+          contentType: ContentType.XML,
+          convertXmlToJson: false,
+          printRequestBody: printRequest,
+          printResponseBody: printResponse,
+        );
 
-          if (response.statusCode == 200) {
-            final parsedResponse = _parseOfferPriceResponse(response.data.toString());
-            parsedResponse['credential'] = credential.credentialName;
-            return parsedResponse;
-          }
-
-          final errorMap = {
-            'success': false,
-            'error': 'Server error ${response.statusCode}: ${response.data}',
-            'raw_xml': response.data.toString(),
-            'credential': credential.credentialName,
-          };
-
-          lastError = errorMap;
-        } catch (e, stackTrace) {
-          lastError = {
-            'success': false,
-            'error': 'Error (${credential.credentialName}): ${e.toString()}',
-          };
+        if (response.isSuccess) {
+          final parsedResponse = _parseOfferPriceResponse(response.responseBody);
+          parsedResponse['credential'] = credential.credentialName;
+          return parsedResponse;
         }
+
+        final errorMap = {
+          'success': false,
+          'error': 'Server error ${response.statusCode}: ${response.responseBody}',
+          'raw_xml': response.responseBody,
+          'credential': credential.credentialName,
+        };
+
+        lastError = errorMap;
+      } catch (e, stackTrace) {
+        lastError = {
+          'success': false,
+          'error': 'Error (${credential.credentialName}): ${e.toString()}',
+        };
+      }
 
       return lastError ??
           {
@@ -1248,11 +1205,11 @@ String _deepSearchForResponseId(dynamic node) {
     }
   }
 
-String _buildOfferPriceEnvelope({
-  required OfferPriceCredential credential,
-  required List<OfferPricingEntry> offers,
-  required String passengerListXml,
-}) {
+  String _buildOfferPriceEnvelope({
+    required OfferPriceCredential credential,
+    required List<OfferPricingEntry> offers,
+    required String passengerListXml,
+  }) {
     final traceAttribute = credential.traceAdmin ? ' admin="Y"' : '';
     final transactionId = _generateTransactionId();
 
@@ -1322,7 +1279,7 @@ $passengerListXml
 </SOAP-ENV:Envelope>''';
   }
 
-Map<String, String> _buildOfferPriceHeaders(OfferPriceCredential credential) {
+  Map<String, String> _buildOfferPriceHeaders(OfferPriceCredential credential) {
     return {
       'Ocp-Apim-Subscription-Key': credential.subscriptionKey,
       'SOAPAction': 'OfferPriceRQ',
@@ -1333,11 +1290,10 @@ Map<String, String> _buildOfferPriceHeaders(OfferPriceCredential credential) {
       'clientIp': '91.108.109.86',
       'contEnc': '',
       'agencyName': '',
-      'Content-Type': 'application/xml',
     };
   }
 
-String _buildPassengerListXml(List<Map<String, String>> passengerDetails) {
+  String _buildPassengerListXml(List<Map<String, String>> passengerDetails) {
     if (passengerDetails.isEmpty) {
       return '''
               <Passenger PassengerID="T1">
@@ -1363,259 +1319,257 @@ String _buildPassengerListXml(List<Map<String, String>> passengerDetails) {
         : xml;
   }
 
-String _extractNodeText(dynamic value) {
-  if (value == null) return '';
-  if (value is String) return value.trim();
-  if (value is Map) {
-    for (final key in ['\$t', 'value', 'text', '_text']) {
-      if (value.containsKey(key)) {
-        final inner = _extractNodeText(value[key]);
-        if (inner.isNotEmpty) return inner;
-      }
-    }
-    if (value.length == 1) {
-      return _extractNodeText(value.values.first);
-    }
-    for (final entry in value.entries) {
-      final extracted = _extractNodeText(entry.value);
-      if (extracted.isNotEmpty) return extracted;
-    }
-    return '';
-  }
-  if (value is Iterable) {
-    for (final item in value) {
-      final extracted = _extractNodeText(item);
-      if (extracted.isNotEmpty) return extracted;
-    }
-    return '';
-  }
-  return value.toString().trim();
-}
-
-String _buildOfferItemsXml(
-  List<OfferPricingItem> items,
-) {
-  final buffer = StringBuffer();
-
-  for (final item in items) {
-    final passengerRefs = item.passengerRefs.trim();
-    buffer.writeln('              <OfferItem OfferItemID="${item.offerItemId}">');
-    if (passengerRefs.isNotEmpty) {
-      buffer.writeln('                <PassengerRefs>$passengerRefs</PassengerRefs>');
-    }
-    buffer.writeln('              </OfferItem>');
-  }
-
-  return buffer.toString();
-}
-
-Map<String, dynamic> _parseOfferPriceResponse(String xmlResponse) {
-  try {
-    final document = xml.XmlDocument.parse(xmlResponse);
-
-    final errors = document.findAllElements('Error');
-    if (errors.isNotEmpty) {
-      final errorMsg = errors.first.text;
-      return {
-        'success': false,
-        'error': errorMsg,
-        'raw_xml': xmlResponse,
-      };
-    }
-
-    final offerPriceRS = document.findAllElements('OfferPriceRS').firstOrNull;
-    if (offerPriceRS == null) {
-      return {
-        'success': false,
-        'error': 'OfferPriceRS not found in response',
-        'raw_xml': xmlResponse,
-      };
-    }
-
-    final result = <String, dynamic>{};
-
-    final shoppingResponse = offerPriceRS.findElements('ShoppingResponseID').firstOrNull;
-    if (shoppingResponse != null) {
-      result['ShoppingResponseID'] = _xmlElementToMap(shoppingResponse);
-    }
-
-    final pricedOffer = offerPriceRS.findElements('PricedOffer').firstOrNull;
-    if (pricedOffer != null) {
-      final mapped = _xmlElementToMap(pricedOffer);
-      result['PricedOffer'] = mapped;
-    }
-
-    final dataLists = offerPriceRS.findElements('DataLists').firstOrNull;
-    if (dataLists != null) {
-      result['DataLists'] = _xmlElementToMap(dataLists);
-    }
-
-    if (!result.containsKey('PricedOffer')) {
-      return {
-        'success': false,
-        'error': 'PricedOffer element not found in response',
-        'raw_xml': xmlResponse,
-      };
-    }
-
-    final shoppingResponseId = result['ShoppingResponseID'];
-    String responseId = '';
-    if (shoppingResponseId is Map && shoppingResponseId['ResponseID'] != null) {
-      responseId = _extractNodeText(shoppingResponseId['ResponseID']);
-    }
-
-    final pricedOfferData = result['PricedOffer'];
-    final pricedOffers = <Map<String, dynamic>>[];
-    if (pricedOfferData is List) {
-      for (final item in pricedOfferData) {
-        if (item is Map<String, dynamic>) {
-          pricedOffers.add(item);
+  String _extractNodeText(dynamic value) {
+    if (value == null) return '';
+    if (value is String) return value.trim();
+    if (value is Map) {
+      for (final key in ['\$t', 'value', 'text', '_text']) {
+        if (value.containsKey(key)) {
+          final inner = _extractNodeText(value[key]);
+          if (inner.isNotEmpty) return inner;
         }
       }
-    } else if (pricedOfferData is Map<String, dynamic>) {
-      pricedOffers.add(pricedOfferData);
+      if (value.length == 1) {
+        return _extractNodeText(value.values.first);
+      }
+      for (final entry in value.entries) {
+        final extracted = _extractNodeText(entry.value);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      return '';
     }
-    result['pricedOffers'] = pricedOffers;
-
-    return {
-      'success': true,
-      'pricedOffer': result['PricedOffer'],
-      'pricedOffers': pricedOffers,
-      'shoppingResponse': shoppingResponseId,
-      'responseId': responseId,
-      'dataLists': result['DataLists'],
-      'raw_xml': xmlResponse,
-      'message': 'Offer priced successfully',
-    };
-  } catch (e, stackTrace) {
-    return {
-      'success': false,
-      'error': 'Failed to parse OfferPrice response: $e',
-      'raw_xml': xmlResponse,
-    };
+    if (value is Iterable) {
+      for (final item in value) {
+        final extracted = _extractNodeText(item);
+        if (extracted.isNotEmpty) return extracted;
+      }
+      return '';
+    }
+    return value.toString().trim();
   }
-}
 
-Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
-  try {
-    final document = xml.XmlDocument.parse(xmlResponse);
-    
-    // Check for errors first
-    final errors = document.findAllElements('Error');
-    if (errors.isNotEmpty) {
-      final errorMsg = errors.first.text;
+  String _buildOfferItemsXml(List<OfferPricingItem> items) {
+    final buffer = StringBuffer();
+
+    for (final item in items) {
+      final passengerRefs = item.passengerRefs.trim();
+      buffer.writeln('              <OfferItem OfferItemID="${item.offerItemId}">');
+      if (passengerRefs.isNotEmpty) {
+        buffer.writeln('                <PassengerRefs>$passengerRefs</PassengerRefs>');
+      }
+      buffer.writeln('              </OfferItem>');
+    }
+
+    return buffer.toString();
+  }
+
+  Map<String, dynamic> _parseOfferPriceResponse(String xmlResponse) {
+    try {
+      final document = xml.XmlDocument.parse(xmlResponse);
+
+      final errors = document.findAllElements('Error');
+      if (errors.isNotEmpty) {
+        final errorMsg = errors.first.text;
+        return {
+          'success': false,
+          'error': errorMsg,
+          'raw_xml': xmlResponse,
+        };
+      }
+
+      final offerPriceRS = document.findAllElements('OfferPriceRS').firstOrNull;
+      if (offerPriceRS == null) {
+        return {
+          'success': false,
+          'error': 'OfferPriceRS not found in response',
+          'raw_xml': xmlResponse,
+        };
+      }
+
+      final result = <String, dynamic>{};
+
+      final shoppingResponse = offerPriceRS.findElements('ShoppingResponseID').firstOrNull;
+      if (shoppingResponse != null) {
+        result['ShoppingResponseID'] = _xmlElementToMap(shoppingResponse);
+      }
+
+      final pricedOffer = offerPriceRS.findElements('PricedOffer').firstOrNull;
+      if (pricedOffer != null) {
+        final mapped = _xmlElementToMap(pricedOffer);
+        result['PricedOffer'] = mapped;
+      }
+
+      final dataLists = offerPriceRS.findElements('DataLists').firstOrNull;
+      if (dataLists != null) {
+        result['DataLists'] = _xmlElementToMap(dataLists);
+      }
+
+      if (!result.containsKey('PricedOffer')) {
+        return {
+          'success': false,
+          'error': 'PricedOffer element not found in response',
+          'raw_xml': xmlResponse,
+        };
+      }
+
+      final shoppingResponseId = result['ShoppingResponseID'];
+      String responseId = '';
+      if (shoppingResponseId is Map && shoppingResponseId['ResponseID'] != null) {
+        responseId = _extractNodeText(shoppingResponseId['ResponseID']);
+      }
+
+      final pricedOfferData = result['PricedOffer'];
+      final pricedOffers = <Map<String, dynamic>>[];
+      if (pricedOfferData is List) {
+        for (final item in pricedOfferData) {
+          if (item is Map<String, dynamic>) {
+            pricedOffers.add(item);
+          }
+        }
+      } else if (pricedOfferData is Map<String, dynamic>) {
+        pricedOffers.add(pricedOfferData);
+      }
+      result['pricedOffers'] = pricedOffers;
+
+      return {
+        'success': true,
+        'pricedOffer': result['PricedOffer'],
+        'pricedOffers': pricedOffers,
+        'shoppingResponse': shoppingResponseId,
+        'responseId': responseId,
+        'dataLists': result['DataLists'],
+        'raw_xml': xmlResponse,
+        'message': 'Offer priced successfully',
+      };
+    } catch (e, stackTrace) {
       return {
         'success': false,
-        'error': errorMsg,
+        'error': 'Failed to parse OfferPrice response: $e',
+        'raw_xml': xmlResponse,
       };
     }
-    
-    // Look for OrderViewRS
-    final orderViewRS = document.findAllElements('OrderViewRS').firstOrNull;
-    if (orderViewRS == null) {
-      return {
-        'success': false,
-        'error': 'OrderViewRS not found in response',
-      };
-    }
-    
-    // Extract Success element
-    final success = orderViewRS.findElements('Success').firstOrNull;
-    if (success == null) {
-      return {
-        'success': false,
-        'error': 'Success element not found in response',
-      };
-    }
-    
-    // Extract Order information
-    final response = orderViewRS.findElements('Response').firstOrNull;
-    if (response == null) {
-      return {
-        'success': false,
-        'error': 'Response element not found',
-      };
-    }
-    
-    final order = response.findElements('Order').firstOrNull;
-    if (order == null) {
-      return {
-        'success': false,
-        'error': 'Order element not found',
-      };
-    }
-    
-    // Extract PNR from BookingReferences
-    String pnr = '';
-    final bookingReferences = order.findElements('BookingReferences').firstOrNull;
-    if (bookingReferences != null) {
-      final bookingRefElements = bookingReferences.findElements('BookingReference').toList();
-      if (bookingRefElements.isNotEmpty) {
-        final firstId = bookingRefElements.first.findElements('ID').firstOrNull;
-        if (firstId != null && firstId.text.trim().isNotEmpty) {
-          pnr = firstId.text.trim();
-        } else {
-          for (var bookingRef in bookingRefElements) {
-            final fallbackId = bookingRef.findElements('ID').firstOrNull;
-            if (fallbackId != null && fallbackId.text.trim().isNotEmpty) {
-              pnr = fallbackId.text.trim();
-              break;
+  }
+
+  Map<String, dynamic> _parsePnrResponse(String xmlResponse) {
+    try {
+      final document = xml.XmlDocument.parse(xmlResponse);
+
+      // Check for errors first
+      final errors = document.findAllElements('Error');
+      if (errors.isNotEmpty) {
+        final errorMsg = errors.first.text;
+        return {
+          'success': false,
+          'error': errorMsg,
+        };
+      }
+
+      // Look for OrderViewRS
+      final orderViewRS = document.findAllElements('OrderViewRS').firstOrNull;
+      if (orderViewRS == null) {
+        return {
+          'success': false,
+          'error': 'OrderViewRS not found in response',
+        };
+      }
+
+      // Extract Success element
+      final success = orderViewRS.findElements('Success').firstOrNull;
+      if (success == null) {
+        return {
+          'success': false,
+          'error': 'Success element not found in response',
+        };
+      }
+
+      // Extract Order information
+      final response = orderViewRS.findElements('Response').firstOrNull;
+      if (response == null) {
+        return {
+          'success': false,
+          'error': 'Response element not found',
+        };
+      }
+
+      final order = response.findElements('Order').firstOrNull;
+      if (order == null) {
+        return {
+          'success': false,
+          'error': 'Order element not found',
+        };
+      }
+
+      // Extract PNR from BookingReferences
+      String pnr = '';
+      final bookingReferences = order.findElements('BookingReferences').firstOrNull;
+      if (bookingReferences != null) {
+        final bookingRefElements = bookingReferences.findElements('BookingReference').toList();
+        if (bookingRefElements.isNotEmpty) {
+          final firstId = bookingRefElements.first.findElements('ID').firstOrNull;
+          if (firstId != null && firstId.text.trim().isNotEmpty) {
+            pnr = firstId.text.trim();
+          } else {
+            for (var bookingRef in bookingRefElements) {
+              final fallbackId = bookingRef.findElements('ID').firstOrNull;
+              if (fallbackId != null && fallbackId.text.trim().isNotEmpty) {
+                pnr = fallbackId.text.trim();
+                break;
+              }
             }
           }
         }
       }
-    }
-    
-    // Extract Order ID
-    final orderId = order.getAttribute('OrderID') ?? '';
-    
-    // Extract Total Price
-    String totalPrice = '';
-    String currency = '';
-    final totalOrderPrice = order.findElements('TotalOrderPrice').firstOrNull;
-    if (totalOrderPrice != null) {
-      final detailCurrencyPrice = totalOrderPrice.findElements('DetailCurrencyPrice').firstOrNull;
-      if (detailCurrencyPrice != null) {
-        final total = detailCurrencyPrice.findElements('Total').firstOrNull;
-        if (total != null) {
-          totalPrice = total.text;
-          currency = total.getAttribute('Code') ?? '';
+
+      // Extract Order ID
+      final orderId = order.getAttribute('OrderID') ?? '';
+
+      // Extract Total Price
+      String totalPrice = '';
+      String currency = '';
+      final totalOrderPrice = order.findElements('TotalOrderPrice').firstOrNull;
+      if (totalOrderPrice != null) {
+        final detailCurrencyPrice = totalOrderPrice.findElements('DetailCurrencyPrice').firstOrNull;
+        if (detailCurrencyPrice != null) {
+          final total = detailCurrencyPrice.findElements('Total').firstOrNull;
+          if (total != null) {
+            totalPrice = total.text;
+            currency = total.getAttribute('Code') ?? '';
+          }
         }
       }
+
+      return {
+        'success': true,
+        'pnr': pnr,
+        'orderId': orderId,
+        'totalPrice': totalPrice,
+        'currency': currency,
+        'rawResponse': xmlResponse,
+      };
+    } catch (e, stackTrace) {
+      return {
+        'success': false,
+        'error': 'Failed to parse PNR response: $e',
+      };
     }
-    
-    return {
-      'success': true,
-      'pnr': pnr,
-      'orderId': orderId,
-      'totalPrice': totalPrice,
-      'currency': currency,
-      'rawResponse': xmlResponse,
-    };
-  } catch (e, stackTrace) {
-    return {
-      'success': false,
-      'error': 'Failed to parse PNR response: $e',
-    };
-  }
-}
-
-String _buildIdentityDocumentBlock({
-  required String documentNumber,
-  required String expiryDate,
-  required String issuingCountry,
-  required String nationalityCountry,
-}) {
-  final docNumber = documentNumber.trim();
-  final docExpiry = expiryDate.trim();
-  final issuing = issuingCountry.trim().isEmpty ? 'PK' : issuingCountry.trim();
-  final nationality = nationalityCountry.trim().isEmpty ? issuing : nationalityCountry.trim();
-
-  if (docNumber.isEmpty || docExpiry.isEmpty) {
-    return '';
   }
 
-  return '''
+  String _buildIdentityDocumentBlock({
+    required String documentNumber,
+    required String expiryDate,
+    required String issuingCountry,
+    required String nationalityCountry,
+  }) {
+    final docNumber = documentNumber.trim();
+    final docExpiry = expiryDate.trim();
+    final issuing = issuingCountry.trim().isEmpty ? 'PK' : issuingCountry.trim();
+    final nationality = nationalityCountry.trim().isEmpty ? issuing : nationalityCountry.trim();
+
+    if (docNumber.isEmpty || docExpiry.isEmpty) {
+      return '';
+    }
+
+    return '''
                          <IdentityDocument>
                              <IdentityDocumentNumber>$docNumber</IdentityDocumentNumber>
                              <IdentityDocumentType>PT</IdentityDocumentType>
@@ -1623,155 +1577,155 @@ String _buildIdentityDocumentBlock({
                              <IssuingCountryCode>$issuing</IssuingCountryCode>
                              <NationalityCountryCode>$nationality</NationalityCountryCode>
                          </IdentityDocument>''';
-}
-
-Future<Map<String, dynamic>> saveEmiratesBooking({
-  required List<Map<String, dynamic>> selectedOffers,
-  required Map<String, dynamic> pnrResponse,
-  required dynamic bookingController,
-}) async {
-  try {
-    final bookingInfo = {
-      "bfname": bookingController.firstNameController.text,
-      "blname": bookingController.lastNameController.text,
-      "bemail": bookingController.emailController.text,
-      "bphno": bookingController.phoneController.text,
-      "badd": "b",
-      "bcity": "a",
-      "final_price": _extractTotalPriceFromOffers(selectedOffers).toString(),
-      "client_email": bookingController.emailController.text,
-      "client_phone": bookingController.phoneController.text,
-    };
-
-    // Prepare adults data
-    final adults = bookingController.adults.map((adult) {
-      return {
-        "title": adult.titleController.text,
-        "first_name": adult.firstNameController.text,
-        "last_name": adult.lastNameController.text,
-        "dob": adult.dateOfBirthController.text,
-        "nationality": adult.nationalityCountry.value?.countryCode ?? 'PK',
-        "passport": adult.passportCnicController.text,
-        "passport_expiry": adult.passportExpiryController.text,
-        "cnic": adult.passportCnicController.text,
-      };
-    }).toList();
-
-    // Prepare children data
-    final children = bookingController.children.map((child) {
-      return {
-        "title": child.titleController.text,
-        "first_name": child.firstNameController.text,
-        "last_name": child.lastNameController.text,
-        "dob": child.dateOfBirthController.text,
-        "nationality": child.nationalityCountry.value?.countryCode ?? 'PK',
-        "passport": child.passportCnicController.text,
-        "passport_expiry": child.passportExpiryController.text,
-        "cnic": child.passportCnicController.text,
-      };
-    }).toList();
-
-    // Prepare infants data
-    final infants = bookingController.infants.map((infant) {
-      return {
-        "title": infant.titleController.text,
-        "first_name": infant.firstNameController.text,
-        "last_name": infant.lastNameController.text,
-        "dob": infant.dateOfBirthController.text,
-        "nationality": infant.nationalityCountry.value?.countryCode ?? 'PK',
-        "passport": "a",
-        "passport_expiry": "a",
-        "cnic": "a",
-      };
-    }).toList();
-
-    // Prepare flights data from selected offers
-    final flights = await _prepareEmiratesFlightData(selectedOffers);
-
-    // Determine PNR status (1 for success, 0 for failure)
-    final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
-    final pnr = pnrResponse['pnr']?.toString() ?? '';
-
-    // Calculate total price
-    final totalPrice = _extractTotalPriceFromOffers(selectedOffers);
-
-    // Prepare final request body
-    final requestBody = {
-      "booking_info": bookingInfo,
-      "adults": adults,
-      "children": children,
-      "infants": infants,
-      "flights": flights,
-      "pnr": pnr,
-      "buyingPrice": totalPrice.toStringAsFixed(0),
-      "sellingPrice": totalPrice.toStringAsFixed(0),
-      "pnrStatus": pnrStatus,
-      "booking_from": "1",
-      "gds": "Emirates"
-    };
-
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: 'https://readyflights.pk/api/',
-        headers: {
-          'Content-Type': 'application/json',
-          // Note: Token should be passed from the calling context if needed
-          // 'Authorization': 'Bearer $token',
-        },
-        responseType: ResponseType.json,
-      ),
-    );
-
-    // Make the API call
-    final response = await dio.post('flight-booking', data: requestBody);
-
-    if (response.statusCode == 200 || response.statusCode == 201) {
-      if (response.data is Map<String, dynamic>) {
-        return response.data;
-      } else if (response.data is String) {
-        return jsonDecode(response.data) as Map<String, dynamic>;
-      }
-      return {'status': 'success'};
-    } else {
-      throw Exception('Failed to save booking: ${response.statusMessage}');
-    }
-  } catch (e, stackTrace) {
-    return {
-      'success': false,
-      'error': 'Error saving booking: ${e.toString()}',
-    };
   }
-}
 
-// Helper method to extract total price from selected offers
-double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
-  double totalPrice = 0.0;
-  try {
-    for (var offer in selectedOffers) {
-      final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
-      final totalPriceNode = offerData['TotalPrice'];
-      
-      if (totalPriceNode != null) {
-        if (totalPriceNode is Map) {
-          final simpleCurrencyPrice = totalPriceNode['SimpleCurrencyPrice'];
-          if (simpleCurrencyPrice is Map) {
-            final priceValue = simpleCurrencyPrice['\$t'] ?? simpleCurrencyPrice['value'];
-            if (priceValue != null) {
-              totalPrice += double.tryParse(priceValue.toString()) ?? 0.0;
+  Future<Map<String, dynamic>> saveEmiratesBooking({
+    required List<Map<String, dynamic>> selectedOffers,
+    required Map<String, dynamic> pnrResponse,
+    required dynamic bookingController,
+    bool printRequest = false,
+    bool printResponse = false,
+  }) async {
+    try {
+      final bookingInfo = {
+        "bfname": bookingController.firstNameController.text,
+        "blname": bookingController.lastNameController.text,
+        "bemail": bookingController.emailController.text,
+        "bphno": bookingController.phoneController.text,
+        "badd": "b",
+        "bcity": "a",
+        "final_price": _extractTotalPriceFromOffers(selectedOffers).toString(),
+        "client_email": bookingController.emailController.text,
+        "client_phone": bookingController.phoneController.text,
+      };
+
+      // Prepare adults data
+      final adults = bookingController.adults.map((adult) {
+        return {
+          "title": adult.titleController.text,
+          "first_name": adult.firstNameController.text,
+          "last_name": adult.lastNameController.text,
+          "dob": adult.dateOfBirthController.text,
+          "nationality": adult.nationalityCountry.value?.countryCode ?? 'PK',
+          "passport": adult.passportCnicController.text,
+          "passport_expiry": adult.passportExpiryController.text,
+          "cnic": adult.passportCnicController.text,
+        };
+      }).toList();
+
+      // Prepare children data
+      final children = bookingController.children.map((child) {
+        return {
+          "title": child.titleController.text,
+          "first_name": child.firstNameController.text,
+          "last_name": child.lastNameController.text,
+          "dob": child.dateOfBirthController.text,
+          "nationality": child.nationalityCountry.value?.countryCode ?? 'PK',
+          "passport": child.passportCnicController.text,
+          "passport_expiry": child.passportExpiryController.text,
+          "cnic": child.passportCnicController.text,
+        };
+      }).toList();
+
+      // Prepare infants data
+      final infants = bookingController.infants.map((infant) {
+        return {
+          "title": infant.titleController.text,
+          "first_name": infant.firstNameController.text,
+          "last_name": infant.lastNameController.text,
+          "dob": infant.dateOfBirthController.text,
+          "nationality": infant.nationalityCountry.value?.countryCode ?? 'PK',
+          "passport": "a",
+          "passport_expiry": "a",
+          "cnic": "a",
+        };
+      }).toList();
+
+      // Prepare flights data from selected offers
+      final flights = await _prepareEmiratesFlightData(selectedOffers);
+
+      // Determine PNR status (1 for success, 0 for failure)
+      final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
+      final pnr = pnrResponse['pnr']?.toString() ?? '';
+
+      // Calculate total price
+      final totalPrice = _extractTotalPriceFromOffers(selectedOffers);
+
+      // Prepare final request body
+      final requestBody = {
+        "booking_info": bookingInfo,
+        "adults": adults,
+        "children": children,
+        "infants": infants,
+        "flights": flights,
+        "pnr": pnr,
+        "buyingPrice": totalPrice.toStringAsFixed(0),
+        "sellingPrice": totalPrice.toStringAsFixed(0),
+        "pnrStatus": pnrStatus,
+        "booking_from": "1",
+        "gds": "Emirates"
+      };
+
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/flight-booking',
+        method: HttpMethod.POST,
+        serviceName: 'EMIRATES SAVE BOOKING',
+        body: jsonEncode(requestBody),
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
+      );
+
+      if (response.isSuccess) {
+        if (response.responseJson != null) {
+          return response.responseJson!;
+        }
+        return {'status': 'success'};
+      } else {
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
+      }
+    } catch (e, stackTrace) {
+      if (e is ApiException) rethrow;
+      return {
+        'success': false,
+        'error': 'Error saving booking: ${e.toString()}',
+      };
+    }
+  }
+
+  // Helper method to extract total price from selected offers
+  double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
+    double totalPrice = 0.0;
+    try {
+      for (var offer in selectedOffers) {
+        final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
+        final totalPriceNode = offerData['TotalPrice'];
+
+        if (totalPriceNode != null) {
+          if (totalPriceNode is Map) {
+            final simpleCurrencyPrice = totalPriceNode['SimpleCurrencyPrice'];
+            if (simpleCurrencyPrice is Map) {
+              final priceValue = simpleCurrencyPrice['\$t'] ?? simpleCurrencyPrice['value'];
+              if (priceValue != null) {
+                totalPrice += double.tryParse(priceValue.toString()) ?? 0.0;
+              }
             }
+          } else if (totalPriceNode is num) {
+            totalPrice += totalPriceNode.toDouble();
           }
-        } else if (totalPriceNode is num) {
-          totalPrice += totalPriceNode.toDouble();
         }
       }
+    } catch (e) {
+      // Error extracting total price
     }
-  } catch (e) {
-    // Error extracting total price
+    return totalPrice > 0 ? totalPrice : 0.0;
   }
-  return totalPrice > 0 ? totalPrice : 0.0;
-}
 
-  // Fetch airline data from API (similar to Sabre)
+  // Fetch airline data from API
   Future<Map<String, AirlineInfo>> _fetchAirlineData() async {
     if (_airlineMap != null) {
       return _airlineMap!;
@@ -1780,19 +1734,21 @@ double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
     Map<String, AirlineInfo> tempAirlineMap = {};
 
     try {
-      var response = await _dioForAirline.request(
-        'https://agent1.pk/api.php?type=airlines',
-        options: Options(
-          method: 'GET',
-        ),
+      final response = await _apiClient.request(
+        url: 'https://agent1.pk/api.php?type=airlines',
+        method: HttpMethod.GET,
+        serviceName: 'AIRLINES DATA',
+        contentType: ContentType.JSON,
+        printRequestBody: false,
+        printResponseBody: false,
       );
 
-      if (response.statusCode == 200) {
-        var data = response.data['data'];
+      if (response.isSuccess && response.responseJson != null) {
+        var data = response.responseJson!['data'];
         for (var item in data) {
           String logoUrl = item['logo'];
           logoUrl = logoUrl.replaceAll(RegExp(r'^\t+'), '');
-          
+
           tempAirlineMap[item['code']] = AirlineInfo(
             item['name'],
             logoUrl,
@@ -1814,162 +1770,162 @@ double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
     return airlineInfo.name;
   }
 
-// Helper method to prepare Emirates flight data
-Future<List<Map<String, dynamic>>> _prepareEmiratesFlightData(List<Map<String, dynamic>> selectedOffers) async {
-  final flights = <Map<String, dynamic>>[];
+  // Helper method to prepare Emirates flight data
+  Future<List<Map<String, dynamic>>> _prepareEmiratesFlightData(
+      List<Map<String, dynamic>> selectedOffers) async {
+    final flights = <Map<String, dynamic>>[];
 
-  try {
-    for (var offer in selectedOffers) {
-      final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
-      final dataLists = offerData['DataLists'] ?? {};
-      final flightSegmentList = dataLists['FlightSegmentList']?['FlightSegment'] ?? {};
-      final offerItems = offerData['OfferItem'] ?? [];
-      
-      // Handle single or multiple offer items
-      final offerItemsList = offerItems is List ? offerItems : [offerItems];
-      
-      for (var offerItem in offerItemsList) {
-        if (offerItem is! Map) continue;
-        
-        final serviceRefs = offerItem['Service'] ?? [];
-        final serviceRefsList = serviceRefs is List ? serviceRefs : [serviceRefs];
-        
-        for (var serviceRef in serviceRefsList) {
-          if (serviceRef is! Map) continue;
-          
-          final segmentRefs = serviceRef['SegmentRefs'] ?? [];
-          final segmentRefsList = segmentRefs is List ? segmentRefs : [segmentRefs];
-          
-          for (var segmentRef in segmentRefsList) {
-            final segmentKey = _extractNodeText(segmentRef);
-            if (segmentKey.isEmpty) continue;
-            
-            final flightSegment = flightSegmentList is Map ? flightSegmentList[segmentKey] : null;
-            if (flightSegment == null || flightSegment is! Map) continue;
-            
-            // Extract flight details
-            final departure = flightSegment['Departure'] ?? {};
-            final arrival = flightSegment['Arrival'] ?? {};
-            final operatingCarrier = flightSegment['OperatingCarrier'] ?? {};
-            final marketingCarrier = flightSegment['MarketingCarrier'] ?? {};
-            
-            final depAirport = _extractNodeText(departure['AirportCode']);
-            final arrAirport = _extractNodeText(arrival['AirportCode']);
-            final depDateTime = _extractNodeText(departure['Date']) + ' ' + _extractNodeText(departure['Time']);
-            final arrDateTime = _extractNodeText(arrival['Date']) + ' ' + _extractNodeText(arrival['Time']);
-            final flightNumber = _extractNodeText(flightSegment['FlightNumber']);
-            final operatingCarrierCode = _extractNodeText(operatingCarrier['AirlineID']);
-            final marketingCarrierCode = _extractNodeText(marketingCarrier['AirlineID']);
-            
-            // Get airline names from carrier codes using API
-            final effectiveMarketingCode = marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK';
-            final effectiveOperatingCode = operatingCarrierCode.isNotEmpty ? operatingCarrierCode : effectiveMarketingCode;
-            final marketingAirlineName = await _getAirlineNameFromCode(effectiveMarketingCode);
-            final operatingAirlineName = await _getAirlineNameFromCode(effectiveOperatingCode);
-            
-            // Parse dates
-            DateTime? depDate;
-            DateTime? arrDate;
-            try {
-              depDate = DateTime.parse(depDateTime);
-            } catch (e) {
+    try {
+      for (var offer in selectedOffers) {
+        final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
+        final dataLists = offerData['DataLists'] ?? {};
+        final flightSegmentList = dataLists['FlightSegmentList']?['FlightSegment'] ?? {};
+        final offerItems = offerData['OfferItem'] ?? [];
+
+        // Handle single or multiple offer items
+        final offerItemsList = offerItems is List ? offerItems : [offerItems];
+
+        for (var offerItem in offerItemsList) {
+          if (offerItem is! Map) continue;
+
+          final serviceRefs = offerItem['Service'] ?? [];
+          final serviceRefsList = serviceRefs is List ? serviceRefs : [serviceRefs];
+
+          for (var serviceRef in serviceRefsList) {
+            if (serviceRef is! Map) continue;
+
+            final segmentRefs = serviceRef['SegmentRefs'] ?? [];
+            final segmentRefsList = segmentRefs is List ? segmentRefs : [segmentRefs];
+
+            for (var segmentRef in segmentRefsList) {
+              final segmentKey = _extractNodeText(segmentRef);
+              if (segmentKey.isEmpty) continue;
+
+              final flightSegment = flightSegmentList is Map ? flightSegmentList[segmentKey] : null;
+              if (flightSegment == null || flightSegment is! Map) continue;
+
+              // Extract flight details
+              final departure = flightSegment['Departure'] ?? {};
+              final arrival = flightSegment['Arrival'] ?? {};
+              final operatingCarrier = flightSegment['OperatingCarrier'] ?? {};
+              final marketingCarrier = flightSegment['MarketingCarrier'] ?? {};
+
+              final depAirport = _extractNodeText(departure['AirportCode']);
+              final arrAirport = _extractNodeText(arrival['AirportCode']);
+              final depDateTime = _extractNodeText(departure['Date']) + ' ' + _extractNodeText(departure['Time']);
+              final arrDateTime = _extractNodeText(arrival['Date']) + ' ' + _extractNodeText(arrival['Time']);
+              final flightNumber = _extractNodeText(flightSegment['FlightNumber']);
+              final operatingCarrierCode = _extractNodeText(operatingCarrier['AirlineID']);
+              final marketingCarrierCode = _extractNodeText(marketingCarrier['AirlineID']);
+
+              // Get airline names from carrier codes using API
+              final effectiveMarketingCode = marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK';
+              final effectiveOperatingCode = operatingCarrierCode.isNotEmpty ? operatingCarrierCode : effectiveMarketingCode;
+              final marketingAirlineName = await _getAirlineNameFromCode(effectiveMarketingCode);
+              final operatingAirlineName = await _getAirlineNameFromCode(effectiveOperatingCode);
+
+              // Parse dates
+              DateTime? depDate;
+              DateTime? arrDate;
               try {
-                depDate = DateTime.parse(_extractNodeText(departure['Date']));
-              } catch (_) {}
-            }
-            try {
-              arrDate = DateTime.parse(arrDateTime);
-            } catch (e) {
+                depDate = DateTime.parse(depDateTime);
+              } catch (e) {
+                try {
+                  depDate = DateTime.parse(_extractNodeText(departure['Date']));
+                } catch (_) {}
+              }
               try {
-                arrDate = DateTime.parse(_extractNodeText(arrival['Date']));
-              } catch (_) {}
-            }
-            
-            if (depDate == null || arrDate == null) continue;
-            
-            final duration = arrDate.difference(depDate);
-            
-            // Get cabin class from PriceClass
-            String cabinClass = 'Economy';
-            String cabinCode = 'Y';
-            final priceClassRefs = serviceRef['PriceClassRefs'] ?? [];
-            if (priceClassRefs is List && priceClassRefs.isNotEmpty) {
-              final priceClassId = _extractNodeText(priceClassRefs[0]);
-              final priceClassList = dataLists['PriceClassList']?['PriceClass'] ?? {};
-              if (priceClassList is Map) {
-                final priceClass = priceClassList[priceClassId];
-                if (priceClass is Map) {
-                  final name = _extractNodeText(priceClass['Name']);
-                  cabinClass = name.isNotEmpty ? name : cabinClass;
-                  final code = _extractNodeText(priceClass['Code']);
-                  cabinCode = code.isNotEmpty ? code : cabinCode;
+                arrDate = DateTime.parse(arrDateTime);
+              } catch (e) {
+                try {
+                  arrDate = DateTime.parse(_extractNodeText(arrival['Date']));
+                } catch (_) {}
+              }
+
+              if (depDate == null || arrDate == null) continue;
+
+              final duration = arrDate.difference(depDate);
+
+              // Get cabin class from PriceClass
+              String cabinClass = 'Economy';
+              String cabinCode = 'Y';
+              final priceClassRefs = serviceRef['PriceClassRefs'] ?? [];
+              if (priceClassRefs is List && priceClassRefs.isNotEmpty) {
+                final priceClassId = _extractNodeText(priceClassRefs[0]);
+                final priceClassList = dataLists['PriceClassList']?['PriceClass'] ?? {};
+                if (priceClassList is Map) {
+                  final priceClass = priceClassList[priceClassId];
+                  if (priceClass is Map) {
+                    final name = _extractNodeText(priceClass['Name']);
+                    cabinClass = name.isNotEmpty ? name : cabinClass;
+                    final code = _extractNodeText(priceClass['Code']);
+                    cabinCode = code.isNotEmpty ? code : cabinCode;
+                  }
                 }
               }
+
+              flights.add({
+                "departure": {
+                  "airport": depAirport,
+                  "city": depAirport,
+                  "date": depDate.toIso8601String().split('T')[0],
+                  "time": "${depDate.hour.toString().padLeft(2, '0')}:${depDate.minute.toString().padLeft(2, '0')}",
+                  "terminal": _extractNodeText(departure['Terminal']) ?? 'Main',
+                },
+                "arrival": {
+                  "airport": arrAirport,
+                  "city": arrAirport,
+                  "date": arrDate.toIso8601String().split('T')[0],
+                  "time": "${arrDate.hour.toString().padLeft(2, '0')}:${arrDate.minute.toString().padLeft(2, '0')}",
+                  "terminal": _extractNodeText(arrival['Terminal']) ?? 'Main',
+                },
+                "flight_number": flightNumber,
+                "airline_code": effectiveMarketingCode,
+                "airline_name": marketingAirlineName,
+                "operating_flight_number": flightNumber,
+                "operating_airline_code": effectiveOperatingCode,
+                "operating_airline_name": operatingAirlineName,
+                "cabin_class": _getCabinClassName(cabinCode),
+                "sub_class": cabinCode,
+                "booking_class": cabinCode,
+                "hand_baggage": "7kg",
+                "check_baggage": "30kg", // Default for Emirates
+                "meal": "Meal",
+                "layover": flights.length > 0 ? "Yes" : "None",
+                "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+                "duration_minutes": duration.inMinutes,
+                "type": flights.isEmpty ? "One-Way" : "Return",
+                "fare_basis": "",
+                "seats_available": "",
+                "is_refundable": true,
+                "aircraft_type": "Unknown",
+              });
             }
-            
-            flights.add({
-              "departure": {
-                "airport": depAirport,
-                "city": depAirport,
-                "date": depDate.toIso8601String().split('T')[0],
-                "time": "${depDate.hour.toString().padLeft(2, '0')}:${depDate.minute.toString().padLeft(2, '0')}",
-                "terminal": _extractNodeText(departure['Terminal']) ?? 'Main',
-              },
-              "arrival": {
-                "airport": arrAirport,
-                "city": arrAirport,
-                "date": arrDate.toIso8601String().split('T')[0],
-                "time": "${arrDate.hour.toString().padLeft(2, '0')}:${arrDate.minute.toString().padLeft(2, '0')}",
-                "terminal": _extractNodeText(arrival['Terminal']) ?? 'Main',
-              },
-              "flight_number": flightNumber,
-              "airline_code": effectiveMarketingCode,
-              "airline_name": marketingAirlineName,
-              "operating_flight_number": flightNumber,
-              "operating_airline_code": effectiveOperatingCode,
-              "operating_airline_name": operatingAirlineName,
-              "cabin_class": _getCabinClassName(cabinCode),
-              "sub_class": cabinCode,
-              "booking_class": cabinCode,
-              "hand_baggage": "7kg",
-              "check_baggage": "30kg", // Default for Emirates
-              "meal": "Meal",
-              "layover": flights.length > 0 ? "Yes" : "None",
-              "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
-              "duration_minutes": duration.inMinutes,
-              "type": flights.isEmpty ? "One-Way" : "Return",
-              "fare_basis": "",
-              "seats_available": "",
-              "is_refundable": true,
-              "aircraft_type": "Unknown",
-            });
           }
         }
       }
+    } catch (e, stackTrace) {
+      // Error preparing Emirates flight data
     }
-  } catch (e, stackTrace) {
-    // Error preparing Emirates flight data
+
+    return flights;
   }
 
-  return flights;
-}
-
-String _getCabinClassName(String cabinCode) {
-  switch (cabinCode.toUpperCase()) {
-    case 'F':
-      return 'First Class';
-    case 'C':
-    case 'J':
-      return 'Business Class';
-    case 'W':
-    case 'S':
-      return 'Premium Economy';
-    case 'Y':
-    default:
-      return 'Economy';
+  String _getCabinClassName(String cabinCode) {
+    switch (cabinCode.toUpperCase()) {
+      case 'F':
+        return 'First Class';
+      case 'C':
+      case 'J':
+        return 'Business Class';
+      case 'W':
+      case 'S':
+        return 'Premium Economy';
+      case 'Y':
+      default:
+        return 'Economy';
+    }
   }
-}
-
 }
 
 class OfferPriceCredential {
@@ -2013,3 +1969,4 @@ class OfferPriceCredential {
     required this.scriptEngine,
   });
 }
+

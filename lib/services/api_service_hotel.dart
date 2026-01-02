@@ -180,31 +180,34 @@ class ApiServiceHotel extends GetxService {
   }) async {
     final searchController = Get.find<SearchHotelController>();
 
-    await fetchMarginAndROE();
-
-    final requestBody = {
-      "SearchParameter": {
-        "DestinationCode": destinationCode,
-        "CountryCode": countryCode,
-        "Nationality": nationality,
-        "Currency": currency,
-        "CheckInDate": _formatDate(checkInDate),
-        "CheckOutDate": _formatDate(checkOutDate),
-        "Rooms": {
-          "Room": rooms
-              .map(
-                (room) => {
-              "RoomIdentifier": room["RoomIdentifier"],
-              "Adult": room["Adult"],
-            },
-          )
-              .toList(),
-        },
-        "TassProInfo": {"CustomerCode": "4805", "RegionID": "123"},
-      },
-    };
+    // Set loading state
+    searchController.isLoading.value = true;
 
     try {
+      await fetchMarginAndROE();
+
+      final requestBody = {
+        "SearchParameter": {
+          "DestinationCode": destinationCode,
+          "CountryCode": countryCode,
+          "Nationality": nationality,
+          "Currency": currency,
+          "CheckInDate": _formatDate(checkInDate),
+          "CheckOutDate": _formatDate(checkOutDate),
+          "Rooms": {
+            "Room": rooms
+                .map(
+                  (room) => {
+                "RoomIdentifier": room["RoomIdentifier"],
+                "Adult": room["Adult"],
+              },
+            )
+                .toList(),
+          },
+          "TassProInfo": {"CustomerCode": "4805", "RegionID": "123"},
+        },
+      };
+
       final response = await dio.post(
         '/hotel/Search',
         data: requestBody,
@@ -235,9 +238,16 @@ class ApiServiceHotel extends GetxService {
             'hotelCity': hotel['hotelInfo']?['city'] ?? '',
           };
         }).toList();
+        
+        // Initialize filter data after hotels are loaded
+        searchController.filterhotler();
       }
     } catch (e) {
       // Error fetching hotels
+      rethrow;
+    } finally {
+      // Set loading state to false when done
+      searchController.isLoading.value = false;
     }
   }
 

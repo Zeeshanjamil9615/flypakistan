@@ -375,7 +375,10 @@ class _AirArabiaAddOnsScreenState extends State<AirArabiaAddOnsScreen> {
 
   void _openBaggageSelector() {
     Get.bottomSheet(
-      AirArabiaBaggageSelector(controller: extrasController),
+      AirArabiaBaggageSelector(
+        controller: extrasController,
+        bookingController: widget.bookingController,
+      ),
       isScrollControlled: true,
       backgroundColor: Colors.white,
     ).whenComplete(() => setState(() {}));
@@ -383,7 +386,10 @@ class _AirArabiaAddOnsScreenState extends State<AirArabiaAddOnsScreen> {
 
   void _openMealSelector() {
     Get.bottomSheet(
-      AirArabiaMealSelector(controller: extrasController),
+      AirArabiaMealSelector(
+        controller: extrasController,
+        bookingController: widget.bookingController,
+      ),
       isScrollControlled: true,
       backgroundColor: Colors.white,
     ).whenComplete(() => setState(() {}));
@@ -391,7 +397,10 @@ class _AirArabiaAddOnsScreenState extends State<AirArabiaAddOnsScreen> {
 
   void _openSeatSelector() {
     Get.bottomSheet(
-      AirArabiaSeatSelector(controller: extrasController),
+      AirArabiaSeatSelector(
+        controller: extrasController,
+        bookingController: widget.bookingController,
+      ),
       isScrollControlled: true,
       backgroundColor: Colors.white,
     ).whenComplete(() => setState(() {}));
@@ -564,8 +573,13 @@ class _StepChip extends StatelessWidget {
 
 class AirArabiaBaggageSelector extends StatefulWidget {
   final AirArabiaRevalidationController controller;
+  final BookingFlightController bookingController;
 
-  const AirArabiaBaggageSelector({super.key, required this.controller});
+  const AirArabiaBaggageSelector({
+    super.key,
+    required this.controller,
+    required this.bookingController,
+  });
 
   @override
   State<AirArabiaBaggageSelector> createState() =>
@@ -774,7 +788,7 @@ class _AirArabiaBaggageSelectorState extends State<AirArabiaBaggageSelector>
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: widget.controller.passengerIds.length,
         itemBuilder: (context, index) {
-          final label = widget.controller.getPassengerDisplayName(index);
+          final label = _getPassengerName(index);
           return Container(
             margin: const EdgeInsets.only(right: 8),
             child: FilterChip(
@@ -790,6 +804,43 @@ class _AirArabiaBaggageSelectorState extends State<AirArabiaBaggageSelector>
         },
       ),
     );
+  }
+
+  String _getPassengerName(int index) {
+    try {
+      final adults = widget.bookingController.adults;
+      final children = widget.bookingController.children;
+      final infants = widget.bookingController.infants;
+
+      if (index < adults.length) {
+        final adult = adults[index];
+        final firstName = adult.firstNameController.text.trim();
+        final lastName = adult.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      } else if (index < adults.length + children.length) {
+        final childIndex = index - adults.length;
+        final child = children[childIndex];
+        final firstName = child.firstNameController.text.trim();
+        final lastName = child.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      } else if (index < adults.length + children.length + infants.length) {
+        final infantIndex = index - adults.length - children.length;
+        final infant = infants[infantIndex];
+        final firstName = infant.firstNameController.text.trim();
+        final lastName = infant.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting passenger name: $e');
+    }
+    // Fallback to default display name
+    return widget.controller.getPassengerDisplayName(index);
   }
 
   Widget _buildCloseButton() {
@@ -1002,8 +1053,13 @@ class _AirArabiaBaggageSelectorState extends State<AirArabiaBaggageSelector>
 
 class AirArabiaMealSelector extends StatefulWidget {
   final AirArabiaRevalidationController controller;
+  final BookingFlightController bookingController;
 
-  const AirArabiaMealSelector({super.key, required this.controller});
+  const AirArabiaMealSelector({
+    super.key,
+    required this.controller,
+    required this.bookingController,
+  });
 
   @override
   State<AirArabiaMealSelector> createState() => _AirArabiaMealSelectorState();
@@ -1472,8 +1528,13 @@ class _AirArabiaMealSelectorState extends State<AirArabiaMealSelector>
 
 class AirArabiaSeatSelector extends StatefulWidget {
   final AirArabiaRevalidationController controller;
+  final BookingFlightController bookingController;
 
-  const AirArabiaSeatSelector({super.key, required this.controller});
+  const AirArabiaSeatSelector({
+    super.key,
+    required this.controller,
+    required this.bookingController,
+  });
 
   @override
   State<AirArabiaSeatSelector> createState() => _AirArabiaSeatSelectorState();
@@ -1596,7 +1657,7 @@ class _AirArabiaSeatSelectorState extends State<AirArabiaSeatSelector>
         padding: const EdgeInsets.symmetric(horizontal: 16),
         itemCount: widget.controller.passengerIds.length,
         itemBuilder: (context, index) {
-          final label = widget.controller.getPassengerDisplayName(index);
+          final label = _getPassengerName(index);
           return Container(
             margin: const EdgeInsets.only(right: 8),
             child: FilterChip(
@@ -1612,6 +1673,43 @@ class _AirArabiaSeatSelectorState extends State<AirArabiaSeatSelector>
         },
       ),
     );
+  }
+
+  String _getPassengerName(int index) {
+    try {
+      final adults = widget.bookingController.adults;
+      final children = widget.bookingController.children;
+      final infants = widget.bookingController.infants;
+
+      if (index < adults.length) {
+        final adult = adults[index];
+        final firstName = adult.firstNameController.text.trim();
+        final lastName = adult.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      } else if (index < adults.length + children.length) {
+        final childIndex = index - adults.length;
+        final child = children[childIndex];
+        final firstName = child.firstNameController.text.trim();
+        final lastName = child.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      } else if (index < adults.length + children.length + infants.length) {
+        final infantIndex = index - adults.length - children.length;
+        final infant = infants[infantIndex];
+        final firstName = infant.firstNameController.text.trim();
+        final lastName = infant.lastNameController.text.trim();
+        if (firstName.isNotEmpty || lastName.isNotEmpty) {
+          return '$firstName $lastName'.trim();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error getting passenger name: $e');
+    }
+    // Fallback to default display name
+    return widget.controller.getPassengerDisplayName(index);
   }
 
   Widget _buildCloseButton() => Padding(

@@ -237,7 +237,7 @@ import '../../../../../utility/app_constants.dart';
       try {
         if (marginData.isEmpty) {
           final apiService = Get.find<ApiServiceSabre>();
-          marginData = await apiService.getMargin(widget.outboundFlight.airlineCode, widget.outboundFlight.airlineName);
+          marginData = await apiService.getMargin(widget.outboundFlight.airlineCode, widget.outboundFlight.airlineName, "Air Blue voucher");
         }
       } catch (e) {}
     }

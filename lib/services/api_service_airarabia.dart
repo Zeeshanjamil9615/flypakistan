@@ -1,37 +1,40 @@
 import 'dart:convert';
-
-import 'package:dio/dio.dart';
+import 'api_client.dart';
+import 'api_service_airblue.dart';
 
 class ApiServiceAirArabia {
-  final Dio _dio = Dio();
+  // ApiClient instance
+  final ApiClient _apiClient = ApiClient();
 
   // Get Air Arabia margin
-  Future<Map<String, dynamic>> getAirArabiaMargin(String? email) async {
+  Future<Map<String, dynamic>> getAirArabiaMargin(
+      String? email, {
+        bool printRequest = false,
+        bool printResponse = false,
+      }) async {
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-      };
-
       final data = {
         if (email != null && email.isNotEmpty) "email": email,
       };
 
-      final response = await _dio.request(
-        'https://readyflights.pk/api/flight-margin-arabia',
-        options: Options(
-          method: 'POST',
-          headers: headers,
-        ),
-        data: data,
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/flight-margin-arabia',
+        method: HttpMethod.POST,
+        serviceName: 'AIR ARABIA MARGIN',
+        body: jsonEncode(data),
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      if (response.statusCode == 200) {
-        if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
-        }
-        return response.data as Map<String, dynamic>;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception('Failed to get Air Arabia margin: ${response.statusMessage}');
+        // Return default margin on error
+        return {
+          'margin_val': '0.00',
+          'margin_per': 0,
+        };
       }
     } catch (e) {
       return {
@@ -40,6 +43,7 @@ class ApiServiceAirArabia {
       };
     }
   }
+
   // Helper method to calculate price with margin
   double calculatePriceWithMargin(double basePrice, Map<String, dynamic> marginData) {
     try {
@@ -75,12 +79,10 @@ class ApiServiceAirArabia {
     required int child,
     required int infant,
     required String cabin,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-      };
-
       final data = {
         "type": type.toString(),
         "origin": origin,
@@ -95,32 +97,32 @@ class ApiServiceAirArabia {
         "password": "pass123456"
       };
 
-      // print("AirArabia Request *********************");
-      // print(data);
-      final response = await _dio.request(
-        'https://readyflights.pk/api/new-air-arabia-flights',
-        options: Options(
-          method: 'POST',
-          headers: headers,
-        ),
-        data: data,
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/new-air-arabia-flights',
+        method: HttpMethod.POST,
+        serviceName: 'AIR ARABIA SEARCH',
+        body: jsonEncode(data),
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      // print("*************** Response Arabia*********");
-      // print(response);
-      if (response.statusCode == 200) {
-        // Ensure the response is parsed as Map
-        if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
-        }
-        // print("*************** Response Arabia*********");
-        // print(response);
-        return response.data as Map<String, dynamic>;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception('Failed to load Air Arabia flights: ${response.statusMessage}');
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
       }
     } catch (e) {
-      rethrow;
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Failed to search Air Arabia flights: $e',
+        statusCode: null,
+        errors: {},
+      );
     }
   }
 
@@ -130,13 +132,10 @@ class ApiServiceAirArabia {
     required int child,
     required int infant,
     required List<Map<String, dynamic>> sector,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-        'Cookie': 'PHPSESSID=f6e1vveq1sr0h15f4t4k31u4f6'
-      };
-
       final data = {
         "type": type,
         "adult": adult,
@@ -145,54 +144,35 @@ class ApiServiceAirArabia {
         "sector": sector,
       };
 
-      // // Print full request details
-      // printFullRequest(
-      //   "GET FLIGHT PACKAGES",
-      //   'https://readyflights.pk/api/get-air-arabia-package',
-      //   headers,
-      //   data
-      // );
-
-      // print("AirArabia Packages Request *********************");
-      // print("Request URL: https://readyflights.pk/api/get-air-arabia-package");
-      // print("Request Headers:");
-      // headers.forEach((key, value) {
-      //   print("  $key: $value");
-      // });
-      // print("Request Payload:");
-      // debugPrint(jsonEncode(data), wrapWidth: 1024);
-      // print("***************************************************");
-
-      final response = await _dio.request(
-        'https://readyflights.pk/api/get-air-arabia-package',
-        options: Options(
-          method: 'POST',
-          headers: headers,
-        ),
-        data: data,
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/get-air-arabia-package',
+        method: HttpMethod.POST,
+        serviceName: 'AIR ARABIA PACKAGES',
+        body: jsonEncode(data),
+        headers: {
+          'Cookie': 'PHPSESSID=f6e1vveq1sr0h15f4t4k31u4f6'
+        },
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      // print("*************** AirArabia Packages Response *********");
-      // print("Response Status Code: ${response.statusCode}");
-      // print("Response Headers:");
-      // response.headers.forEach((key, value) {
-      //   print("  $key: $value");
-      // });
-      // print("Response Body:");
-      // debugPrint(jsonEncode(response.data), wrapWidth: 1024);
-      // print("****************************************************");
-
-      if (response.statusCode == 200) {
-        // Ensure the response is parsed as Map
-        if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
-        }
-        return response.data as Map<String, dynamic>;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception('Failed to load Air Arabia packages: ${response.statusMessage}');
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
       }
     } catch (e) {
-      rethrow;
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Failed to load Air Arabia packages: $e',
+        statusCode: null,
+        errors: {},
+      );
     }
   }
 
@@ -204,13 +184,10 @@ class ApiServiceAirArabia {
     required List<Map<String, dynamic>> sector,
     required Map<String, dynamic> fare,
     required int csId,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-        'Cookie': 'PHPSESSID=u1gagb79trmq6famf6dbsnt7a6'
-      };
-
       final data = {
         "type": type,
         "adult": adult,
@@ -220,55 +197,35 @@ class ApiServiceAirArabia {
         "fare": fare,
       };
 
-      // Print full request details
-      // printFullRequest(
-      //   "REVALIDATE PACKAGE",
-      //   'https://readyflights.pk/api/air-arabia-package-revalidate',
-      //   headers,
-      //   data
-      // );
-
-      // print("AirArabia Package Revalidation Request *********************");
-      // print("Request URL: https://readyflights.pk/api/air-arabia-package-revalidate");
-      // print("Request Headers:");
-      // headers.forEach((key, value) {
-      //   print("  $key: $value");
-      // });
-      // print("Request Payload:");
-      // debugPrint(jsonEncode(data), wrapWidth: 1024);
-      // print("*************************************************************");
-
-      final response = await _dio.request(
-        'https://readyflights.pk/api/air-arabia-package-revalidate',
-        options: Options(
-          method: 'POST',
-          headers: headers,
-        ),
-        data: data,
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/air-arabia-package-revalidate',
+        method: HttpMethod.POST,
+        serviceName: 'AIR ARABIA REVALIDATE',
+        body: jsonEncode(data),
+        headers: {
+          'Cookie': 'PHPSESSID=u1gagb79trmq6famf6dbsnt7a6'
+        },
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
 
-      // print("*************** AirArabia Package Revalidation Response *********");
-      // print("Response Status Code: ${response.statusCode}");
-      // print("Response Headers:");
-      // response.headers.forEach((key, value) {
-      //   print("  $key: $value");
-      // });
-      // print("Response Body:");
-      // debugPrint(jsonEncode(response.data), wrapWidth: 1024);
-      // print("***************************************************************");
-
-      if (response.statusCode == 200) {
-        // print("*************** AirArabia Package Revalidation Response *********");
-        // print(jsonEncode(response.data));
-        if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
-        }
-        return response.data as Map<String, dynamic>;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception('Failed to revalidate Air Arabia package: ${response.statusMessage}');
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
       }
     } catch (e) {
-      rethrow;
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Failed to revalidate Air Arabia package: $e',
+        statusCode: null,
+        errors: {},
+      );
     }
   }
 
@@ -308,13 +265,10 @@ class ApiServiceAirArabia {
     required List<Map<String, dynamic>> childPassengers,
     required List<Map<String, dynamic>> infantPassengers,
     required List<Map<String, dynamic>> flightDetails,
+    bool printRequest = false,
+    bool printResponse = false,
   }) async {
     try {
-      final headers = {
-        'Content-Type': 'application/json',
-        'Cookie': 'PHPSESSID=trfun4hl59lq621fvrhus9oti5'
-      };
-
       final data = {
         "email": email,
         "final_key": finalKey,
@@ -353,31 +307,36 @@ class ApiServiceAirArabia {
         "flight_details": flightDetails,
       };
 
-      // print("AirArabia Booking Request *********************");
-      // debugPrint(jsonEncode(data), wrapWidth: 1024);
-
-      final response = await _dio.request(
-        'https://readyflights.pk/api/air-arabia-create-booking',
-        options: Options(
-          method: 'POST',
-          headers: headers,
-        ),
-        data: data,
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/air-arabia-create-booking',
+        method: HttpMethod.POST,
+        serviceName: 'AIR ARABIA BOOKING',
+        body: jsonEncode(data),
+        headers: {
+          'Cookie': 'PHPSESSID=trfun4hl59lq621fvrhus9oti5'
+        },
+        contentType: ContentType.JSON,
+        printRequestBody: printRequest,
+        printResponseBody: printResponse,
       );
-      //
-      // print("******** AirArabia Booking Response ********");
-      // debugPrint(jsonEncode(response.data), wrapWidth: 1024);
 
-      if (response.statusCode == 200) {
-        if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
-        }
-        return response.data as Map<String, dynamic>;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception('Failed to create Air Arabia booking: ${response.statusMessage}');
+        throw ApiException(
+          message: response.message,
+          statusCode: response.statusCode,
+          errors: {},
+        );
       }
     } catch (e) {
-      rethrow;
+      if (e is ApiException) rethrow;
+      throw ApiException(
+        message: 'Failed to create Air Arabia booking: $e',
+        statusCode: null,
+        errors: {},
+      );
     }
   }
 }
+

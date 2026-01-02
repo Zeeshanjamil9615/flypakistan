@@ -98,7 +98,7 @@ class EmiratesFlightController extends GetxController {
     final sabreApiService = Get.put(ApiServiceSabre());
     Map<String, dynamic> marginData = {};
     try {
-      marginData = await sabreApiService.getMargin('EK', 'Emirates');
+      marginData = await sabreApiService.getMargin('EK', 'Emirates', "Emirates NDC");
     } catch (e) {
       debugPrint('Error fetching Emirates margin: $e');
     }

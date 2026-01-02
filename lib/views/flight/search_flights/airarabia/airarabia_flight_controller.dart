@@ -46,24 +46,15 @@ class AirArabiaFlightController extends GetxController {
       if (isLoggedIn) {
         final userData = await authController.getUserData();
         userEmail = userData?['cs_email'];
-        print('Fetching Air Arabia margin for logged-in user: $userEmail');
-      } else {
-        print('Fetching Air Arabia margin for guest user (default margin)');
       }
 
       // Fetch margin data
       final margin = await apiService.getAirArabiaMargin(userEmail);
       marginData.value = margin;
       
-      print('Air Arabia Margin Data: $margin');
-      
       // Validate margin data
       final marginVal = double.tryParse(margin['margin_val']?.toString() ?? '0') ?? 0.0;
       final marginPer = double.tryParse(margin['margin_per']?.toString() ?? '0') ?? 0.0;
-      
-      if (marginVal == 0 && marginPer == 0) {
-        print('Warning: Both margin values are zero');
-      }
       
     } catch (e) {
       print('Error fetching Air Arabia margin: $e');
@@ -144,7 +135,6 @@ class AirArabiaFlightController extends GetxController {
   // Apply margin to all loaded flights
   void _applyMarginToFlights() {
     if (marginData.value.isEmpty) {
-      print('Warning: Margin data not loaded yet');
       return;
     }
 
@@ -169,8 +159,6 @@ class AirArabiaFlightController extends GetxController {
         inboundFlight: flight.inboundFlight,
       );
     }
-    
-    print('Applied margin to ${flights.length} flights');
   }
 
   void _processOneWayFlights(Map<String, dynamic> ondWiseFlights) {
@@ -194,17 +182,12 @@ class AirArabiaFlightController extends GetxController {
   }
 
   void _processMultiCityFlights(Map<String, dynamic> ondWiseFlights, FlightBookingController bookingController) {
-    print('\n🌍 ===== PROCESSING MULTICITY FLIGHTS =====');
-    print('   Routes in response: ${ondWiseFlights.keys.toList()}');
-    print('   CityPairs count: ${bookingController.cityPairs.length}');
-    
     // Build route keys in cityPairs order to ensure correct segment order
     final orderedRoutes = <String>[];
     for (var cityPair in bookingController.cityPairs) {
       final routeKey = '${cityPair.fromCity.value}/${cityPair.toCity.value}';
       if (ondWiseFlights.containsKey(routeKey)) {
         orderedRoutes.add(routeKey);
-        print('   Found route in order: $routeKey');
       }
     }
     
@@ -212,11 +195,8 @@ class AirArabiaFlightController extends GetxController {
     for (var route in ondWiseFlights.keys) {
       if (!orderedRoutes.contains(route)) {
         orderedRoutes.add(route);
-        print('   Found additional route (fallback): $route');
       }
     }
-    
-    print('   Processing ${orderedRoutes.length} routes in order: $orderedRoutes');
     
     // Collect all flight options from all routes, grouped by date combinations
     final flightOptionsByDate = <String, List<Map<String, dynamic>>>{};
@@ -246,15 +226,12 @@ class AirArabiaFlightController extends GetxController {
     // For multicity, we need to create cartesian product of all route combinations
     // But for simplicity, let's combine segments from routes in order
     if (flightOptionsByDate.isEmpty) {
-      print('   ⚠️ No flight options found');
       return;
     }
     
     // Get the first date (or combine all dates)
     final firstDate = flightOptionsByDate.keys.first;
     final flightOptionsForDate = flightOptionsByDate[firstDate]!;
-    
-    print('   Processing ${flightOptionsForDate.length} flight options for date: $firstDate');
     
     // For each flight option from first route, try to combine with options from other routes
     // Simplified: just take first option from each route and combine segments
@@ -288,7 +265,6 @@ class AirArabiaFlightController extends GetxController {
             }
             
             foundOption = true;
-            print('   Added segments from route $route: ${routeSegments.length} segments');
           }
         }
       });
@@ -309,47 +285,19 @@ class AirArabiaFlightController extends GetxController {
       
       try {
         final flight = AirArabiaFlight.fromJson(combinedOption);
-        print('   Created combined flight with ${flight.flightSegments.length} segments');
         
         // Reorder segments to match cityPairs order
         final reorderedFlight = _reorderSegmentsForMultiCity(flight, bookingController);
         flights.add(reorderedFlight);
-        print('   ✅ Added multicity flight with reordered segments');
       } catch (e) {
-        print('   ❌ Error creating combined flight: $e');
+        print('Error creating combined flight: $e');
       }
     }
-    
-    print('==========================================\n');
   }
 
   AirArabiaFlight _reorderSegmentsForMultiCity(AirArabiaFlight flight, FlightBookingController bookingController) {
     // Reorder segments to match cityPairs order
     var originalSegments = List<Map<String, dynamic>>.from(flight.flightSegments);
-    
-    print('\n🔄 ===== REORDERING SEGMENTS FOR MULTICITY =====');
-    print('   Flight has ${flight.flightSegments.length} segments');
-    print('   CityPairs: ${bookingController.cityPairs.length}');
-    
-    // Print all segments for debugging
-    print('\n   Original segments:');
-    for (int i = 0; i < originalSegments.length; i++) {
-      final segment = originalSegments[i];
-      final depAirport = segment['departure']?['airport']?.toString().toUpperCase().trim() ?? '';
-      final arrAirport = segment['arrival']?['airport']?.toString().toUpperCase().trim() ?? '';
-      final depTime = segment['departure']?['dateTime']?.toString() ?? '';
-      print('     [$i] $depAirport -> $arrAirport (${depTime.substring(0, depTime.length > 10 ? 10 : depTime.length)})');
-    }
-    
-    // Print cityPairs
-    print('\n   CityPairs (search order):');
-    for (int i = 0; i < bookingController.cityPairs.length; i++) {
-      final cityPair = bookingController.cityPairs[i];
-      final fromCity = cityPair.fromCity.value.toUpperCase().trim();
-      final toCity = cityPair.toCity.value.toUpperCase().trim();
-      final date = cityPair.departureDate.value;
-      print('     [$i] $fromCity -> $toCity ($date)');
-    }
     
     // Check if segments are reversed by comparing first segment with last cityPair
     if (originalSegments.isNotEmpty && bookingController.cityPairs.length > 1) {
@@ -367,18 +315,9 @@ class AirArabiaFlightController extends GetxController {
       final firstMatchesFirst = (segmentDep == firstCityPairFrom && segmentArr == firstCityPairTo);
       final firstMatchesLast = (segmentDep == lastCityPairFrom && segmentArr == lastCityPairTo);
       
-      print('\n   Checking if segments are reversed:');
-      print('     First segment: $segmentDep -> $segmentArr');
-      print('     First cityPair: $firstCityPairFrom -> $firstCityPairTo (matches: $firstMatchesFirst)');
-      print('     Last cityPair: $lastCityPairFrom -> $lastCityPairTo (matches: $firstMatchesLast)');
-      
       // If first segment matches last cityPair, segments are reversed
       if (!firstMatchesFirst && firstMatchesLast) {
-        print('   ⚠️ Segments are REVERSED! Reversing segment list...');
         originalSegments = originalSegments.reversed.toList();
-        print('   ✅ Segments reversed');
-      } else if (firstMatchesFirst) {
-        print('   ✅ Segments are in correct order');
       }
     }
     
@@ -386,14 +325,10 @@ class AirArabiaFlightController extends GetxController {
     final usedSegmentIndices = <int>{};
     
     // Match each cityPair to a segment
-    print('\n   Matching segments to cityPairs:');
     for (int i = 0; i < bookingController.cityPairs.length; i++) {
       final cityPair = bookingController.cityPairs[i];
       final fromCity = cityPair.fromCity.value.toUpperCase().trim();
       final toCity = cityPair.toCity.value.toUpperCase().trim();
-      final cityPairDate = cityPair.departureDate.value;
-      
-      print('   CityPair $i: Looking for $fromCity -> $toCity (date: $cityPairDate)');
       
       // Find segment that matches this cityPair (not already used)
       Map<String, dynamic>? matchingSegment;
@@ -407,15 +342,11 @@ class AirArabiaFlightController extends GetxController {
         final segment = originalSegments[j];
         final depAirport = (segment['departure']?['airport']?.toString() ?? '').toUpperCase().trim();
         final arrAirport = (segment['arrival']?['airport']?.toString() ?? '').toUpperCase().trim();
-        final depDateTime = segment['departure']?['dateTime']?.toString() ?? '';
-        
-        print('     Checking segment $j: $depAirport -> $arrAirport');
         
         // Exact match (airport codes)
         if (depAirport == fromCity && arrAirport == toCity) {
           matchingSegment = segment;
           matchingIndex = j;
-          print('     ✅ MATCH found at index $j');
           break;
         }
       }
@@ -424,11 +355,9 @@ class AirArabiaFlightController extends GetxController {
         reorderedSegments.add(matchingSegment);
         usedSegmentIndices.add(matchingIndex);
       } else {
-        print('     ❌ NO MATCH found for cityPair $i: $fromCity -> $toCity');
         // If no match found, try to use next unused segment as fallback
         for (int j = 0; j < originalSegments.length; j++) {
           if (!usedSegmentIndices.contains(j)) {
-            print('     ⚠️ Using segment $j as fallback');
             reorderedSegments.add(originalSegments[j]);
             usedSegmentIndices.add(j);
             break;
@@ -440,23 +369,9 @@ class AirArabiaFlightController extends GetxController {
     // If we couldn't reorder all segments, use original segments (possibly reversed)
     if (reorderedSegments.length != bookingController.cityPairs.length || 
         reorderedSegments.length != originalSegments.length) {
-      print('\n⚠️ WARNING: Could not reorder all segments by matching.');
-      print('   Expected: ${bookingController.cityPairs.length}, Got: ${reorderedSegments.length}');
-      print('   Flight segments: ${originalSegments.length}');
       reorderedSegments.clear();
       reorderedSegments.addAll(originalSegments);
     }
-    
-    print('\n   Final reordered segments:');
-    for (int i = 0; i < reorderedSegments.length; i++) {
-      final segment = reorderedSegments[i];
-      final depAirport = segment['departure']?['airport']?.toString().toUpperCase().trim() ?? '';
-      final arrAirport = segment['arrival']?['airport']?.toString().toUpperCase().trim() ?? '';
-      print('     [$i] $depAirport -> $arrAirport');
-    }
-    
-    print('✅ Successfully reordered ${reorderedSegments.length} segments');
-    print('==========================================\n');
     
     // Create new flight with reordered segments
     return AirArabiaFlight(

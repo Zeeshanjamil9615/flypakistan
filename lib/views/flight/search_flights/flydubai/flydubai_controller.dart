@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/views/flight/search_flights/flydubai/flydubai_model.dart';
-import 'dart:developer' as developer;
+
 
 import '../../../../services/api_service_flydubai.dart';
 import '../../../../services/api_service_sabre.dart';
@@ -133,7 +133,6 @@ class FlydubaiFlightController extends GetxController {
       
       if (bsp > 0) {
         priceWithMargin += bsp;
-        developer.log('Added BSP fee: $bsp to FlyDubai GDS flight. Final price: $priceWithMargin');
       }
     }
     
@@ -143,7 +142,6 @@ class FlydubaiFlightController extends GetxController {
 
   void loadFlights(Map<String, dynamic> result, String fromCity, String toCity, int tripTpe) {
     try {
-      debugPrint('=== LOADING FLYDUBAI FLIGHTS ===');
 
       if (result.containsKey('flights')) {
         parseApiResponse(
@@ -152,20 +150,16 @@ class FlydubaiFlightController extends GetxController {
           expectedDestination: toCity,
           tripType: tripTpe,
         );
-        debugPrint('FlyDubai flights loaded from API result');
       } else {
         setErrorMessage('No flights data in result');
-        debugPrint('No flights key found in result: ${result.keys}');
       }
     } catch (e) {
-      debugPrint('Error loading FlyDubai flights: $e');
       setErrorMessage('Failed to load flights: $e');
     }
   }
 
   void setErrorMessage(String message) {
     errorMessage.value = message;
-    developer.log('FlyDubai Controller Error: $message');
   }
 
   // Main method to search flights - uses the API service
@@ -185,14 +179,7 @@ class FlydubaiFlightController extends GetxController {
       errorMessage.value = '';
       clearFlights();
 
-      developer.log('=== FlyDubai Controller: Starting flight search ===');
-      developer.log('Search Parameters:');
-      developer.log('Type: $type');
-      developer.log('Raw Origin: "$origin" (length: ${origin.length})');
-      developer.log('Raw Destination: "$destination" (length: ${destination.length})');
-      developer.log('Departure Date: $depDate');
-      developer.log('Passengers: Adult=$adult, Child=$child, Infant=$infant');
-      developer.log('Cabin: $cabin');
+
 
       // Clean and parse origin/destination parameters
       // For round trip: origin can come as ",LHE,DXB", "LHEDXB" (concatenated), or "LHE"
@@ -215,7 +202,6 @@ class FlydubaiFlightController extends GetxController {
           // Extract first 3 characters for outbound origin/destination
           cleanOrigin = originCleaned.substring(0, 3);
           cleanDestination = destCleaned.substring(0, 3);
-          developer.log('Detected concatenated format - Extracted: origin=$cleanOrigin, destination=$cleanDestination');
         } else {
           // Try splitting by comma first (in case there are commas)
           final originParts = origin.split(',').map((s) => s.trim()).where((s) => s.isNotEmpty).toList();
@@ -227,12 +213,7 @@ class FlydubaiFlightController extends GetxController {
           cleanDestination = destParts.isNotEmpty ? destParts[0] : destCleaned;
         }
         
-        // Ensure we have valid 3-character airport codes
-        if (cleanOrigin.length != 3 || cleanDestination.length != 3) {
-          developer.log('⚠️ Warning: Invalid airport code length - Origin: ${cleanOrigin.length} chars, Destination: ${cleanDestination.length} chars');
-          developer.log('  Origin value: "$cleanOrigin"');
-          developer.log('  Destination value: "$cleanDestination"');
-        }
+
         
         // Store search parameters for flight separation (first pair for outbound)
         _searchOrigin = cleanOrigin;
@@ -247,8 +228,6 @@ class FlydubaiFlightController extends GetxController {
           cleanDepDate = datesList[0] + ',' + datesList[1]; // Keep both dates
           _outboundDate = DateTime.parse(datesList[0]);
           _returnDate = DateTime.parse(datesList[1]);
-          developer.log('Outbound Date: $_outboundDate');
-          developer.log('Return Date: $_returnDate');
         } else {
           cleanDepDate = depDate.replaceAll(',', '').trim();
           _outboundDate = DateTime.parse(cleanDepDate);
@@ -265,10 +244,7 @@ class FlydubaiFlightController extends GetxController {
         _outboundDate = DateTime.parse(cleanDepDate);
       }
 
-      developer.log('Cleaned Parameters:');
-      developer.log('Clean Origin: $cleanOrigin');
-      developer.log('Clean Destination: $cleanDestination');
-      developer.log('Clean DepDate: $cleanDepDate');
+
 
       // Call the API service with cleaned parameters (no comma prefix for FlyDubai)
       final result = await apiService.searchFlights(
@@ -283,22 +259,10 @@ class FlydubaiFlightController extends GetxController {
         multiCitySegments: multiCitySegments,
       );
 
-      developer.log('FlyDubai API Result Keys: ${result.keys}');
-
       // Process the result
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('📥 Processing FlyDubai API result');
-      developer.log('  Result keys: ${result.keys}');
-      developer.log('  Success: ${result['success']}');
-      developer.log('  Trip type: $type (${type == 0 ? "One-way" : type == 1 ? "Round-trip" : "Multi-city"})');
-      
       if (result.containsKey('error')) {
         setErrorMessage(result['error']);
-        developer.log('  ❌ FlyDubai API Error: ${result['error']}');
       } else if (result.containsKey('flights') && result['success'] == true) {
-        developer.log('  ✅ Valid response received');
-        developer.log('  📦 Flights data type: ${result['flights'].runtimeType}');
-        
         // Parse the response with search parameters for validation
         await parseApiResponse(
           result['flights'],
@@ -306,31 +270,10 @@ class FlydubaiFlightController extends GetxController {
           expectedDestination: cleanDestination,
           tripType: type,
         );
-        
-        if (type == 2) {
-          // Multi-city summary
-          developer.log('  📊 Multi-city summary:');
-          for (int i = 0; i < flightsBySegment.length; i++) {
-            final count = flightsBySegment[i]?.length ?? 0;
-            developer.log('    Segment $i: $count flights');
-          }
-        } else {
-        developer.log(
-            '  FlyDubai outbound flights loaded: ${filteredOutboundFlights.length}',
-        );
-        developer.log(
-            '  FlyDubai return flights loaded: ${filteredReturnFlights.length}',
-        );
-        }
       } else {
         setErrorMessage('Invalid FlyDubai API response format');
-        developer.log('  ❌ Invalid FlyDubai API response structure');
-        developer.log('  Available keys: ${result.keys}');
-        developer.log('  Has flights key: ${result.containsKey('flights')}');
-        developer.log('  Success value: ${result['success']}');
       }
     } catch (e) {
-      developer.log('FlyDubai Controller search error: $e');
       setErrorMessage('Failed to search flights: $e');
     } finally {
       isLoading.value = false;
@@ -358,61 +301,27 @@ class FlydubaiFlightController extends GetxController {
         return;
       }
 
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('=== PARSING FLYDUBAI API RESPONSE ===');
-      developer.log('  Trip Type parameter: $tripType (${tripType == 0 ? "One-way" : tripType == 1 ? "Round-trip" : tripType == 2 ? "Multi-city" : "Unknown"})');
-      developer.log('  Expected Origin: $expectedOrigin');
-      developer.log('  Expected Destination: $expectedDestination');
-      
+
       // Check response structure
-      developer.log('  Response keys: ${response?.keys}');
       final retrieveResult = response?['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
       if (retrieveResult != null) {
-        developer.log('  RetrieveResult keys: ${retrieveResult.keys}');
-        developer.log('  Has SegmentDetails: ${retrieveResult.containsKey('SegmentDetails')}');
-        developer.log('  Has LegDetails: ${retrieveResult.containsKey('LegDetails')}');
-        if (retrieveResult.containsKey('SegmentDetails')) {
-          final segDetails = retrieveResult['SegmentDetails']?['SegmentDetail'];
-          if (segDetails != null) {
-            final count = segDetails is List ? segDetails.length : 1;
-            developer.log('  SegmentDetails count: $count');
-            if (segDetails is List && segDetails.isNotEmpty) {
-              developer.log('  First SegmentDetail: LFID=${segDetails[0]['LFID']}, Origin=${segDetails[0]['Origin']}, Destination=${segDetails[0]['Destination']}');
-            }
-          }
-        }
       }
 
       final flydubaiResponse = FlydubaiResponse.fromJson(response);
 
       if (!flydubaiResponse.success) {
-        developer.log('  ❌ FlyDubai response parsing failed: ${flydubaiResponse.errorMessage}');
         setErrorMessage(
           flydubaiResponse.errorMessage ?? 'Failed to parse response',
         );
         return;
       }
 
-      developer.log(
-        '  ✅ Found ${flydubaiResponse.flightSegments.length} flight segments',
-      );
-      
-      // Debug: Log all parsed segments
-      developer.log('  📋 Parsed segments details:');
-      for (int i = 0; i < flydubaiResponse.flightSegments.length; i++) {
-        final seg = flydubaiResponse.flightSegments[i];
-        developer.log('    Segment $i: LFID=${seg.lfid}, Origin=${seg.origin}, Destination=${seg.destination}, Date=${seg.departureDateTime.toIso8601String().substring(0, 10)}, Fares=${seg.fareTypes.length}');
-        if (seg.origin.isEmpty || seg.destination.isEmpty) {
-          developer.log('      ⚠️ WARNING: Segment $i has empty origin/destination!');
-        }
-      }
-
       // Fetch margin for FlyDubai (airline code FZ)
       Map<String, dynamic> marginData = {};
       try {
-        marginData = await sabreApiService.getMargin('FZ', 'flydubai');
+        marginData = await sabreApiService.getMargin('FZ', 'flydubai', "Fly Dubai");
       } catch (e) {
-        developer.log('Error fetching FlyDubai margin: $e');
+        // Margin fetch failed, using defaults
       }
 
       // Create airline map for FlyDubai
@@ -424,30 +333,15 @@ class FlydubaiFlightController extends GetxController {
       };
 
       // For multi-city, organize flights by segment FIRST
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('🔀 Checking trip type routing...');
-      developer.log('  tripType value: $tripType');
-      developer.log('  tripType == 2: ${tripType == 2}');
-      
       if (tripType == 2) {
-        developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        developer.log('=== PROCESSING MULTI-CITY FLIGHTS ===');
-        developer.log('Total flight segments from API: ${flydubaiResponse.flightSegments.length}');
         
         // Get city pairs from booking controller
         final bookingController = Get.find<FlightBookingController>();
         final cityPairs = bookingController.cityPairs;
         
-        developer.log('📋 City pairs count: ${cityPairs.length}');
-        for (int i = 0; i < cityPairs.length; i++) {
-          final pair = cityPairs[i];
-          developer.log('  City Pair $i: ${pair.fromCity.value} -> ${pair.toCity.value} on ${pair.departureDate.value}');
-        }
-        
         // Initialize flightsBySegment for each city pair
         for (int i = 0; i < cityPairs.length; i++) {
           flightsBySegment[i] = [];
-          developer.log('  Initialized flightsBySegment[$i]');
         }
         
         int processedCount = 0;
@@ -458,16 +352,9 @@ class FlydubaiFlightController extends GetxController {
         // Process all segments and match them to city pairs
         for (var segment in flydubaiResponse.flightSegments) {
           try {
-            developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-            developer.log('🔍 Processing segment LFID: ${segment.lfid}');
-            developer.log('  Route: ${segment.origin} -> ${segment.destination}');
-            developer.log('  Date: ${segment.departureDateTime}');
-            developer.log('  Fare types count: ${segment.fareTypes.length}');
-
             // Check if segment has valid fare data
             if (segment.fareTypes.isEmpty) {
               skippedNoFareCount++;
-              developer.log('  ⚠️ Skipping segment ${segment.lfid} - no fare data');
               continue;
             }
 
@@ -479,9 +366,6 @@ class FlydubaiFlightController extends GetxController {
               segment.departureDateTime.day,
             );
             
-            developer.log('  🔎 Searching for matching city pair...');
-            developer.log('  Segment date (date only): ${segmentDate.toIso8601String().substring(0, 10)}');
-            
             for (int i = 0; i < cityPairs.length; i++) {
               final cityPair = cityPairs[i];
               final cityPairDate = DateTime(
@@ -490,35 +374,20 @@ class FlydubaiFlightController extends GetxController {
                 cityPair.departureDateTime.value.day,
               );
               
-              developer.log('    Checking city pair $i:');
-              developer.log('      Expected: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
-              developer.log('      Actual: ${segment.origin} -> ${segment.destination}');
-              developer.log('      Expected date: ${cityPairDate.toIso8601String().substring(0, 10)}');
-              developer.log('      Actual date: ${segmentDate.toIso8601String().substring(0, 10)}');
-              developer.log('      Origin match: ${segment.origin == cityPair.fromCity.value}');
-              developer.log('      Destination match: ${segment.destination == cityPair.toCity.value}');
-              developer.log('      Date match: ${segmentDate.isAtSameMomentAs(cityPairDate)}');
-              
               if (segment.origin == cityPair.fromCity.value &&
                   segment.destination == cityPair.toCity.value &&
                   segmentDate.isAtSameMomentAs(cityPairDate)) {
                 matchingSegmentIndex = i;
-                developer.log('    ✅ MATCH FOUND! Segment ${segment.lfid} matches city pair $i');
                 break;
-              } else {
-                developer.log('    ❌ No match for city pair $i');
               }
             }
 
             if (matchingSegmentIndex == null) {
               skippedNoMatchCount++;
-              developer.log('  ⚠️ No matching city pair found for segment ${segment.lfid}');
-              developer.log('  Segment details: ${segment.origin} -> ${segment.destination} on ${segmentDate.toIso8601String().substring(0, 10)}');
               continue;
             }
 
             // Create flight with actual segment data
-            developer.log('  ✈️ Creating FlydubaiFlight object...');
             // Get buying price from lowest fare
             final lowestFare = segment.fareTypes.isNotEmpty
                 ? segment.fareTypes.reduce((a, b) => a.baseFareAmountIncludingTax < b.baseFareAmountIncludingTax ? a : b)
@@ -568,7 +437,6 @@ class FlydubaiFlightController extends GetxController {
               }
               
               fareOptionsByLFID[fareKey] = existingByType.values.toList();
-              developer.log('  💾 Updated fare options: ${existingByType.length} unique types (kept cheapest per type) for key: $fareKey');
             } else {
               // First time storing for this key - keep only one fare option per fareTypeName (cheapest)
               final faresByType = <String, FlydubaiFlightFare>{};
@@ -583,87 +451,40 @@ class FlydubaiFlightController extends GetxController {
               }
               
               fareOptionsByLFID[fareKey] = faresByType.values.toList();
-              developer.log('  💾 Stored ${faresByType.length} unique fare types with key: $fareKey (${segment.fareTypes.length} total options, kept cheapest per type)');
             }
 
             // Add to segment-specific list
             flightsBySegment[matchingSegmentIndex]!.add(flight);
             processedCount++;
-            developer.log(
-              '  ✅ Added MULTI-CITY flight for segment $matchingSegmentIndex: ${flight.airlineCode} ${flight.flightSegment.flightNumber} - ${flight.flightSegment.origin} to ${flight.flightSegment.destination} - PKR ${flight.price}',
-            );
           } catch (e, stackTrace) {
             errorCount++;
-            developer.log('  ❌ Error processing segment ${segment.lfid}: $e');
-            developer.log('  Stack trace: $stackTrace');
             continue;
           }
         }
-        
-        developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        developer.log('📊 MULTI-CITY PROCESSING SUMMARY:');
-        developer.log('  Total segments from API: ${flydubaiResponse.flightSegments.length}');
-        developer.log('  Successfully processed: $processedCount');
-        developer.log('  Skipped (no fare data): $skippedNoFareCount');
-        developer.log('  Skipped (no city pair match): $skippedNoMatchCount');
-        developer.log('  Errors: $errorCount');
         
         // Sort flights in each segment by price
         for (int i = 0; i < cityPairs.length; i++) {
           flightsBySegment[i]?.sort((a, b) => a.price.compareTo(b.price));
-          final count = flightsBySegment[i]?.length ?? 0;
-          developer.log('  📦 Segment $i: $count flights stored');
-          if (count > 0) {
-            developer.log('    First flight: ${flightsBySegment[i]!.first.flightSegment.origin} -> ${flightsBySegment[i]!.first.flightSegment.destination}');
-            developer.log('    Last flight: ${flightsBySegment[i]!.last.flightSegment.origin} -> ${flightsBySegment[i]!.last.flightSegment.destination}');
-          }
         }
         
         // Initialize multi-city selection
-        developer.log('  🔄 Initializing multi-city selection...');
         initializeMultiCitySelection();
-        developer.log('  ✅ Multi-city initialization complete');
       } else {
-        developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-        developer.log('=== PROCESSING ONE-WAY/RETURN FLIGHTS ===');
-        developer.log('  Trip type: ${tripType == 0 ? "One-way" : tripType == 1 ? "Round-trip" : "Unknown ($tripType)"}');
-        developer.log('  Processing ${flydubaiResponse.flightSegments.length} segments');
-        
         // Process all segments and separate outbound/return (existing logic)
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('📊 Round-trip flight separation:');
-      developer.log('  Expected Origin: $expectedOrigin');
-      developer.log('  Expected Destination: $expectedDestination');
-      developer.log('  Outbound Date: $_outboundDate');
-      developer.log('  Return Date: $_returnDate');
-      developer.log('  Total segments to process: ${flydubaiResponse.flightSegments.length}');
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      
       for (var segment in flydubaiResponse.flightSegments) {
         try {
-          developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-          developer.log('🔍 Processing segment LFID: ${segment.lfid}');
-          developer.log('  Route: ${segment.origin} -> ${segment.destination}');
-          developer.log('  Date: ${segment.departureDateTime}');
-          developer.log('  Date (date only): ${segment.departureDateTime.toIso8601String().substring(0, 10)}');
-          developer.log('  Fare types count: ${segment.fareTypes.length}');
-
           // Check if segment has valid fare data
           if (segment.fareTypes.isEmpty) {
-            developer.log('  ⚠️ Skipping segment ${segment.lfid} - no fare data');
             continue;
           }
 
           // Determine if this is outbound or return flight
-          developer.log('  🔎 Determining flight type (outbound/return)...');
           bool isOutboundFlight = _isOutboundFlight(
             segment,
             expectedOrigin,
             expectedDestination,
             tripType,
           );
-
-          developer.log('  ✅ Flight ${segment.lfid} classified as: ${isOutboundFlight ? "OUTBOUND" : "RETURN"}');
 
           // Create flight with actual segment data
           // Get buying price from lowest fare
@@ -690,20 +511,11 @@ class FlydubaiFlightController extends GetxController {
 
           // Add to appropriate list
           if (isOutboundFlight) {
-            print("outboudn flight flydubai");
             _originalOutboundFlights.add(flight);
-            developer.log(
-              '✅ Added OUTBOUND flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber} - ${flight.flightSegment.origin} to ${flight.flightSegment.destination} - PKR ${flight.price}',
-            );
           } else {
-            print("return flight flydubai");
             _originalReturnFlights.add(flight);
-            developer.log(
-              '✅ Added RETURN flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber} - ${flight.flightSegment.origin} to ${flight.flightSegment.destination} - PKR ${flight.price}',
-            );
           }
         } catch (e) {
-          developer.log('❌ Error processing segment ${segment.lfid}: $e');
           continue;
           }
         }
@@ -717,41 +529,16 @@ class FlydubaiFlightController extends GetxController {
       filteredOutboundFlights.assignAll(_originalOutboundFlights);
       filteredReturnFlights.assignAll(_originalReturnFlights);
 
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('=== PARSING COMPLETE ===');
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('📊 Final Results:');
-      developer.log('  ✅ Outbound flights: ${_originalOutboundFlights.length}');
-      if (_originalOutboundFlights.isNotEmpty) {
-        developer.log('    First outbound: ${_originalOutboundFlights.first.flightSegment.origin} -> ${_originalOutboundFlights.first.flightSegment.destination} (PKR ${_originalOutboundFlights.first.price})');
-        developer.log('    Last outbound: ${_originalOutboundFlights.last.flightSegment.origin} -> ${_originalOutboundFlights.last.flightSegment.destination} (PKR ${_originalOutboundFlights.last.price})');
-      }
-      developer.log('  ✅ Return flights: ${_originalReturnFlights.length}');
-      if (_originalReturnFlights.isNotEmpty) {
-        developer.log('    First return: ${_originalReturnFlights.first.flightSegment.origin} -> ${_originalReturnFlights.first.flightSegment.destination} (PKR ${_originalReturnFlights.first.price})');
-        developer.log('    Last return: ${_originalReturnFlights.last.flightSegment.origin} -> ${_originalReturnFlights.last.flightSegment.destination} (PKR ${_originalReturnFlights.last.price})');
-      } else {
-        developer.log('    ⚠️ WARNING: No return flights found!');
-        developer.log('    Check if:');
-        developer.log('      1. Return date matches segment dates');
-        developer.log('      2. Route is correct (expected: $expectedDestination -> $expectedOrigin)');
-        developer.log('      3. API response contains return segments');
-      }
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
       if (_originalOutboundFlights.isEmpty && _originalReturnFlights.isEmpty) {
         setErrorMessage(
           'No FlyDubai flights found for the selected route and dates',
         );
       } else if (tripType == 1 && _originalReturnFlights.isEmpty) {
-        developer.log('⚠️ WARNING: Round-trip search but no return flights found!');
         setErrorMessage(
           'No return flights found for the selected dates. Please try different dates.',
         );
       }
     } catch (e, stackTrace) {
-      developer.log('❌ Parse API response error: $e');
-      developer.log('Stack trace: $stackTrace');
       setErrorMessage('Failed to parse FlyDubai response: $e');
     }
   }
@@ -763,26 +550,15 @@ class FlydubaiFlightController extends GetxController {
     String? expectedDestination,
     int? tripType,
   ) {
-    developer.log('    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    developer.log('    📍 _isOutboundFlight called:');
-    developer.log('      Segment: ${segment.origin} -> ${segment.destination}');
-    developer.log('      Segment Date: ${segment.departureDateTime.toIso8601String().substring(0, 10)}');
-    developer.log('      Trip Type: $tripType (${tripType == 0 ? "One-way" : tripType == 1 ? "Round-trip" : tripType == 2 ? "Multi-city" : "Unknown"})');
-    developer.log('      Expected Origin: $expectedOrigin');
-    developer.log('      Expected Destination: $expectedDestination');
-    developer.log('      Stored Outbound Date: $_outboundDate');
-    developer.log('      Stored Return Date: $_returnDate');
+
     
     // For one-way flights, all flights are outbound
     if (tripType == 0) {
-      developer.log('      ✅ One-way flight - classifying as OUTBOUND');
       return true;
     }
 
     // For round-trip flights, separate by route and date
     if (tripType == 1) {
-      developer.log('      🔄 Round-trip flight - analyzing route and date...');
-      
       // Check if we have the expected origin/destination from search
       if (expectedOrigin != null && expectedDestination != null) {
         bool isOutboundRoute =
@@ -791,10 +567,6 @@ class FlydubaiFlightController extends GetxController {
         bool isReturnRoute =
             (segment.origin == expectedDestination &&
                 segment.destination == expectedOrigin);
-        
-        developer.log('      Route analysis:');
-        developer.log('        Is Outbound Route (${segment.origin}->${segment.destination} == $expectedOrigin->$expectedDestination): $isOutboundRoute');
-        developer.log('        Is Return Route (${segment.origin}->${segment.destination} == $expectedDestination->$expectedOrigin): $isReturnRoute');
         
         // If we have dates, use them for more accurate classification
         if (_outboundDate != null && _returnDate != null) {
@@ -815,45 +587,23 @@ class FlydubaiFlightController extends GetxController {
             _returnDate!.day,
           );
           
-          developer.log('      Date analysis:');
-          developer.log('        Segment Date: ${segmentDate.toIso8601String().substring(0, 10)}');
-          developer.log('        Outbound Date: ${outboundDateOnly.toIso8601String().substring(0, 10)}');
-          developer.log('        Return Date: ${returnDateOnly.toIso8601String().substring(0, 10)}');
-          developer.log('        Matches Outbound Date: ${segmentDate.isAtSameMomentAs(outboundDateOnly)}');
-          developer.log('        Matches Return Date: ${segmentDate.isAtSameMomentAs(returnDateOnly)}');
-          
           // Check if flight is on outbound date with outbound route
           if (segmentDate.isAtSameMomentAs(outboundDateOnly) &&
               isOutboundRoute) {
-            developer.log('      ✅ Classified as OUTBOUND (matches outbound date + route)');
             return true;
           }
           // Check if flight is on return date with return route
           if (segmentDate.isAtSameMomentAs(returnDateOnly) && isReturnRoute) {
-            developer.log('      ✅ Classified as RETURN (matches return date + route)');
             return false;
-          }
-          
-          // If date matches but route doesn't match perfectly, log warning
-          if (segmentDate.isAtSameMomentAs(outboundDateOnly) && !isOutboundRoute) {
-            developer.log('      ⚠️ WARNING: Date matches outbound but route doesn\'t! Route: ${segment.origin}->${segment.destination}, Expected: $expectedOrigin->$expectedDestination');
-          }
-          if (segmentDate.isAtSameMomentAs(returnDateOnly) && !isReturnRoute) {
-            developer.log('      ⚠️ WARNING: Date matches return but route doesn\'t! Route: ${segment.origin}->${segment.destination}, Expected: $expectedDestination->$expectedOrigin');
           }
         }
         
         // Fallback: if we can't determine by date, use route direction
-        developer.log('      📍 Using route direction fallback (no date match or dates not available)');
-        developer.log('      ${isOutboundRoute ? "✅ Classified as OUTBOUND" : isReturnRoute ? "✅ Classified as RETURN" : "⚠️ WARNING: Route doesn\'t match expected - defaulting to OUTBOUND"}');
         return isOutboundRoute;
-      } else {
-        developer.log('      ⚠️ WARNING: Expected origin/destination is null - defaulting to OUTBOUND');
       }
     }
 
     // Default to outbound for multi-city or unknown cases
-    developer.log('      📍 Default case - classifying as OUTBOUND');
     return true;
   }
 
@@ -861,21 +611,12 @@ class FlydubaiFlightController extends GetxController {
     FlydubaiFlight flight, {
     bool isReturnFlight = false,
   }) {
-    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    developer.log('🎯 handleFlydubaiFlightSelection called');
-    developer.log('  Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
-    developer.log('  isReturnFlight: $isReturnFlight');
-    
     // Check if we're in multi-city mode
     final bookingController = Get.find<FlightBookingController>();
     final isMultiCity = bookingController.tripType.value == TripType.multiCity;
     
-    developer.log('  isMultiCity: $isMultiCity');
-    developer.log('  currentMultiCitySegment: ${currentMultiCitySegment.value}');
-    
     if (isMultiCity) {
       // For multi-city, use the multi-city handler
-      developer.log('  🔀 Routing to multi-city handler');
       final segmentIndex = currentMultiCitySegment.value;
       handleMultiCityFlightSelection(flight, segmentIndex);
       return;
@@ -884,9 +625,6 @@ class FlydubaiFlightController extends GetxController {
     // For one-way/return, use existing logic
     if (isReturnFlight) {
       selectedReturnFlight = flight;
-      developer.log(
-        'Selected FlyDubai return flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}',
-      );
 
       // Show package selection for return flight
       Get.dialog(
@@ -896,9 +634,6 @@ class FlydubaiFlightController extends GetxController {
     } else {
       selectedOutboundFlight = flight;
       selectedFlight.value = flight;
-      developer.log(
-        'Selected FlyDubai outbound flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}',
-      );
 
       // Show package selection for outbound flight
       Get.dialog(
@@ -925,30 +660,10 @@ class FlydubaiFlightController extends GetxController {
     // For multi-city, use segment-specific key
     if (segmentIndex != null) {
       final multiCityKey = 'segment_${segmentIndex}_${flight.flightSegment.lfid}';
-      developer.log('🔍 getFareOptionsForFlight (multi-city):');
-      developer.log('  Segment index: $segmentIndex');
-      developer.log('  Flight LFID: ${flight.flightSegment.lfid}');
-      developer.log('  Looking for key: $multiCityKey');
-      developer.log('  Available keys: ${fareOptionsByLFID.keys.where((k) => k.startsWith('segment_')).toList()}');
-      
       options = fareOptionsByLFID[multiCityKey] ?? [];
-      developer.log('  Found ${options.length} fare options before deduplication');
-      
-      // Debug: Log all fare options to see duplicates
-      if (options.isNotEmpty) {
-        developer.log('  📋 All fare options:');
-        for (int i = 0; i < options.length; i++) {
-          final opt = options[i];
-          developer.log('    [$i] FareID: ${opt.fareId}, Type: ${opt.fareTypeName}, SolnId: ${opt.solnId}, Cabin: ${opt.cabin}');
-        }
-      }
     } else {
       // For one-way/return, use standard LFID key
       options = fareOptionsByLFID[flight.rph] ?? [];
-      if (options.isEmpty) {
-        developer.log('⚠️ No fare options found for flight RPH: ${flight.rph}');
-        developer.log('  Available keys: ${fareOptionsByLFID.keys.toList()}');
-      }
     }
     
     // Deduplicate by fareId AND solnId to ensure no duplicates are returned
@@ -967,20 +682,6 @@ class FlydubaiFlightController extends GetxController {
     }
     
     final finalOptions = uniqueByType.values.toList();
-    
-    if (finalOptions.length != options.length) {
-      developer.log('  ⚠️ Removed ${options.length - finalOptions.length} duplicate fare types (kept cheapest per type)');
-    }
-    developer.log('  ✅ Returning ${finalOptions.length} unique fare types (was ${options.length} total options)');
-    
-    // Debug: Log final options
-    if (finalOptions.isNotEmpty) {
-      developer.log('  📋 Final fare options (one per type):');
-      for (int i = 0; i < finalOptions.length; i++) {
-        final opt = finalOptions[i];
-        developer.log('    [$i] Type: ${opt.fareTypeName}, FareID: ${opt.fareId}, Price: ${opt.baseFareAmountIncludingTax}');
-      }
-    }
     
     return finalOptions;
   }
@@ -1071,14 +772,8 @@ class FlydubaiFlightController extends GetxController {
     // Update the appropriate filtered flights list
     if (isReturnFlights) {
       filteredReturnFlights.assignAll(filtered);
-      developer.log(
-        'Applied filters: ${filtered.length} FlyDubai return flights after filtering',
-      );
     } else {
       filteredOutboundFlights.assignAll(filtered);
-      developer.log(
-        'Applied filters: ${filtered.length} FlyDubai outbound flights after filtering',
-      );
     }
   }
 
@@ -1106,14 +801,9 @@ class FlydubaiFlightController extends GetxController {
     required bool isReturnFlight,
   }) async {
     try {
-      developer.log('=== REVALIDATING FLIGHT PRICING ===');
 
       // Generate booking ID (LFID_FareIndex)
       final bookingId = '${flight.flightSegment.lfid}_${_getFareIndex(flight, selectedFare)}';
-
-      developer.log('Booking ID: $bookingId');
-      developer.log('Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
-      developer.log('Fare Type: ${selectedFare.fareTypeName}');
 
       // Call revalidation API
       final result = await apiService.revalidateFlight(
@@ -1123,7 +813,6 @@ class FlydubaiFlightController extends GetxController {
 
       if (result['success'] == true) {
         final updatedPrice = result['updatedPrice'] ?? flight.price;
-        developer.log('Revalidation successful. Updated price: $updatedPrice');
 
         // Update the flight price with revalidated price
         if (isReturnFlight) {
@@ -1137,11 +826,9 @@ class FlydubaiFlightController extends GetxController {
 
         return true;
       } else {
-        developer.log('Revalidation failed: ${result['error']}');
         return false;
       }
     } catch (e) {
-      developer.log('Revalidation error: $e');
       return false;
     }
   }
@@ -1150,16 +837,11 @@ class FlydubaiFlightController extends GetxController {
   // In FlydubaiFlightController, update the addFlightsToCart method
   Future<Map<String, dynamic>> addFlightsToCart() async {
   try {
-    print('═══════════════════════════════════════════════════════');
-    print('🛒 ADDING FLIGHTS TO CART');
-    print('═══════════════════════════════════════════════════════');
 
     // Check if this is a round-trip flight
     final isRoundTrip = selectedOutboundFlight != null && selectedReturnFlight != null;
     
     if (isRoundTrip) {
-      print('🔄 Round-trip flight detected - checking combinability...');
-      
       // Apply combinability logic for round-trip flights
       final combinabilityResult = _applyCombinabilityLogic();
       if (!combinabilityResult['success']) {
@@ -1171,28 +853,16 @@ class FlydubaiFlightController extends GetxController {
 
     // Add outbound flight if selected
     if (selectedOutboundFlight != null && selectedOutboundFareOption != null) {
-      print('📍 Processing Outbound Flight:');
-      print('   - Flight: ${selectedOutboundFlight!.airlineCode} ${selectedOutboundFlight!.flightSegment.flightNumber}');
-      print('   - LFID: ${selectedOutboundFlight!.flightSegment.lfid}');
-      print('   - Selected Fare: ${selectedOutboundFareOption!.fareTypeName}');
-      
       final fareIndex = _getFareIndex(selectedOutboundFlight!, selectedOutboundFareOption!);
       final outboundId = '${selectedOutboundFlight!.flightSegment.lfid}_$fareIndex';
       bookingIds.add(outboundId);
-      print('   ✅ Outbound Booking ID: $outboundId');
     }
 
     // Add return flight if selected
     if (selectedReturnFlight != null && selectedReturnFareOption != null) {
-      print('📍 Processing Return Flight:');
-      print('   - Flight: ${selectedReturnFlight!.airlineCode} ${selectedReturnFlight!.flightSegment.flightNumber}');
-      print('   - LFID: ${selectedReturnFlight!.flightSegment.lfid}');
-      print('   - Selected Fare: ${selectedReturnFareOption!.fareTypeName}');
-      
       final fareIndex = _getFareIndex(selectedReturnFlight!, selectedReturnFareOption!);
       final returnId = '${selectedReturnFlight!.flightSegment.lfid}_$fareIndex';
       bookingIds.add(returnId);
-      print('   ✅ Return Booking ID: $returnId');
     }
 
     if (bookingIds.isEmpty) {
@@ -1218,9 +888,7 @@ class FlydubaiFlightController extends GetxController {
     );
 
     if (result['success'] == true) {
-      print("✅ Add to cart successful");
-      developer.log('Successfully added flights to cart');
-      
+
       // Store cart data AND security GUID for booking process
       _cartData = result['data'];
       final securityGuid = result['securityGuid'];
@@ -1229,31 +897,10 @@ class FlydubaiFlightController extends GetxController {
         _cartData?['SecurityGuid'] = securityGuid;
       }
       
-      // Debug: Check cart response structure
-      if (result['data'] != null) {
-        final cartData = result['data'] as Map<String, dynamic>;
-        print('🔍 Cart Response Analysis:');
-        print('   - Keys: ${cartData.keys.toList()}');
-        print('   - SecurityGUID (uppercase): ${cartData['SecurityGUID']}');
-        print('   - SecurityGuid (mixed): ${cartData['SecurityGuid']}');
-        print('   - securityGUID (lowercase): ${cartData['securityGUID']}');
-        print('   - Has originDestinations: ${cartData.containsKey('originDestinations')}');
-        
-        // Extract and log the actual GUID value
-        final extractedGuid = cartData['SecurityGUID'] ?? cartData['SecurityGuid'] ?? cartData['securityGUID'];
-        if (extractedGuid != null && extractedGuid.toString().isNotEmpty) {
-          print('✅ Extracted SecurityGUID from cart: $extractedGuid');
-        } else {
-          print('⚠️ No SecurityGUID found in cart response');
-        }
-      }
-      
-      developer.log('Security GUID for PNR: $securityGuid');
     }
 
     return result;
   } catch (e) {
-    developer.log('Add to cart error: $e');
     return {
       'success': false,
       'error': 'Failed to add flights to cart: $e',
@@ -1263,8 +910,6 @@ class FlydubaiFlightController extends GetxController {
 // Apply combinability logic for round-trip flights
   Map<String, dynamic> _applyCombinabilityLogic() {
     try {
-      print('🔍 Applying combinability logic...');
-      
       // Get flight data to access combinability information
       final flightData = selectedOutboundFlight?.rawData ?? selectedReturnFlight?.rawData;
       if (flightData == null) {
@@ -1277,13 +922,11 @@ class FlydubaiFlightController extends GetxController {
       // Extract combinability data
       final retrieveResult = flightData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
       if (retrieveResult == null) {
-        print('⚠️ No combinability data found, proceeding without check');
         return {'success': true};
       }
 
       final combinability = retrieveResult['Combinability']?['BS'];
       if (combinability == null || combinability is! List) {
-        print('⚠️ No combinability rules found, proceeding without check');
         return {'success': true};
       }
 
@@ -1292,13 +935,8 @@ class FlydubaiFlightController extends GetxController {
       final returnSolnId = selectedReturnFareOption?.solnId;
       
       if (outboundSolnId == null || returnSolnId == null) {
-        print('⚠️ Missing solution IDs, proceeding without check');
         return {'success': true};
       }
-
-      print('🔍 Checking combinability:');
-      print('   Outbound SolnId: $outboundSolnId');
-      print('   Return SolnId: $returnSolnId');
 
       // Check if the selected combination is valid
       bool foundValidCombination = false;
@@ -1309,10 +947,7 @@ class FlydubaiFlightController extends GetxController {
             final comboOutboundSoln = solnRef[0];
             final comboReturnSoln = solnRef[1];
             
-            print('   Checking combination: [$comboOutboundSoln, $comboReturnSoln]');
-            
             if (comboOutboundSoln == outboundSolnId && comboReturnSoln == returnSolnId) {
-              print('   ✅ Found valid combination!');
               foundValidCombination = true;
               break;
             }
@@ -1321,13 +956,10 @@ class FlydubaiFlightController extends GetxController {
       }
 
       if (foundValidCombination) {
-        print('✅ Selected fare combination is valid');
         return {'success': true};
       }
 
       // If not found, try to find alternative combinations
-      print('⚠️ Selected combination not valid, looking for alternatives...');
-      
       // Try to find a valid combination with the return flight
       for (final combo in combinability) {
         if (combo is Map && combo['SolnRef'] is List) {
@@ -1338,8 +970,6 @@ class FlydubaiFlightController extends GetxController {
             
             // If return flight matches, try to find compatible outbound
             if (comboReturnSoln == returnSolnId) {
-              print('   Found compatible return flight, looking for outbound alternative...');
-              
               // Find alternative outbound fare with matching solution ID
               final alternativeOutbound = _findAlternativeFare(
                 selectedOutboundFlight!, 
@@ -1348,7 +978,6 @@ class FlydubaiFlightController extends GetxController {
               );
               
               if (alternativeOutbound != null) {
-                print('   ✅ Found alternative outbound fare: ${alternativeOutbound.fareTypeName}');
                 selectedOutboundFareOption = alternativeOutbound;
                 return {'success': true};
               }
@@ -1364,7 +993,6 @@ class FlydubaiFlightController extends GetxController {
       };
 
     } catch (e) {
-      print('❌ Error in combinability logic: $e');
       return {
         'success': false,
         'error': 'Error checking fare compatibility: $e',
@@ -1392,22 +1020,14 @@ class FlydubaiFlightController extends GetxController {
 // Helper method to get fare index
   int _getFareIndex(FlydubaiFlight flight, FlydubaiFlightFare fare) {
     final options = fareOptionsByLFID[flight.rph] ?? [];
-    print('🔍 _getFareIndex called:');
-    print('   Flight LFID/RPH: ${flight.rph}');
-    print('   Looking for Fare Type ID: ${fare.fareTypeId} (${fare.fareTypeName})');
-    print('   Looking for Fare ID: ${fare.fareId}');
-    print('   Available options: ${options.length}');
     
     // Use FareID instead of array index - this matches the web implementation
     for (int i = 0; i < options.length; i++) {
-      print('   [$i] ${options[i].fareTypeName} (TypeID: ${options[i].fareTypeId}, FareID: ${options[i].fareId})');
       if (options[i].fareTypeId == fare.fareTypeId && options[i].fareId == fare.fareId) {
-        print('   ✅ Found match - using FareID: ${fare.fareId} (not array index)');
         return fare.fareId; // Return FareID, not array index!
       }
     }
     
-    print('   ⚠️ No match found, returning FareID: ${fare.fareId}');
     return fare.fareId; // Return FareID, not 0
   }
 
@@ -1456,10 +1076,6 @@ class FlydubaiFlightController extends GetxController {
   List<Map<String, dynamic>> buildSegmentArray({required FlydubaiExtrasController extrasController}) {
     final List<Map<String, dynamic>> segments = [];
 
-    print('═══════════════════════════════════════════════════════');
-    print('🔧 BUILDING SEGMENT ARRAY FOR PNR');
-    print('═══════════════════════════════════════════════════════');
-
     try {
       // Check if this is a multi-city booking
       final selectedMultiCityFlightsList = selectedMultiCityFlights
@@ -1482,20 +1098,10 @@ class FlydubaiFlightController extends GetxController {
         final int infantCount = extrasController.infantPassengers.value;
         final int totalPassengers = adultCount + childCount + infantCount;
         
-        print('🌍 Building segments for MULTI-CITY booking (${selectedMultiCityFlightsList.length} segments)');
-        print('👥 Passengers: $adultCount adults, $childCount children, $infantCount infants (Total: $totalPassengers)');
-        
         // Build segments for each multi-city flight
         for (int segmentIndex = 0; segmentIndex < selectedMultiCityFlightsList.length; segmentIndex++) {
           final flight = selectedMultiCityFlightsList[segmentIndex];
           final fareOption = selectedMultiCityFareOptionsList[segmentIndex];
-          
-          print('📍 Building Multi-City Segment $segmentIndex:');
-          print('   - Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
-          print('   - LFID: ${flight.flightSegment.lfid}');
-          print('   - Route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
-          print('   - Fare: ${fareOption.fareTypeName}');
-          print('   - Fare ID: ${fareOption.fareId}');
           
           final adultFareId = fareOption.fareId;
           final segmentMeta = _buildSegmentMeta(flight);
@@ -1542,12 +1148,6 @@ class FlydubaiFlightController extends GetxController {
       } else {
         // Build segments for outbound flight (one-way or round-trip)
       if (selectedOutboundFlight != null && selectedOutboundFareOption != null) {
-        print('📍 Building Outbound Segment:');
-        print('   - Flight: ${selectedOutboundFlight!.airlineCode} ${selectedOutboundFlight!.flightSegment.flightNumber}');
-        print('   - LFID: ${selectedOutboundFlight!.flightSegment.lfid}');
-        print('   - Fare: ${selectedOutboundFareOption!.fareTypeName}');
-        print('   - Fare ID: ${selectedOutboundFareOption!.fareId}');
-        
         final fareId = selectedOutboundFareOption!.fareId;
         final outboundMeta = _buildSegmentMeta(selectedOutboundFlight!);
 
@@ -1567,10 +1167,6 @@ class FlydubaiFlightController extends GetxController {
             selectedOutboundFlight!,
         );
 
-        print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-        print('   - Meal extras: ${mealExtras.length}');
-        print('   - Seat extras: ${seatExtras.length}');
-
         segments.add({
           'pax': 1, // First passenger
           'fareID': fareId,
@@ -1580,18 +1176,10 @@ class FlydubaiFlightController extends GetxController {
             'seat': seatExtras
           }
         });
-        
-        print('   ✅ Outbound segment added');
       }
 
       // Build segments for return flight
       if (selectedReturnFlight != null && selectedReturnFareOption != null) {
-        print('📍 Building Return Segment:');
-        print('   - Flight: ${selectedReturnFlight!.airlineCode} ${selectedReturnFlight!.flightSegment.flightNumber}');
-        print('   - LFID: ${selectedReturnFlight!.flightSegment.lfid}');
-        print('   - Fare: ${selectedReturnFareOption!.fareTypeName}');
-        print('   - Fare ID: ${selectedReturnFareOption!.fareId}');
-        
         final fareId = selectedReturnFareOption!.fareId;
         final returnMeta = _buildSegmentMeta(selectedReturnFlight!);
 
@@ -1611,10 +1199,6 @@ class FlydubaiFlightController extends GetxController {
             selectedReturnFlight!,
         );
 
-        print('   - Baggage extras: ${baggageExtras.isNotEmpty ? "Yes" : "No"}');
-        print('   - Meal extras: ${mealExtras.length}');
-        print('   - Seat extras: ${seatExtras.length}');
-
         segments.add({
           'pax': 1, // First passenger
           'fareID': fareId,
@@ -1624,18 +1208,11 @@ class FlydubaiFlightController extends GetxController {
             'seat': seatExtras
           }
         });
-        
-        print('   ✅ Return segment added');
         }
       }
       
-      print('📋 Total segments built: ${segments.length}');
-      for (int i = 0; i < segments.length; i++) {
-        print('   Segment $i: pax=${segments[i]['pax']}, fareID=${segments[i]['fareID']}');
-      }
-      
     } catch (e) {
-      print('❌ Error building segment array: $e');
+      // Error building segment array
     }
 
     return segments;
@@ -1684,7 +1261,6 @@ class FlydubaiFlightController extends GetxController {
     
     // Get all leg codes for this segment from the extras controller
     try {
-      final flyController = Get.find<FlydubaiFlightController>();
       final extrasController = Get.find<FlydubaiExtrasController>();
       final legCodes = extrasController.getLegCodesForSegment(segmentLfid);
       
@@ -1702,7 +1278,6 @@ class FlydubaiFlightController extends GetxController {
         }
       }
     } catch (e) {
-      print('⚠️ Error filtering extras by leg: $e');
       // Fallback: try to match by PFID directly from flight data
       final legCodes = <String>[];
       try {
@@ -1727,7 +1302,7 @@ class FlydubaiFlightController extends GetxController {
           }
         }
       } catch (e2) {
-        print('⚠️ Error in fallback leg code extraction: $e2');
+        // Error in fallback leg code extraction
       }
       
       // Try to match with extracted leg codes
@@ -1770,7 +1345,7 @@ class FlydubaiFlightController extends GetxController {
         }
       }
     } catch (e) {
-      print('⚠️ Error extracting leg count: $e');
+      // Error extracting leg count
     }
 
     final departureDateOnly = departureIso.split('T').first;
@@ -1815,7 +1390,7 @@ class FlydubaiFlightController extends GetxController {
         break;
       }
     } catch (e) {
-      debugPrint('Error extracting PFID: $e');
+      // Error extracting PFID
     }
     return 0;
   }
@@ -1843,7 +1418,6 @@ class FlydubaiFlightController extends GetxController {
 
       return '$code!!${segmentMeta['lfid']}!!${segmentMeta['departureDateMidnight']}!!$amount!!$currency!!$description!!$baggagePfid';
     } catch (e) {
-      print('⚠️ Error building baggage extras: $e');
       return '';
     }
   }
@@ -1862,10 +1436,7 @@ class FlydubaiFlightController extends GetxController {
       // API only allows meals on the first leg of a segment, not on connecting legs
       final firstLegPfid = segmentMeta['physicalFlightId'] as int? ?? 0;
       final legCount = segmentMeta['legCount'] as int? ?? 1;
-      
-      print('   🍽️ Building meals for segment with $legCount leg(s)');
-      print('   📍 First leg PFID: $firstLegPfid');
-      
+
       // Format: OfferCode!!LFID!!DepartureDate!!Amount!!Currency!!RuleId!!PFID
       // Keys are in format: legseg{segmentCode}_leg{pfid}|p{passengerId}
       for (final entry in selectedMeals.entries) {
@@ -1883,30 +1454,21 @@ class FlydubaiFlightController extends GetxController {
             pfid = int.tryParse(pfidStr);
             
             if (pfid == null) {
-              print('   ⚠️ Failed to parse PFID from meal key: $key, pfidStr: $pfidStr');
               continue;
             }
             
             // IMPORTANT: API only allows meals on the first leg of a segment
             // Skip meals for connecting legs (legs other than the first)
             if (legCount > 1 && pfid != firstLegPfid) {
-              print('   ⏭️ Skipping meal for connecting leg PFID: $pfid (meals only allowed on first leg PFID: $firstLegPfid)');
               continue;
             }
             
-            print('   ✅ Extracted meal PFID: $pfid from key: $key');
-            
             // Get departure date for this specific leg from flight data
             departureDate = _getLegDepartureDate(flight, pfid);
-            if (departureDate == null && pfid != null) {
-              print('   ⚠️ Could not get departure date for PFID: $pfid');
-            }
           } else {
-            print('   ⚠️ Meal key format incorrect: $key (expected legseg{segmentCode}_leg{pfid}|p{passengerId})');
             continue;
           }
         } else {
-          print('   ⚠️ Meal key does not contain _leg: $key');
           continue;
         }
         
@@ -1917,22 +1479,16 @@ class FlydubaiFlightController extends GetxController {
         // Use segment departure date (first leg date) for all meals
         final mealDepartureDate = segmentMeta['departureDateMidnight'];
         
-        print('   📅 Meal date: $mealDepartureDate (using segment first leg date)');
-        
+
         final code = meal['id']?.toString() ?? 'MLIN';
         final amount = meal['charge']?.toString() ?? '0';
         final currency = meal['currency']?.toString() ?? 'PKR';
         final description = meal['description']?.toString() ?? meal['name']?.toString() ?? 'Meal';
 
         meals.add('$code!!${segmentMeta['lfid']}!!$mealDepartureDate!!$amount!!$currency!!$description!!$finalPfid');
-        print('   ✅ Added meal: $code for PFID: $finalPfid, Date: $mealDepartureDate');
-      }
-      
-      if (legCount > 1 && selectedMeals.length > meals.length) {
-        print('   ⚠️ Note: ${selectedMeals.length - meals.length} meal(s) skipped (meals only allowed on first leg for multi-leg segments)');
       }
     } catch (e) {
-      print('Error building meal extras: $e');
+      // Error building meal extras
     }
 
     return meals;
@@ -1978,9 +1534,6 @@ class FlydubaiFlightController extends GetxController {
                               ? seat['departureDate'].toString()
                               : segmentMeta['departureDateTime']);
         
-        // Ensure departure date has proper format
-        // For seats, API accepts both midnight format and actual time
-        // Use actual time if available from leg, otherwise use segment departure time
         if (!departure.contains('T')) {
           departure = '${departure}T00:00:00';
         } else {
@@ -2006,7 +1559,7 @@ class FlydubaiFlightController extends GetxController {
         seats.add('${code ?? 'SPST'}!!${segmentMeta['lfid']}!!$departure!!$amount!!$currency!!$comment!!$finalPfid!!$row!!$seatNumber');
       }
     } catch (e) {
-      print('Error building seat extras: $e');
+      // Error building seat extras
     }
 
     return seats;
@@ -2040,7 +1593,7 @@ class FlydubaiFlightController extends GetxController {
         }
       }
     } catch (e) {
-      print('⚠️ Error getting leg departure date: $e');
+      // Error getting leg departure date
     }
     
     return null;
@@ -2053,9 +1606,6 @@ class FlydubaiFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
     final segmentCount = bookingController.cityPairs.length;
 
-    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    developer.log('🔄 initializeMultiCitySelection called');
-    developer.log('  Segment count: $segmentCount');
 
     // Clear and initialize lists with correct size
     selectedMultiCityFlights.clear();
@@ -2069,52 +1619,25 @@ class FlydubaiFlightController extends GetxController {
 
     // Start from segment 0
     currentMultiCitySegment.value = 0;
-
-    developer.log('  ✅ Initialized lists with ${selectedMultiCityFlights.length} segments each');
-    developer.log('  📍 Current segment set to: 0');
-    developer.log('  📊 Flights available per segment:');
-    for (int i = 0; i < segmentCount; i++) {
-      final count = flightsBySegment[i]?.length ?? 0;
-      developer.log('    Segment $i: $count flights');
-    }
   }
 
   // Get flights for a specific segment
   List<FlydubaiFlight> getFlightsForSegment(int segmentIndex) {
-    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    developer.log('🔍 getFlightsForSegment called for segment $segmentIndex');
-    
     final bookingController = Get.find<FlightBookingController>();
     final totalSegments = bookingController.cityPairs.length;
 
-    developer.log('  Total city pairs: $totalSegments');
-    
     if (segmentIndex >= totalSegments) {
-      developer.log('  ❌ Invalid segment index: $segmentIndex (max: ${totalSegments - 1})');
       return [];
     }
 
     final cityPair = bookingController.cityPairs[segmentIndex];
-    developer.log('  City pair $segmentIndex: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
-    developer.log('  Expected date: ${cityPair.departureDate.value}');
 
     // Get flights from the segment-specific storage
     final segmentFlights = flightsBySegment[segmentIndex] ?? [];
-    
-    developer.log('  📦 Flights in flightsBySegment[$segmentIndex]: ${segmentFlights.length}');
-    developer.log('  📊 Total segments in flightsBySegment: ${flightsBySegment.length}');
-    developer.log('  📋 Available segment keys: ${flightsBySegment.keys.toList()}');
 
     if (segmentFlights.isNotEmpty) {
-      developer.log('  ✅ Returning ${segmentFlights.length} flights from segment storage');
-      for (int i = 0; i < segmentFlights.length; i++) {
-        final flight = segmentFlights[i];
-        developer.log('    Flight $i: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination} (PKR ${flight.price})');
-      }
       return segmentFlights;
     }
-    
-    developer.log('  ⚠️ No flights found in segment storage, trying fallback...');
 
     // Fallback: try to match flights by route (cityPair already defined above)
     final fromCity = cityPair.fromCity.value;
@@ -2124,9 +1647,6 @@ class FlydubaiFlightController extends GetxController {
       cityPair.departureDateTime.value.month,
       cityPair.departureDateTime.value.day,
     );
-
-    developer.log('Fallback route matching for segment $segmentIndex');
-    developer.log('Route: $fromCity -> $toCity on ${departureDate.toIso8601String().substring(0, 10)}');
 
     // Combine all flights from all segments for fallback search
     final allFlights = <FlydubaiFlight>[];
@@ -2149,17 +1669,12 @@ class FlydubaiFlightController extends GetxController {
             flightDestination == toCity &&
             flightDate.isAtSameMomentAs(departureDate);
 
-        if (matches) {
-          developer.log('Found matching flight via fallback: $flightOrigin -> $flightDestination');
-        }
-
         return matches;
       } catch (e) {
         return false;
       }
     }).toList();
 
-    developer.log('Found ${matchingFlights.length} matching flights for segment $segmentIndex via fallback');
     return matchingFlights;
   }
 
@@ -2204,12 +1719,6 @@ class FlydubaiFlightController extends GetxController {
 
   // Handle multi-city flight selection
   void handleMultiCityFlightSelection(FlydubaiFlight flight, int segmentIndex) {
-    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    developer.log('🎯 handleMultiCityFlightSelection called');
-    developer.log('  Segment index: $segmentIndex');
-    developer.log('  Flight LFID: ${flight.flightSegment.lfid}');
-    developer.log('  Flight RPH: ${flight.rph}');
-    developer.log('  Flight route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
 
     // Ensure the lists are properly sized
     final bookingController = Get.find<FlightBookingController>();
@@ -2226,22 +1735,7 @@ class FlydubaiFlightController extends GetxController {
     selectedMultiCityFlights[segmentIndex] = flight;
     currentMultiCitySegment.value = segmentIndex;
 
-    developer.log('  ✅ Flight stored for segment $segmentIndex');
-    
-    // Verify fare options exist before opening dialog
-    final fareKey = 'segment_${segmentIndex}_${flight.flightSegment.lfid}';
-    final fareOptions = fareOptionsByLFID[fareKey] ?? [];
-    developer.log('  🔍 Checking fare options before opening dialog:');
-    developer.log('    Fare key: $fareKey');
-    developer.log('    Fare options found: ${fareOptions.length}');
-    if (fareOptions.isEmpty) {
-      developer.log('    ⚠️ WARNING: No fare options found for key $fareKey');
-      developer.log('    Available keys: ${fareOptionsByLFID.keys.where((k) => k.startsWith('segment_')).toList()}');
-    }
-
     // Open package selection dialog
-    developer.log('  📦 Opening package selection dialog...');
-    developer.log('    Dialog parameters: isMultiCity=true, segmentIndex=$segmentIndex');
     Get.dialog(
       FlyDubaiPackageSelectionDialog(
         flight: flight,
@@ -2261,8 +1755,6 @@ class FlydubaiFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
     final requiredSize = bookingController.cityPairs.length;
 
-    developer.log('handleMultiCityPackageSelection called with segment $segmentIndex');
-
     // Ensure the fare options list is properly sized
     while (selectedMultiCityFareOptions.length < requiredSize) {
       selectedMultiCityFareOptions.add(null);
@@ -2270,9 +1762,6 @@ class FlydubaiFlightController extends GetxController {
 
     // Store the fare option
     selectedMultiCityFareOptions[segmentIndex] = fareOption;
-
-    developer.log('Package selected for segment $segmentIndex');
-    developer.log('Package fare type: ${fareOption.fareTypeName}');
 
     // Force trigger the reactive update
     selectedMultiCityFlights.refresh();
@@ -2282,10 +1771,8 @@ class FlydubaiFlightController extends GetxController {
     Future.delayed(const Duration(milliseconds: 100), () {
       // Check if all segments are selected
       if (isAllMultiCitySegmentsSelected) {
-        developer.log('All segments selected, proceeding to review');
         _proceedToMultiCityReview();
       } else {
-        developer.log('Moving to next segment');
         proceedToNextMultiCitySegment();
       }
     });
@@ -2293,20 +1780,15 @@ class FlydubaiFlightController extends GetxController {
 
   // Proceed to next multi-city segment
   void proceedToNextMultiCitySegment() {
-    developer.log('proceedToNextMultiCitySegment called');
-
     final nextSegment = getNextUnselectedSegment();
-    developer.log('Next segment to select: $nextSegment');
 
     if (nextSegment != -1) {
       currentMultiCitySegment.value = nextSegment;
 
       // Get flights for the next segment
       final segmentFlights = getFlightsForSegment(nextSegment);
-      developer.log('Found ${segmentFlights.length} flights for segment $nextSegment');
 
       if (segmentFlights.isEmpty) {
-        developer.log('No flights found for segment $nextSegment');
         Get.snackbar(
           'No Flights Available',
           'No flights found for this segment. Please try different dates or routes.',
@@ -2333,13 +1815,11 @@ class FlydubaiFlightController extends GetxController {
           _proceedToMultiCityReview();
         }
       } else {
-        developer.log('Showing flight selection for segment $nextSegment');
         Future.delayed(const Duration(milliseconds: 300), () {
           _showMultiCityFlightSelection(nextSegment);
         });
       }
     } else {
-      developer.log('All segments processed, proceeding to review');
       _proceedToMultiCityReview();
     }
   }
@@ -2349,16 +1829,11 @@ class FlydubaiFlightController extends GetxController {
     final bookingController = Get.find<FlightBookingController>();
 
     if (segmentIndex >= bookingController.cityPairs.length) {
-      developer.log('Invalid segment index: $segmentIndex');
       return;
     }
 
     final cityPair = bookingController.cityPairs[segmentIndex];
     final segmentFlights = getFlightsForSegment(segmentIndex);
-
-    developer.log('_showMultiCityFlightSelection for segment $segmentIndex');
-    developer.log('Route: ${cityPair.fromCity.value} -> ${cityPair.toCity.value}');
-    developer.log('Available flights for segment: ${segmentFlights.length}');
 
     // Update current segment before showing selection
     currentMultiCitySegment.value = segmentIndex;
@@ -2381,10 +1856,6 @@ class FlydubaiFlightController extends GetxController {
   // Add multi-city flights to cart
   Future<Map<String, dynamic>> addMultiCityFlightsToCart() async {
     try {
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      developer.log('🛒 ADDING MULTI-CITY FLIGHTS TO CART');
-      developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
       final selectedFlights = selectedMultiCityFlights
           .where((f) => f != null)
           .cast<FlydubaiFlight>()
@@ -2415,16 +1886,9 @@ class FlydubaiFlightController extends GetxController {
         final flight = selectedFlights[i];
         final fareOption = selectedFareOptions[i];
         
-        developer.log('📍 Processing Multi-City Segment $i:');
-        developer.log('   - Flight: ${flight.airlineCode} ${flight.flightSegment.flightNumber}');
-        developer.log('   - LFID: ${flight.flightSegment.lfid}');
-        developer.log('   - Route: ${flight.flightSegment.origin} -> ${flight.flightSegment.destination}');
-        developer.log('   - Selected Fare: ${fareOption.fareTypeName}');
-        
         final fareIndex = _getFareIndex(flight, fareOption);
         final bookingId = '${flight.flightSegment.lfid}_$fareIndex';
         bookingIds.add(bookingId);
-        developer.log('   ✅ Segment $i Booking ID: $bookingId');
       }
 
       if (bookingIds.isEmpty) {
@@ -2444,15 +1908,12 @@ class FlydubaiFlightController extends GetxController {
         };
       }
 
-      developer.log('📤 Calling addToCart API with ${bookingIds.length} segments');
       final result = await apiService.addToCart(
         bookingIds: bookingIds,
         flightData: flightData,
       );
 
       if (result['success'] == true) {
-        developer.log('✅ Multi-city flights added to cart successfully');
-        
         // Store cart data AND security GUID for booking process
         _cartData = result['data'];
         final securityGuid = result['securityGuid'];
@@ -2460,15 +1921,10 @@ class FlydubaiFlightController extends GetxController {
         if (securityGuid != null) {
           _cartData?['SecurityGuid'] = securityGuid;
         }
-        
-        developer.log('Security GUID for PNR: $securityGuid');
-      } else {
-        developer.log('❌ Failed to add multi-city flights to cart: ${result['error']}');
       }
 
       return result;
     } catch (e) {
-      developer.log('❌ Add multi-city to cart error: $e');
       return {
         'success': false,
         'error': 'Failed to add multi-city flights to cart: $e',
@@ -2477,10 +1933,6 @@ class FlydubaiFlightController extends GetxController {
   }
 
   void _proceedToMultiCityReview() async {
-    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    developer.log('🚀 PROCEEDING TO MULTI-CITY REVIEW');
-    developer.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-
     final selectedFlights = selectedMultiCityFlights
         .where((f) => f != null)
         .cast<FlydubaiFlight>()
@@ -2491,7 +1943,6 @@ class FlydubaiFlightController extends GetxController {
         .toList();
 
     if (selectedFlights.isEmpty || selectedFareOptions.isEmpty) {
-      developer.log('❌ No flights selected for multi-city booking');
       Get.snackbar(
         'Selection Incomplete',
         'Please select flights for all segments',
@@ -2503,7 +1954,6 @@ class FlydubaiFlightController extends GetxController {
     }
 
     if (selectedFlights.length != selectedFareOptions.length) {
-      developer.log('❌ Mismatch: ${selectedFlights.length} flights but ${selectedFareOptions.length} fare options');
       Get.snackbar(
         'Selection Error',
         'Mismatch between flights and packages',
@@ -2514,13 +1964,6 @@ class FlydubaiFlightController extends GetxController {
       return;
     }
 
-    developer.log('✅ All ${selectedFlights.length} segments selected');
-    for (int i = 0; i < selectedFlights.length; i++) {
-      developer.log(
-        '  Segment $i: ${selectedFlights[i].flightSegment.origin} -> ${selectedFlights[i].flightSegment.destination} (${selectedFareOptions[i].fareTypeName})',
-      );
-    }
-
     // Show loading indicator
     Get.dialog(
       const Center(child: CircularProgressIndicator()),
@@ -2529,13 +1972,11 @@ class FlydubaiFlightController extends GetxController {
 
     try {
       // Add all multi-city flights to cart
-      developer.log('🛒 Adding multi-city flights to cart...');
       final cartResult = await addMultiCityFlightsToCart();
 
       Get.back(); // Close loading dialog
 
       if (cartResult['success'] != true) {
-        developer.log('❌ Failed to add flights to cart: ${cartResult['error']}');
         Get.snackbar(
           'Error',
           'Failed to add flights to cart: ${cartResult['error'] ?? "Unknown error"}',
@@ -2547,21 +1988,16 @@ class FlydubaiFlightController extends GetxController {
         return;
       }
 
-      developer.log('✅ Multi-city flights added to cart successfully');
-      
       // Calculate total price
       double totalPrice = 0.0;
       for (int i = 0; i < selectedFareOptions.length; i++) {
         totalPrice += selectedFareOptions[i].baseFareAmountIncludingTax;
       }
 
-      developer.log('💰 Total price: $totalPrice ${selectedFlights.first.currency}');
-
       // Navigate to booking form
       // Use first flight as primary, but pass all flights and fare options
       // Note: AirBlueBookingFlight.forFlyDubai doesn't support multi-city yet,
       // so we'll use the first flight and pass the rest via cartData
-      developer.log('📋 Navigating to booking form...');
       Get.to(
         () => AirBlueBookingFlight.forFlyDubai(
           flight: selectedFlights.first,
@@ -2575,8 +2011,6 @@ class FlydubaiFlightController extends GetxController {
       );
     } catch (e, stackTrace) {
       Get.back(); // Close loading dialog
-      developer.log('❌ Error in _proceedToMultiCityReview: $e');
-      developer.log('Stack trace: $stackTrace');
       Get.snackbar(
         'Error',
         'Failed to proceed to booking: $e',

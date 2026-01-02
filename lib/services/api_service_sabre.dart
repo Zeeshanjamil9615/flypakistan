@@ -1,20 +1,24 @@
 // ignore_for_file: empty_catches
 
 import 'dart:convert';
+import 'dart:io';
 import 'package:dio/dio.dart';
-
 import 'package:get/get.dart';
 import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../views/flight/booking_flight/booking_flight_controller.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
+import 'api_client.dart';
 import 'api_service_airblue.dart';
 
 class ApiServiceSabre extends GetxService {
   late final Dio dio;
   // Initialize directly instead of using late
   final AirBlueFlightApiService flightShoppingService = AirBlueFlightApiService();
+
+  // Add ApiClient instance
+  final ApiClient _apiClient = ApiClient();
 
   static const String _baseUrl = 'https://api.havail.sabre.com';
   static const String _tokenKey = 'flight_api_token';
@@ -89,26 +93,28 @@ class ApiServiceSabre extends GetxService {
       final pcc = '6MD8';
       final username = '409318';
       final password = 'SSWRES99';
-      
+
       final key = 'V1:$username:$pcc:AA';
       final keyBase64 = base64Encode(utf8.encode(key));
       final passwordBase64 = base64Encode(utf8.encode(password));
       final finalKey = '$keyBase64:$passwordBase64';
       final finalKeyBase64 = base64Encode(utf8.encode(finalKey));
-      
-      final response = await dio.post(
-        '/v2/auth/token',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': 'Basic $finalKeyBase64',
-            'grant_type': 'client_credentials',
-          },
-        ),
+
+      // Use ApiClient for token generation
+      final response = await _apiClient.request(
+        url: '$_baseUrl/v2/auth/token',
+        method: HttpMethod.POST,
+        serviceName: 'SABRE TOKEN',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          'Authorization': 'Basic $finalKeyBase64',
+          'grant_type': 'client_credentials',
+        },
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200 && response.data['access_token'] != null) {
-        final token = response.data['access_token'];
+      if (response.isSuccess && response.responseJson != null && response.responseJson!['access_token'] != null) {
+        final token = response.responseJson!['access_token'] as String;
         await _storeToken(token);
         return token;
       } else {
@@ -131,9 +137,8 @@ class ApiServiceSabre extends GetxService {
     required int infant,
     required int stop,
     required String cabin,
-    required int flight, 
+    required int flight,
 
-    
   }) async {
     try {
       if(flight==0){
@@ -156,8 +161,6 @@ class ApiServiceSabre extends GetxService {
       }else if(flight==1){
         // New Air Blue API call with same parameters
         try {
-
-
           final airBlueResponse = await _searchFlightsWithAirBlue(
             type: type,
             origin: origin,
@@ -170,27 +173,18 @@ class ApiServiceSabre extends GetxService {
             cabin: cabin,
           );
 
-          // printJsonPretty(airBlueResponse);
-
-          // Here you would normally process the Air Blue response and merge with Sabre results
-          // For now, we're just logging it to console
           return airBlueResponse;
         } catch (airBlueError) {
           // If Air Blue API fails, just log the error but continue with Sabre results
         }
       }
-
-
-
-
-        return {};
+      return {};
     } catch (e) {
-      // print('Error in searchFlights: $e');
       throw Exception('Error searching flights: $e');
     }
   }
-  Future<Map<String, dynamic>> _searchFlightsWithSabre({
 
+  Future<Map<String, dynamic>> _searchFlightsWithSabre({
     required int type,
     required String origin,
     required String destination,
@@ -264,7 +258,6 @@ class ApiServiceSabre extends GetxService {
       if (child > 0) passengers.add({"Code": "CHD", "Quantity": child});
       if (infant > 0) passengers.add({"Code": "INF", "Quantity": infant});
 
-
       final requestBody = {
         "OTA_AirLowFareSearchRQ": {
           "ResponseType": "OTA",
@@ -333,29 +326,30 @@ class ApiServiceSabre extends GetxService {
         }
       };
 
-      final response = await dio.post(
-        '/v3/offers/shop',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token'
-          },
-        ),
-        data: requestBody,
+      // Use ApiClient for flight search
+      final response = await _apiClient.request(
+        url: '$_baseUrl/v3/offers/shop',
+        method: HttpMethod.POST,
+        serviceName: 'SABRE FLIGHT SEARCH',
+        body: jsonEncode(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        contentType: ContentType.JSON,
       );
-      if (response.statusCode == 200) {
-        return response.data;
+
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception('Failed to model_controllers flights: ${response.statusCode}');
+        throw Exception('Failed to search flights: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error searching flights with Sabre: $e');
     }
   }
 
-
-
-  // Helper method to model_controllers flights with Air Blue
+  // Helper method to search flights with Air Blue
   Future<Map<String, dynamic>> _searchFlightsWithAirBlue({
     required int type,
     required String origin,
@@ -396,7 +390,6 @@ class ApiServiceSabre extends GetxService {
   }
 
   // Add to ApiServiceFlight class in api_service_sabre.dart
-
   Future<Map<String, dynamic>> checkFlightAvailability({
     required int type,
     required List<Map<String, dynamic>> flightSegments,
@@ -431,22 +424,23 @@ class ApiServiceSabre extends GetxService {
         requestData = requestBody;
       }
 
-      final response = await dio.post(
-        endpoint,
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token'
-          },
-        ),
-        data: requestData,
+      // Use ApiClient for flight availability check
+      final response = await _apiClient.request(
+        url: '$_baseUrl$endpoint',
+        method: HttpMethod.POST,
+        serviceName: 'SABRE FLIGHT AVAILABILITY',
+        body: jsonEncode(requestData),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200) {
-        return response.data;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
-        throw Exception(
-            'Failed to check flight availability: ${response.statusCode}');
+        throw Exception('Failed to check flight availability: ${response.statusCode}');
       }
     } catch (e) {
       throw Exception('Error checking flight availability: $e');
@@ -457,27 +451,22 @@ class ApiServiceSabre extends GetxService {
     Map<String, AirlineInfo> tempAirlineMap = {};
 
     try {
-      var response = await dio.request(
-        'https://agent1.pk/api.php?type=airlines',
-        options: Options(
-          method: 'GET',
-        ),
+      // Use ApiClient for airline data fetch
+      final response = await _apiClient.request(
+        url: 'https://agent1.pk/api.php?type=airlines',
+        method: HttpMethod.GET,
+        serviceName: 'AIRLINE DATA',
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200) {
-        var data = response.data['data'];
+      if (response.isSuccess && response.responseJson != null && response.responseJson!['data'] != null) {
+        var data = response.responseJson!['data'] as List;
         for (var item in data) {
           // Clean and format the logo URL
           String logoUrl = item['logo'];
 
           // Remove any escaped characters like \t, \n, etc.
           logoUrl = logoUrl.replaceAll(RegExp(r'^\t+'), '');
-          // print(logoUrl);
-
-          // // Ensure URL starts with https://
-          // if (!logoUrl.startsWith('http://') && !logoUrl.startsWith('https://')) {
-          //   logoUrl = 'https://' + logoUrl;
-          // }
 
           tempAirlineMap[item['code']] = AirlineInfo(
             item['name'],
@@ -486,44 +475,41 @@ class ApiServiceSabre extends GetxService {
         }
         // Update the stored airlineMap
         airlineMap.value = tempAirlineMap;
-
-        // Log a few URLs for debugging
-        if (tempAirlineMap.isNotEmpty) {
-          tempAirlineMap.entries.take(3).forEach((entry) {
-          });
-        }
       } else {
+        // Handle error
       }
     } catch (e) {
+      // Handle error
     }
 
     return tempAirlineMap;
   }
 
-
   static const String _marginApiBaseUrl = 'https://readyflights.pk/api';
   static const String _marginUserId = 'Group-121';
   static const String _marginUsername = 'travelocity';
 
-// Add these methods to the ApiServiceFlight class
+  // Add these methods to the ApiServiceFlight class
   Future<String> _generateMarginToken() async {
     try {
-      final response = await dio.post(
-        '$_marginApiBaseUrl/generate_token.php',
-        options: Options(
-          headers: {
-            'Userid': _marginUserId,
-            'Username': _marginUsername,
-            'Content-Type': 'application/json',
-          },
-        ),
-        data: {
+      // Use ApiClient for margin token generation
+      final response = await _apiClient.request(
+        url: '$_marginApiBaseUrl/generate_token.php',
+        method: HttpMethod.POST,
+        serviceName: 'MARGIN TOKEN',
+        body: jsonEncode({
           "req_type": "get_margin",
+        }),
+        headers: {
+          'Userid': _marginUserId,
+          'Username': _marginUsername,
+          'Content-Type': 'application/json',
         },
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200 && response.data['token'] != null) {
-        return response.data['token'];
+      if (response.isSuccess && response.responseJson != null && response.responseJson!['token'] != null) {
+        return response.responseJson!['token'] as String;
       } else {
         throw Exception('Failed to generate margin token');
       }
@@ -532,7 +518,7 @@ class ApiServiceSabre extends GetxService {
     }
   }
 
-  Future<Map<String, dynamic>> getMargin(String airlineCode, String gds) async {
+  Future<Map<String, dynamic>> getMargin(String airlineCode, String gds, String Api) async {
     try {
       // Check if user is logged in by getting valid token
       final token = await authController.getValidToken();
@@ -548,47 +534,50 @@ class ApiServiceSabre extends GetxService {
         email = userData?['cs_email'] ?? "";
       }
 
-      final response = await dio.post(
-        '$_marginApiBaseUrl/get-margin',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        ),
-        data: {
+      // Use ApiClient for margin data
+      final response = await _apiClient.request(
+        url: '$_marginApiBaseUrl/get-margin',
+        method: HttpMethod.POST,
+        serviceName: 'GET MARGIN: $Api $gds',
+        body: jsonEncode({
           "airline_code": airlineCode,
           "gds": gds,
           "login": isLoggedIn ? 1 : 0, // Send 1 if logged in, 0 if not
           "email": email, // Send cs_email if logged in, empty string if not
+        }),
+        headers: {
+          'Content-Type': 'application/json',
         },
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200) {
+      if (response.isSuccess) {
         Map<String, dynamic> marginMap = {};
-        
+
         // Handle different response types
-        if (response.data is Map) {
-          // Already a Map
-          marginMap = Map<String, dynamic>.from(response.data);
-        } else if (response.data is String) {
+        if (response.responseJson != null) {
+          // Already parsed JSON
+          marginMap = Map<String, dynamic>.from(response.responseJson!);
+        } else if (response.responseBody.isNotEmpty) {
           // Parse JSON string
           try {
-            marginMap = jsonDecode(response.data) as Map<String, dynamic>;
+            marginMap = jsonDecode(response.responseBody) as Map<String, dynamic>;
           } catch (e) {
             return {};
           }
         } else {
           return {};
         }
-        
+
         return marginMap;
       } else {
-        throw Exception('Failed to get margin: ${response.statusMessage}');
+        throw Exception('Failed to get margin: ${response.message}');
       }
     } catch (e) {
       throw Exception('Error getting margin: $e');
     }
   }
+
   // Calculate price with margin based on margin type
   // marginType: "per" for percentage, "val" for fixed value
   double calculatePriceWithMargin(double basePrice, Map<String, dynamic> marginData) {
@@ -597,11 +586,11 @@ class ApiServiceSabre extends GetxService {
         // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
         return basePrice.ceil().toDouble();
       }
-      
+
       final marginType = marginData['flight_margin_type']?.toString().toLowerCase().trim() ?? '';
       final marginValRaw = marginData['margin_val'];
       final marginPerRaw = marginData['margin_per'];
-      
+
       // Handle numeric types (int, double) and string representations
       double marginVal = 0.0;
       if (marginValRaw != null) {
@@ -611,7 +600,7 @@ class ApiServiceSabre extends GetxService {
           marginVal = double.tryParse(marginValRaw.toString()) ?? 0.0;
         }
       }
-      
+
       double marginPer = 0.0;
       if (marginPerRaw != null) {
         if (marginPerRaw is num) {
@@ -640,7 +629,6 @@ class ApiServiceSabre extends GetxService {
     }
   }
 
-
   Future<dynamic> createPNRRequest({
     required SabreFlight flight,
     required List<TravelerInfo> adults,
@@ -649,7 +637,6 @@ class ApiServiceSabre extends GetxService {
     required String bookerEmail,
     required String bookerPhone,
     required Map<String, dynamic>? revalidatePricing,
-
   }) async {
     Map<String, dynamic>? pnrResponse;
 
@@ -679,7 +666,7 @@ class ApiServiceSabre extends GetxService {
       await saveSabreBooking(
         flight: flight,
         pnrResponse: pnrResponse,
-        token: getValidToken().toString(),
+        token: (await getValidToken()).toString(),
         adults: adults,
         children: children,
         infants: infants,
@@ -694,7 +681,7 @@ class ApiServiceSabre extends GetxService {
         await saveSabreBooking(
           flight: flight,
           pnrResponse: null,
-          token: getValidToken().toString(),
+          token: (await getValidToken()).toString(),
           adults: adults,
           children: children,
           infants: infants,
@@ -961,7 +948,6 @@ class ApiServiceSabre extends GetxService {
                     "Text": formattedPhone,
                   },
                   {
-
                     "SSR_Code": "CTCE",
                     "PersonName": {
                       "NameNumber": passenger["NameNumber"],
@@ -1015,21 +1001,24 @@ class ApiServiceSabre extends GetxService {
     };
 
     final token = await getValidToken() ?? await generateToken();
-    final response = await dio.post(
-      '/v2.5.0/passenger/records?mode=create',
-      options: Options(
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-          'Conversation-ID': '2021.01.DevStudio',
-        },
-      ),
-      data: requestBody,
+
+    // Use ApiClient for standard PNR creation
+    final response = await _apiClient.request(
+      url: '$_baseUrl/v2.5.0/passenger/records?mode=create',
+      method: HttpMethod.POST,
+      serviceName: 'SABRE STANDARD PNR',
+      body: jsonEncode(requestBody),
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer $token',
+        'Conversation-ID': '2021.01.DevStudio',
+      },
+      contentType: ContentType.JSON,
     );
 
-    if (response.statusCode == 200) {
-      handlePnrResponse(response.data);
-      return response.data;
+    if (response.isSuccess && response.responseJson != null) {
+      handlePnrResponse(response.responseJson!);
+      return response.responseJson!;
     } else {
       throw Exception('Failed to create standard PNR: ${response.statusCode}');
     }
@@ -1446,22 +1435,23 @@ class ApiServiceSabre extends GetxService {
 
       final token = await getValidToken() ?? await generateToken();
 
-      final response = await dio.post(
-        '/v1/orders/create',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          responseType: ResponseType.json,
-        ),
-        data: jsonEncode(requestBody),
+      // Use ApiClient for NDC PNR creation
+      final response = await _apiClient.request(
+        url: '$_baseUrl/v1/orders/create',
+        method: HttpMethod.POST,
+        serviceName: 'SABRE NDC PNR',
+        body: jsonEncode(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200) {
-        final responseData = response.data;
+      if (response.isSuccess && response.responseJson != null) {
+        final responseData = response.responseJson!;
         if (responseData['order'] != null && responseData['order']['id'] != null) {
-          return response.data;
+          return responseData;
         }
       } else {
         throw Exception('Failed to create NDC PNR: ${response.statusCode}');
@@ -1476,7 +1466,7 @@ class ApiServiceSabre extends GetxService {
     if (pnrData['ApplicationResults']['status'] == 'Complete') {
       final itineraryRefId = pnrData['ItineraryRef']['ID'];
       try {
-        await ApiServiceSabre().getBooking(itineraryRefId);
+        await getBooking(itineraryRefId);
       } catch (e) {
         // Ignore error
       }
@@ -1493,19 +1483,21 @@ class ApiServiceSabre extends GetxService {
         "confirmationId": pnrId,
       };
 
-      final response = await dio.post(
-        '/v1/trip/orders/getBooking',
-        options: Options(
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-        ),
-        data: requestBody,
+      // Use ApiClient for getting booking details
+      final response = await _apiClient.request(
+        url: '$_baseUrl/v1/trip/orders/getBooking',
+        method: HttpMethod.POST,
+        serviceName: 'SABRE GET BOOKING',
+        body: jsonEncode(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        contentType: ContentType.JSON,
       );
 
-      if (response.statusCode == 200) {
-        return response.data;
+      if (response.isSuccess && response.responseJson != null) {
+        return response.responseJson!;
       } else {
         throw Exception('Failed to get booking details: ${response.statusCode}');
       }
@@ -1514,8 +1506,7 @@ class ApiServiceSabre extends GetxService {
     }
   }
 
-
-// Helper method to extract PNR from response
+  // Helper method to extract PNR from response
   String _extractPnrFromResponse(Map<String, dynamic> pnrResponse) {
     try {
       if (pnrResponse['CreatePassengerNameRecordRS'] != null) {
@@ -1534,7 +1525,7 @@ class ApiServiceSabre extends GetxService {
     return "";
   }
 
-// Helper method to check if PNR was successful
+  // Helper method to check if PNR was successful
   bool _isPnrSuccessful(Map<String, dynamic> pnrResponse) {
     try {
       if (pnrResponse['CreatePassengerNameRecordRS'] != null) {
@@ -1547,7 +1538,6 @@ class ApiServiceSabre extends GetxService {
     }
     return false;
   }
-
 
   String _getCabinClassName(String cabinCode) {
     switch (cabinCode.toUpperCase()) {
@@ -1566,7 +1556,6 @@ class ApiServiceSabre extends GetxService {
   }
 
   Future<Map<String, dynamic>> saveSabreBooking({
-
     required SabreFlight flight,
     required Map<String, dynamic>? pnrResponse,
     required String token,
@@ -1577,7 +1566,6 @@ class ApiServiceSabre extends GetxService {
     required String bookerPhone,
   }) async {
     try {
-      // Prepare booking info
       // Prepare booking info
       final bookingInfo = {
         "bfname": bookingController.firstNameController.text,
@@ -1592,8 +1580,7 @@ class ApiServiceSabre extends GetxService {
       };
 
       // Prepare adults data
-      final adults =
-      bookingController.adults.map((adult) {
+      final adultsData = bookingController.adults.map((adult) {
         return {
           "title": adult.titleController.text,
           "first_name": adult.firstNameController.text,
@@ -1602,14 +1589,12 @@ class ApiServiceSabre extends GetxService {
           "nationality": adult.nationalityController.text,
           "passport": adult.passportCnicController.text,
           "passport_expiry": adult.passportExpiryController.text,
-          "cnic": adult.passportCnicController.text, // CNIC is not collected in current form, leaving empty
-
+          "cnic": adult.passportCnicController.text,
         };
       }).toList();
 
       // Prepare children data
-      final children =
-      bookingController.children.map((child) {
+      final childrenData = bookingController.children.map((child) {
         return {
           "title": child.titleController.text,
           "first_name": child.firstNameController.text,
@@ -1618,13 +1603,12 @@ class ApiServiceSabre extends GetxService {
           "nationality": child.nationalityController.text,
           "passport": child.passportCnicController.text,
           "passport_expiry": child.passportExpiryController.text,
-          "cnic":child.passportCnicController.text,
+          "cnic": child.passportCnicController.text,
         };
       }).toList();
 
       // Prepare infants data
-      final infants =
-      bookingController.infants.map((infant) {
+      final infantsData = bookingController.infants.map((infant) {
         return {
           "title": infant.titleController.text,
           "first_name": infant.firstNameController.text,
@@ -1633,7 +1617,7 @@ class ApiServiceSabre extends GetxService {
           "nationality": infant.nationalityController.text,
           "passport": "a",
           "passport_expiry": "a",
-          "cnic":"a",
+          "cnic": "a",
         };
       }).toList();
 
@@ -1647,48 +1631,45 @@ class ApiServiceSabre extends GetxService {
       // Prepare final request body
       final requestBody = {
         "booking_info": bookingInfo,
-        "adults": adults,
-        "children": children,
-        "infants": infants,
+        "adults": adultsData,
+        "children": childrenData,
+        "infants": infantsData,
         "flights": flights,
         "pnr": pnr,
         "buyingPrice": flight.price.toStringAsFixed(0),
         "sellingPrice": flight.price.toStringAsFixed(0),
         "pnrStatus": pnrStatus,
         "booking_from": "1", // Sabre booking source
-        // "total_passengers": adults.length + children.length + infants.length,
-        // "booking_date": DateTime.now().toIso8601String(),
-        // "flight_type": flight.legSchedules.length == 1 ? "One-Way" : "Return",
         "gds": "sabre"
       };
 
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://readyflights.pk/api/',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': 'Bearer $token',
-          },
-          responseType: ResponseType.json,
-        ),
+      // Use ApiClient for saving booking
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/flight-booking',
+        method: HttpMethod.POST,
+        serviceName: 'SABRE SAVE BOOKING',
+        body: jsonEncode(requestBody),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        contentType: ContentType.JSON,
       );
 
-      // Make the API call
-      final response = await dio.post('flight-booking', data: requestBody);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        return response.data is Map<String, dynamic>
-            ? response.data
-            : jsonDecode(response.data);
+      if (response.isSuccess) {
+        if (response.responseJson != null) {
+          return response.responseJson!;
+        }
+        return {'status': 'success'};
       } else {
-        throw Exception('Failed to save booking: ${response.statusMessage}');
+        throw Exception('Failed to save booking: ${response.message}');
       }
     } catch (e) {
       throw Exception('Error saving booking: $e');
     }
   }
 
-// Helper method to prepare flight data for Sabre
+  // Helper method to prepare flight data for Sabre
   List<Map<String, dynamic>> _prepareSabreFlightData(SabreFlight flight) {
     final flights = <Map<String, dynamic>>[];
 
@@ -1751,7 +1732,4 @@ class ApiServiceSabre extends GetxService {
 
     return flights;
   }
-
 }
-
-
