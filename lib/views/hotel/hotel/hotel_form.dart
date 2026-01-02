@@ -449,6 +449,29 @@ class _HotelFormState extends State<HotelForm> {
               rooms: rooms,
             );
           } catch (e) {
+            // Check if it's a network-related error
+            String errorTitle = 'Something went wrong';
+            String errorMessage = 'An unexpected error occurred. Please try again.';
+            IconData errorIcon = Icons.error_outline;
+            
+            final errorString = e.toString().toLowerCase();
+            if (errorString.contains('socketexception') ||
+                errorString.contains('connection') ||
+                errorString.contains('network is unreachable') ||
+                errorString.contains('dioexception') ||
+                errorString.contains('failed host lookup') ||
+                errorString.contains('no internet') ||
+                errorString.contains('errno = 101') ||
+                errorString.contains('errno = 7')) {
+              errorTitle = 'No Internet Connection';
+              errorMessage = 'Please check your internet connection and try again.';
+              errorIcon = Icons.wifi_off;
+            } else if (errorString.contains('timeout')) {
+              errorTitle = 'Connection Timeout';
+              errorMessage = 'The server took too long to respond. Please try again later.';
+              errorIcon = Icons.timer_off;
+            }
+            
             // Show error dialog
             Get.dialog(
               Dialog(
@@ -460,22 +483,22 @@ class _HotelFormState extends State<HotelForm> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const Icon(
-                        Icons.error_outline,
+                      Icon(
+                        errorIcon,
                         color: Colors.red,
                         size: 48,
                       ),
                       const SizedBox(height: 16),
-                      const Text(
-                        'Something went wrong',
-                        style: TextStyle(
+                      Text(
+                        errorTitle,
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Error: ${e.toString()}',
+                        errorMessage,
                         style: TextStyle(color: Colors.grey[600]),
                         textAlign: TextAlign.center,
                       ),

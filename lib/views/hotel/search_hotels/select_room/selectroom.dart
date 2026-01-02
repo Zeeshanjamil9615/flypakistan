@@ -477,65 +477,222 @@ Widget build(BuildContext context) {
 
  Widget _buildHotelInfo() {
   return Container(
-    padding: const EdgeInsets.all(16),
     margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
     decoration: BoxDecoration(
       color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: Colors.grey.shade200),
+      borderRadius: BorderRadius.circular(16),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.05),
-          blurRadius: 8,
-          offset: const Offset(0, 2),
+          color: Colors.black.withOpacity(0.06),
+          blurRadius: 12,
+          offset: const Offset(0, 4),
         ),
       ],
     ),
-    child: Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    child: Column(
       children: [
-        // Hotel Image - Small on left side
-        Container(
-          width: 60,
-          height: 60,
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: Colors.grey.shade200, width: 1),
-          ),
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(8),
-            child: _buildSmallHotelImage(),
-          ),
-        ),
-        const SizedBox(width: 12),
-        // Hotel Information
-        Expanded(
-          child: Column(
+        // Hotel Info Row
+        Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                controller.hotelName.value,
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: Colors.black87,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 6),
-              Row(
-                children: [
-                  Icon(Icons.star, color: TColors.primary, size: 16),
-                  const SizedBox(width: 4),
-                  Text(
-                    '${controller.ratingstar.value.toString()} Star Hotel',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 13,
+              // Hotel Image
+              Container(
+                width: 70,
+                height: 70,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 6,
+                      offset: const Offset(0, 2),
                     ),
+                  ],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(12),
+                  child: _buildSmallHotelImage(),
+                ),
+              ),
+              const SizedBox(width: 14),
+              // Hotel Details
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      controller.hotelName.value,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: Colors.black87,
+                        height: 1.3,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 8),
+                    // Star Rating
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: TColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.star_rounded, color: TColors.primary, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${controller.ratingstar.value} Star',
+                                style: TextStyle(
+                                  color: TColors.primary,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.grey.shade100,
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.nightlight_outlined, color: Colors.grey.shade600, size: 14),
+                              const SizedBox(width: 4),
+                              Text(
+                                '${dateController.nights.value} ${dateController.nights.value == 1 ? 'Night' : 'Nights'}',
+                                style: TextStyle(
+                                  color: Colors.grey.shade700,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        // Dates Row
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
+          ),
+          child: Row(
+            children: [
+              // Check-in
+              Expanded(
+                child: Row(
+                  children: [
+                    Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        Icons.login_rounded,
+                        size: 16,
+                        color: Colors.green.shade600,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Check-in',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          dateController.formattedCheckInDate,
+                          style: const TextStyle(
+                            color: Colors.black87,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              // Divider
+              Container(
+                width: 1,
+                height: 32,
+                color: Colors.grey.shade300,
+              ),
+              // Check-out
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(left: 14),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: Colors.red.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(
+                          Icons.logout_rounded,
+                          size: 16,
+                          color: Colors.red.shade600,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Check-out',
+                            style: TextStyle(
+                              color: Colors.grey.shade500,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            dateController.formattedCheckOutDate,
+                            style: const TextStyle(
+                              color: Colors.black87,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
             ],
           ),
@@ -656,75 +813,216 @@ class RoomTypeSection extends StatefulWidget {
 
 class _RoomTypeSectionState extends State<RoomTypeSection> {
   bool isExpanded = true;
+  bool showAllRooms = false;
+  static const int maxVisibleRooms = 4;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          margin: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            color: Colors.grey.shade50,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey.shade200),
+    final controller = Get.find<SearchHotelController>();
+    final visibleRooms = showAllRooms 
+        ? widget.rooms 
+        : widget.rooms.take(maxVisibleRooms).toList();
+    final hasMoreRooms = widget.rooms.length > maxVisibleRooms;
+
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.06),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
           ),
-          child: Row(
-            children: [
-              InkWell(
-                onTap: () => setState(() => isExpanded = !isExpanded),
-                child: Container(
-                  width: 24,
-                  height: 24,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.white,
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Center(
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Room Type Header
+          InkWell(
+            onTap: () => setState(() => isExpanded = !isExpanded),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.centerLeft,
+                  end: Alignment.centerRight,
+                  colors: [
+                    TColors.primary.withOpacity(0.08),
+                    TColors.primary.withOpacity(0.02),
+                  ],
+                ),
+                borderRadius: BorderRadius.vertical(
+                  top: const Radius.circular(16),
+                  bottom: isExpanded ? Radius.zero : const Radius.circular(16),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // Room Type Icon
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                      color: TColors.primary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     child: Icon(
-                      isExpanded ? Icons.remove : Icons.add,
-                      size: 16,
-                      color: Colors.grey.shade600,
+                      Icons.bed_rounded,
+                      color: TColors.primary,
+                      size: 24,
                     ),
                   ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Text(
-                  widget.roomTypeName,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: Colors.black87,
+                  const SizedBox(width: 14),
+                  // Room Type Name & Count
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.roomTypeName,
+                          style: const TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                            height: 1.3,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
+                          decoration: BoxDecoration(
+                            color: TColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            '${widget.rooms.length} ${widget.rooms.length == 1 ? 'option' : 'options'} available',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w500,
+                              color: TColors.primary,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                ),
+                  // Expand/Collapse Icon
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.08),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ],
+                    ),
+                    child: Icon(
+                      isExpanded 
+                          ? Icons.keyboard_arrow_up_rounded 
+                          : Icons.keyboard_arrow_down_rounded,
+                      size: 20,
+                      color: TColors.primary,
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
-        ),
-        if (isExpanded)
-          ...widget.rooms.map((room) {
-            // Calculate the global room index from controller's roomsdata list
-            final SearchHotelController controller =
-                Get.find<SearchHotelController>();
-            final int globalRoomIndex = controller.roomsdata.indexOf(room);
+          
+          // Room Cards (inside the same container)
+          if (isExpanded) ...[
+            // Divider
+            Container(
+              height: 1,
+              color: Colors.grey.shade100,
+            ),
+            // Room List
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                children: [
+                  ...visibleRooms.map((room) {
+                    final int globalRoomIndex = controller.roomsdata.indexOf(room);
+                    bool isRoomLoading = widget.loadingRoomIndex == globalRoomIndex;
+                    final isLast = room == visibleRooms.last && !hasMoreRooms;
 
-            // Check if this specific room is being loaded
-            bool isRoomLoading = widget.loadingRoomIndex == globalRoomIndex;
-
-            return RoomCard(
-              room: room,
-              nights: widget.nights,
-              onSelect: widget.onRoomSelected,
-              isSelected: widget.isSelected(room),
-              showBookNowButton: widget.isSingleRoom,
-              isLoading: isRoomLoading,
-              roomIndex: globalRoomIndex,
-            );
-          }),
-      ],
+                    return Padding(
+                      padding: EdgeInsets.only(bottom: isLast ? 0 : 10),
+                      child: RoomCard(
+                        room: room,
+                        nights: widget.nights,
+                        onSelect: widget.onRoomSelected,
+                        isSelected: widget.isSelected(room),
+                        showBookNowButton: widget.isSingleRoom,
+                        isLoading: isRoomLoading,
+                        roomIndex: globalRoomIndex,
+                      ),
+                    );
+                  }),
+                  
+                  // See More / See Less Button
+                  if (hasMoreRooms)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 8),
+                      child: InkWell(
+                        onTap: () => setState(() => showAllRooms = !showAllRooms),
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          decoration: BoxDecoration(
+                            color: TColors.primary.withOpacity(0.06),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(
+                              color: TColors.primary.withOpacity(0.15),
+                            ),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                showAllRooms 
+                                    ? 'Show Less' 
+                                    : 'See ${widget.rooms.length - maxVisibleRooms} More Options',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600,
+                                  color: TColors.primary,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                showAllRooms 
+                                    ? Icons.keyboard_arrow_up_rounded 
+                                    : Icons.keyboard_arrow_down_rounded,
+                                size: 18,
+                                color: TColors.primary,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 }

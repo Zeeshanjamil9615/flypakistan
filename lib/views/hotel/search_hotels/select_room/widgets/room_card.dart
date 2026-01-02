@@ -728,161 +728,294 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
   @override
   Widget build(BuildContext context) {
     final pricePerNight = (room['price']['net']) / nights ?? 0.0;
-
     final totalPrice = pricePerNight * nights;
+    final isRefundable = (room['rateType'] ?? '').toLowerCase() == 'refundable';
 
     return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: isSelected ? TColors.primary.withOpacity(0.04) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
           color: isSelected ? TColors.primary : Colors.grey.shade200,
-          width: isSelected ? 2 : 1,
+          width: isSelected ? 1.5 : 1,
         ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Main Content Area
           Padding(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // Top Row: Meal Type + Refundable Badge
                 Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: [
-                        _buildRoomIcon(),
-                        const SizedBox(width: 8),
-                        Text(
-                          room['meal'] ?? 'Not Available',
-                          style: const TextStyle(
-                            color: Colors.black87,
-                            fontSize: 16,
-                            fontWeight: FontWeight.w600,
+                    // Meal Icon & Text
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 36,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [
+                                  TColors.primary.withOpacity(0.15),
+                                  TColors.primary.withOpacity(0.08),
+                                ],
+                              ),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              _getMealIcon(room['meal'] ?? ''),
+                              color: TColors.primary,
+                              size: 18,
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              room['meal'] ?? 'Room Only',
+                              style: const TextStyle(
+                                color: Colors.black87,
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    // Refundable Badge
+                    _buildRefundableBadge(isRefundable),
+                  ],
+                ),
+                
+                const SizedBox(height: 14),
+                
+                // Price Section
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade50,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Row(
+                    children: [
+                      // Per Night Price
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.dark_mode_outlined,
+                                  size: 14,
+                                  color: Colors.grey.shade500,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Per Night',
+                                  style: TextStyle(
+                                    color: Colors.grey.shade600,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                            Text.rich(
+                              TextSpan(
+                                children: [
+                                  TextSpan(
+                                    text: 'PKR ',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w500,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  TextSpan(
+                                    text: NumberFormat('#,###').format(pricePerNight.round()),
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      // Divider
+                      Container(
+                        width: 1,
+                        height: 40,
+                        color: Colors.grey.shade300,
+                      ),
+                      // Total Price
+                      Expanded(
+                        child: Padding(
+                          padding: const EdgeInsets.only(left: 12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  Icon(
+                                    Icons.receipt_long_outlined,
+                                    size: 14,
+                                    color: Colors.grey.shade500,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    'Total ($nights ${nights == 1 ? 'night' : 'nights'})',
+                                    style: TextStyle(
+                                      color: Colors.grey.shade600,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 4),
+                              Text.rich(
+                                TextSpan(
+                                  children: [
+                                    TextSpan(
+                                      text: 'PKR ',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w500,
+                                        color: TColors.primary.withOpacity(0.7),
+                                      ),
+                                    ),
+                                    TextSpan(
+                                      text: NumberFormat('#,###').format(totalPrice.round()),
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                        color: TColors.primary,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                // Remarks (if any)
+                if (room['remarks']?['remark'] != null) ...[
+                  const SizedBox(height: 10),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.info_outline_rounded,
+                        size: 14,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          room['remarks']['remark'][0]['text'] ?? '',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 11,
+                            height: 1.4,
                           ),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ],
-                    ),
-                    _buildBadge(room['rateType'] ?? 'Unknown'),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Container(height: 1, color: Colors.grey.shade200),
-                const SizedBox(height: 16),
-                _buildPriceSection(pricePerNight as double, totalPrice),
-                if (room['remarks']?['remark'] != null) ...[
-                  const SizedBox(height: 16),
-                  Text(
-                    room['remarks']['remark'][0]['text'] ?? '',
-                    style: TextStyle(
-                      color: Colors.grey.shade600,
-                      fontSize: 13,
-                    ),
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
                   ),
                 ],
-
-                // Replace the existing button section (around line 570-620) with this code:
-                const SizedBox(height: 4),
-                // Cancellation Policy and Price Breakup buttons
+                
+                const SizedBox(height: 12),
+                
+                // Action Buttons Row
                 Row(
                   children: [
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => _showCancellationPolicy(context),
-                        icon: const Icon(
-                          Icons.info_outline,
-                          size: 18,
-                          color: TColors.primary,
-                        ),
-                        label: Text(
-                          'Cancellation Policy',
-                          style: TextStyle(
-                            color: TColors.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: TextButton.icon(
-                        onPressed: () => _showPriceBreakup(context),
-                        icon: const Icon(
-                          Icons.info_outline,
-                          size: 18,
-                          color: TColors.primary,
-                        ),
-                        label: Text(
-                          'Price BreakUp',
-                          style: TextStyle(
-                            color: TColors.primary,
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
-                          ),
+                    // Info Links
+                    InkWell(
+                      onTap: () => _showCancellationPolicy(context),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.policy_outlined,
+                              size: 14,
+                              color: TColors.primary.withOpacity(0.8),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Policy',
+                              style: TextStyle(
+                                color: TColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                // Book Now button - separate from the Row above
-                Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    SizedBox(
-                      width: double.infinity, // This ensures full width
-                      child: ElevatedButton(
-                        onPressed: isLoading ? null : () => onSelect(room),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                              showBookNowButton
-                                  ? TColors.primary
-                                  : (isSelected
-                                      ? Colors.green
-                                      : TColors.primary),
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(8),
-                          ),
-                        ),
-                        child: Text(
-                          showBookNowButton
-                              ? (isLoading
-                                  ? ''
-                                  : 'Book Now')
-                              : (isSelected ? 'Selected' : 'Select Room'),
-                          style: const TextStyle(
-                            color: TColors.white,
-                            fontWeight: FontWeight.bold,
-                          ),
+                    Container(
+                      width: 1,
+                      height: 16,
+                      color: Colors.grey.shade300,
+                      margin: const EdgeInsets.symmetric(horizontal: 8),
+                    ),
+                    InkWell(
+                      onTap: () => _showPriceBreakup(context),
+                      borderRadius: BorderRadius.circular(6),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.receipt_outlined,
+                              size: 14,
+                              color: TColors.primary.withOpacity(0.8),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Breakup',
+                              style: TextStyle(
+                                color: TColors.primary,
+                                fontSize: 12,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    if (isLoading)
-                      const Positioned(
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: TColors.secondary,
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
+                    const Spacer(),
+                    // Book Now / Select Button
+                    _buildActionButton(),
                   ],
                 ),
               ],
@@ -892,125 +1025,140 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
       ),
     );
   }
-
-  Widget _buildPriceSection(double pricePerNight, double totalPrice) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.payment, size: 16, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Text(
-                  'Per Night',
+  
+  Widget _buildActionButton() {
+    if (showBookNowButton) {
+      return SizedBox(
+        height: 36,
+        child: ElevatedButton(
+          onPressed: isLoading ? null : () => onSelect(room),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: TColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+            elevation: 0,
+          ),
+          child: isLoading
+              ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    color: Colors.white,
+                    strokeWidth: 2,
+                  ),
+                )
+              : const Text(
+                  'Book Now',
                   style: TextStyle(
-                    color: Colors.grey.shade600,
+                    fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text.rich(
-              TextSpan(
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 36,
+      child: isSelected
+          ? Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.green.shade50,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.green.shade200),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextSpan(
-                    text: 'PKR ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.black54,
-                    ),
+                  Icon(
+                    Icons.check_circle,
+                    size: 16,
+                    color: Colors.green.shade600,
                   ),
-                  TextSpan(
-                    text: NumberFormat('#,###').format(pricePerNight.round()),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Selected',
                     style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                      color: Colors.green.shade700,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
                     ),
                   ),
                 ],
               ),
-            ),
-          ],
-        ),
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.calculate, size: 16, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Text(
-                  'Total',
-                  style: TextStyle(
-                    color: Colors.grey.shade600,
-                    fontSize: 13,
-                  ),
+            )
+          : OutlinedButton(
+              onPressed: () => onSelect(room),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: TColors.primary,
+                side: BorderSide(color: TColors.primary),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
                 ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text.rich(
-              TextSpan(
-                children: [
-                  TextSpan(
-                    text: 'PKR ',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.normal,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  TextSpan(
-                    text: NumberFormat('#,###').format(totalPrice.round()),
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
-                    ),
-                  ),
-                ],
+              ),
+              child: const Text(
+                'Select',
+                style: TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
+                ),
               ),
             ),
-          ],
-        ),
-      ],
     );
   }
 
-  Widget _buildRoomIcon() {
+  Widget _buildRefundableBadge(bool isRefundable) {
     return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(
-        color: TColors.primary.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: const Icon(Icons.hotel, color: TColors.primary, size: 24),
-    );
-  }
-
-  Widget _buildBadge(String text) {
-    final isRefundable = text.toLowerCase() == 'refundable';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
         color: isRefundable ? Colors.green.shade50 : Colors.red.shade50,
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: isRefundable ? Colors.green.shade700 : Colors.red.shade700,
-          fontWeight: FontWeight.w500,
-          fontSize: 12,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(
+          color: isRefundable 
+              ? Colors.green.shade200 
+              : Colors.red.shade200,
+          width: 0.5,
         ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            isRefundable ? Icons.check_circle_outline : Icons.cancel_outlined,
+            size: 13,
+            color: isRefundable ? Colors.green.shade600 : Colors.red.shade600,
+          ),
+          const SizedBox(width: 4),
+          Text(
+            isRefundable ? 'Refundable' : 'Non-refundable',
+            style: TextStyle(
+              color: isRefundable ? Colors.green.shade700 : Colors.red.shade700,
+              fontWeight: FontWeight.w500,
+              fontSize: 11,
+            ),
+          ),
+        ],
       ),
     );
   }
+  
+  IconData _getMealIcon(String meal) {
+    final lowerMeal = meal.toLowerCase();
+    if (lowerMeal.contains('breakfast')) {
+      return Icons.free_breakfast_outlined;
+    } else if (lowerMeal.contains('lunch') || lowerMeal.contains('dinner')) {
+      return Icons.restaurant_outlined;
+    } else if (lowerMeal.contains('all inclusive') || lowerMeal.contains('full board')) {
+      return Icons.dining_outlined;
+    } else if (lowerMeal.contains('half board')) {
+      return Icons.brunch_dining_outlined;
+    }
+    return Icons.hotel_outlined;
+  }
 }
+

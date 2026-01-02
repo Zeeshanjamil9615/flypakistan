@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:intl/intl.dart';
 
 class HotelDateController extends GetxController {
   // Original check-in and check-out date variables (needed for API compatibility)
@@ -110,5 +111,14 @@ class HotelDateController extends GetxController {
   // Get the minimum selectable date for check-out based on selected check-in date
   DateTime getMinCheckOutDate() {
     return checkInDate.value.add(const Duration(days: minStayDuration));
+  }
+
+  // Formatted date strings for UI display
+  String get formattedCheckInDate {
+    return DateFormat('dd MMM yyyy').format(checkInDate.value);
+  }
+
+  String get formattedCheckOutDate {
+    return DateFormat('dd MMM yyyy').format(checkOutDate.value);
   }
 }
