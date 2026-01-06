@@ -482,7 +482,8 @@ class ApiServiceFlyDubai {
           'Accept-Encoding': 'gzip, deflate',
         },
         contentType: ContentType.JSON,
-        printRequestBody: printRequest,
+        // printRequestBody: printRequest,
+        printRequestBody: true,
         printResponseBody: printResponse,
       );
 
@@ -2784,29 +2785,26 @@ class ApiServiceFlyDubai {
         "gds": "flydubai"
       };
 
-      final dio = Dio(
-        BaseOptions(
-          baseUrl: 'https://readyflights.pk/api/',
-          headers: {
-            'Content-Type': 'application/json',
-            // Note: Token should be passed from the calling context if needed
-            // 'Authorization': 'Bearer $token',
-          },
-          responseType: ResponseType.json,
-        ),
+      final response = await _apiClient.request(
+        url: 'https://readyflights.pk/api/flight-booking',
+        method: HttpMethod.POST,
+        serviceName: 'FLYDUBAI SAVE BOOKING',
+        body: json.encode(requestBody),
+        contentType: ContentType.JSON,
+        printRequestBody: true,
+        printResponseBody: true,
+
       );
 
-      final response = await dio.post('flight-booking', data: requestBody);
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (response.data is Map<String, dynamic>) {
-          return response.data;
-        } else if (response.data is String) {
-          return jsonDecode(response.data) as Map<String, dynamic>;
+      if (response.isSuccess) {
+        if (response.responseJson != null) {
+          return response.responseJson!;
+        } else if (response.responseBody.isNotEmpty) {
+          return jsonDecode(response.responseBody) as Map<String, dynamic>;
         }
         return {'status': 'success'};
       } else {
-        throw Exception('Failed to save booking: ${response.statusMessage}');
+        throw Exception('Failed to save booking: ${response.message}');
       }
     } catch (e, stackTrace) {
       return {
@@ -2938,107 +2936,296 @@ class ApiServiceFlyDubai {
     final flights = <Map<String, dynamic>>[];
 
     try {
-      final originDestinations = cartData['originDestinations'] as List?;
-      if (originDestinations == null || originDestinations.isEmpty) {
-        return flights;
-      }
+      // Debug: Print cartData keys to identify the structure
+      print('📦 FLYDUBAI cartData keys: ${cartData.keys.toList()}');
+      
+      List<Map<String, dynamic>> allSegments = [];
 
-      for (int i = 0; i < originDestinations.length; i++) {
-        final od = originDestinations[i];
-        if (od is! Map) continue;
-
-        final segmentDetails = od['segmentDetails'] as List?;
-        if (segmentDetails == null || segmentDetails.isEmpty) continue;
-
-        for (var segment in segmentDetails) {
-          if (segment is! Map) continue;
-
-          final origin = segment['origin']?.toString() ?? '';
-          final destination = segment['destination']?.toString() ?? '';
-          final depDate = segment['depDate']?.toString() ?? '';
-          final arrDate = segment['arrDate']?.toString() ?? '';
-          final mrktCarrier = segment['mrktCarrier']?.toString() ?? 'FZ';
-          final mrktFlightNum = segment['mrktFlightNum']?.toString() ?? '';
-          final operCarrier = segment['operCarrier']?.toString() ?? 'FZ';
-          final operFlightNum = segment['operFlightNum']?.toString() ?? '';
-
-          // Get airline names from carrier codes using API
-          final marketingAirlineName = await _getAirlineNameFromCode(mrktCarrier);
-          final operatingAirlineName = await _getAirlineNameFromCode(operCarrier);
-
-          // Parse dates
-          DateTime? depDateTime;
-          DateTime? arrDateTime;
-          try {
-            depDateTime = DateTime.parse(depDate);
-          } catch (e) {
-            try {
-              depDateTime = DateTime.parse(depDate.split('T')[0]);
-            } catch (_) {}
+      // Preload leg details to recover flight numbers when missing
+      final List<Map<String, dynamic>> allLegDetails = [];
+      void addLegDetails(dynamic legs) {
+        final extracted = _extractArray(legs);
+        if (extracted == null) return;
+        final list = extracted is List ? extracted : [extracted];
+        for (final leg in list) {
+          if (leg is Map) {
+            allLegDetails.add(Map<String, dynamic>.from(leg));
           }
-          try {
-            arrDateTime = DateTime.parse(arrDate);
-          } catch (e) {
-            try {
-              arrDateTime = DateTime.parse(arrDate.split('T')[0]);
-            } catch (_) {}
-          }
-
-          if (depDateTime == null || arrDateTime == null) continue;
-
-          final duration = arrDateTime.difference(depDateTime);
-
-          // Get cabin class from booking codes
-          String cabinClass = 'Economy';
-          String cabinCode = 'Y';
-          final bookingCodes = segment['bookingCodes'] as List?;
-          if (bookingCodes != null && bookingCodes.isNotEmpty) {
-            final firstBookingCode = bookingCodes[0];
-            if (firstBookingCode is Map) {
-              cabinCode = firstBookingCode['cabin']?.toString() ?? 'ECONOMY';
-              cabinClass = _getCabinClassName(cabinCode);
-            }
-          }
-
-          flights.add({
-            "departure": {
-              "airport": origin,
-              "city": origin,
-              "date": depDateTime.toIso8601String().split('T')[0],
-              "time": "${depDateTime.hour.toString().padLeft(2, '0')}:${depDateTime.minute.toString().padLeft(2, '0')}",
-              "terminal": "Main",
-            },
-            "arrival": {
-              "airport": destination,
-              "city": destination,
-              "date": arrDateTime.toIso8601String().split('T')[0],
-              "time": "${arrDateTime.hour.toString().padLeft(2, '0')}:${arrDateTime.minute.toString().padLeft(2, '0')}",
-              "terminal": "Main",
-            },
-            "flight_number": mrktFlightNum,
-            "airline_code": mrktCarrier,
-            "airline_name": marketingAirlineName,
-            "operating_flight_number": operFlightNum,
-            "operating_airline_code": operCarrier,
-            "operating_airline_name": operatingAirlineName,
-            "cabin_class": cabinClass,
-            "sub_class": cabinCode,
-            "booking_class": cabinCode,
-            "hand_baggage": "7kg",
-            "check_baggage": "20kg", // Default for FlyDubai
-            "meal": "Meal",
-            "layover": flights.isNotEmpty ? "Yes" : "None",
-            "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
-            "duration_minutes": duration.inMinutes,
-            "type": i == 0 ? (flightType == 'roundtrip' ? "One-Way" : "One-Way") : "Return",
-            "fare_basis": "",
-            "seats_available": "",
-            "is_refundable": true,
-            "aircraft_type": "B737",
-          });
         }
       }
+
+      addLegDetails(cartData['LegDetails']?['LegDetail']);
+      addLegDetails(cartData['RetrieveFareQuoteDateRangeResponse']
+          ?['RetrieveFareQuoteDateRangeResult']?['LegDetails']?['LegDetail']);
+
+      void addSegments(dynamic segDetails) {
+        final extracted = _extractArray(segDetails);
+        if (extracted == null) return;
+        final segList = extracted is List ? extracted : [extracted];
+        for (var seg in segList) {
+          if (seg is Map) {
+            allSegments.add(Map<String, dynamic>.from(seg));
+          }
+        }
+      }
+      
+      // Method 1: Try flightGroups structure (API response format)
+      final flightGroups = cartData['flightGroups'] as List?;
+      if (flightGroups != null && flightGroups.isNotEmpty) {
+        print('📦 Using flightGroups structure');
+        for (var group in flightGroups) {
+          if (group is! Map) continue;
+          
+          // Extract originDestinations from flightGroups
+          final groupODs = _extractArray(group['originDestinations']);
+          if (groupODs != null) {
+            final odsList = groupODs is List ? groupODs : [groupODs];
+            for (var od in odsList) {
+              if (od is! Map) continue;
+              addSegments(od['segmentDetails'] ?? od['segmentDetails']?['SegmentDetail']);
+            }
+          }
+        }
+      }
+      
+      // Method 2: Try originDestinations directly (request format)
+      if (allSegments.isEmpty) {
+        final originDestinations = _extractArray(cartData['originDestinations']);
+        if (originDestinations != null) {
+          print('📦 Using originDestinations structure');
+          final odsList = originDestinations is List ? originDestinations : [originDestinations];
+          for (var od in odsList) {
+            if (od is! Map) continue;
+            addSegments(od['segmentDetails'] ?? od['segmentDetails']?['SegmentDetail']);
+          }
+        }
+      }
+
+      // Method 2b: Try direct segmentDetails / SegmentDetail on root
+      if (allSegments.isEmpty) {
+        addSegments(cartData['segmentDetails'] ?? cartData['SegmentDetails']?['SegmentDetail']);
+      }
+
+      // Method 2c: Try flightSegments key on root
+      if (allSegments.isEmpty) {
+        addSegments(cartData['flightSegments'] ?? cartData['FlightSegments']?['FlightSegment']);
+      }
+      
+      // Method 3: Try to extract from RetrieveFareQuoteDateRangeResponse (original search data)
+      if (allSegments.isEmpty) {
+        final retrieveResult = cartData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
+        if (retrieveResult != null) {
+          print('📦 Using RetrieveFareQuoteDateRangeResponse structure');
+          final legDetails = _extractArray(retrieveResult['LegDetails']?['LegDetail']);
+          final segmentDetails = _extractArray(retrieveResult['SegmentDetails']?['SegmentDetail']);
+          
+          if (legDetails != null) {
+            final legList = legDetails is List ? legDetails : [legDetails];
+            for (var leg in legList) {
+              if (leg is Map) {
+                // Create segment from leg detail
+                allSegments.add({
+                  'origin': leg['Origin']?.toString() ?? '',
+                  'destination': leg['Destination']?.toString() ?? '',
+                  'depDate': leg['DepartureDate']?.toString() ?? '',
+                  'arrDate': leg['ArrivalDate']?.toString() ?? '',
+                  'mrktCarrier': leg['MarketingCarrier']?.toString() ?? 'FZ',
+                  'mrktFlightNum': leg['MarketingFlightNum']?.toString() ?? '',
+                  'operCarrier': leg['OperatingCarrier']?.toString() ?? 'FZ',
+                  'operFlightNum': leg['FlightNum']?.toString() ?? '',
+                });
+              }
+            }
+          } else if (segmentDetails != null) {
+            final segList = segmentDetails is List ? segmentDetails : [segmentDetails];
+            for (var seg in segList) {
+              if (seg is Map) {
+                allSegments.add({
+                  'origin': seg['Origin']?.toString() ?? '',
+                  'destination': seg['Destination']?.toString() ?? '',
+                  'depDate': seg['DepartureDate']?.toString() ?? '',
+                  'arrDate': seg['ArrivalDate']?.toString() ?? '',
+                  'mrktCarrier': seg['MarketingCarrier']?.toString() ?? 'FZ',
+                  'mrktFlightNum': seg['FlightNum']?.toString() ?? '',
+                  'operCarrier': seg['OperatingCarrier']?.toString() ?? 'FZ',
+                  'operFlightNum': seg['FlightNum']?.toString() ?? '',
+                });
+              }
+            }
+          }
+        }
+      }
+      
+      if (allSegments.isEmpty) {
+        print('⚠️ No flight segments found in cartData');
+        return flights;
+      }
+      
+      print('📦 Found ${allSegments.length} flight segments');
+
+      // Process each segment and create flight entries
+      for (int i = 0; i < allSegments.length; i++) {
+        final segment = allSegments[i];
+        if (segment is! Map) continue;
+
+        final origin = segment['origin']?.toString() ?? 
+                      segment['Origin']?.toString() ?? '';
+        final destination = segment['destination']?.toString() ?? 
+                           segment['Destination']?.toString() ?? '';
+        final depDate = segment['depDate']?.toString() ?? 
+                       segment['DepartureDate']?.toString() ?? '';
+        final arrDate = segment['arrDate']?.toString() ?? 
+                       segment['ArrivalDate']?.toString() ?? '';
+        final mrktCarrier = segment['mrktCarrier']?.toString() ?? 
+                           segment['MarketingCarrier']?.toString() ?? 
+                           segment['SellingCarrier']?.toString() ?? 'FZ';
+        String mrktFlightNumRaw = segment['legDetails'][0]['mrktFlightNum']?.toString() ?? '';
+
+        final operCarrier = segment['operCarrier']?.toString() ?? 
+                           segment['OperatingCarrier']?.toString() ?? 'FZ';
+        String operFlightNumRaw = segment['operFlightNum']?.toString() ?? 
+                             segment['FlightNum']?.toString() ?? 
+                             segment['flightNum']?.toString() ?? 
+                             segment['MarketingFlightNum']?.toString() ?? 
+                             mrktFlightNumRaw;
+
+        // If flight numbers are still empty, try to recover from leg details by matching date/origin/destination
+        if (mrktFlightNumRaw.isEmpty || operFlightNumRaw.isEmpty) {
+          for (final leg in allLegDetails) {
+            final legDep = leg['DepartureDate']?.toString() ?? '';
+            if (legDep.isEmpty) continue;
+            final legOrigin = leg['Origin']?.toString() ?? '';
+            final legDest = leg['Destination']?.toString() ?? '';
+            if (origin.isNotEmpty &&
+                destination.isNotEmpty &&
+                legOrigin == origin &&
+                legDest == destination &&
+                depDate.split('T').first == legDep.split('T').first) {
+              mrktFlightNumRaw = leg['MarketingFlightNum']?.toString() ?? leg['FlightNum']?.toString() ?? mrktFlightNumRaw;
+              operFlightNumRaw = leg['FlightNum']?.toString() ?? operFlightNumRaw;
+              break;
+            }
+          }
+        }
+
+        // Build display flight numbers with carrier code prefixes
+        final String mrktFlightNum = mrktFlightNumRaw.isNotEmpty
+            ? '${mrktCarrier.toUpperCase()}-${mrktFlightNumRaw}'
+            : '';
+        final String operFlightNum = operFlightNumRaw.isNotEmpty
+            ? '${operCarrier.toUpperCase()}-${operFlightNumRaw}'
+            : '';
+        final String displayFlightNum = mrktFlightNum.isNotEmpty
+            ? mrktFlightNum
+            : (operFlightNum.isNotEmpty ? operFlightNum : '${mrktCarrier.toUpperCase()}-UNKNOWN');
+
+        if (origin.isEmpty || destination.isEmpty || depDate.isEmpty) {
+          print('⚠️ Skipping segment $i: missing required fields');
+          continue;
+        }
+
+        // Get airline names from carrier codes using API
+        final marketingAirlineName = await _getAirlineNameFromCode(mrktCarrier);
+        final operatingAirlineName = await _getAirlineNameFromCode(operCarrier);
+
+        // Parse dates
+        DateTime? depDateTime;
+        DateTime? arrDateTime;
+        try {
+          depDateTime = DateTime.parse(depDate);
+        } catch (e) {
+          try {
+            depDateTime = DateTime.parse(depDate.split('T')[0]);
+          } catch (_) {
+            print('⚠️ Failed to parse depDate: $depDate');
+            continue;
+          }
+        }
+        try {
+          arrDateTime = DateTime.parse(arrDate);
+        } catch (e) {
+          try {
+            arrDateTime = DateTime.parse(arrDate.split('T')[0]);
+          } catch (_) {
+            // If arrival date parsing fails, estimate from departure + 2 hours
+            arrDateTime = depDateTime?.add(Duration(hours: 2));
+          }
+        }
+
+        if (depDateTime == null) {
+          print('⚠️ Skipping segment $i: invalid departure date');
+          continue;
+        }
+        
+        if (arrDateTime == null) {
+          arrDateTime = depDateTime.add(Duration(hours: 2)); // Default 2 hour flight
+        }
+
+        final duration = arrDateTime.difference(depDateTime);
+
+        // Get cabin class from booking codes
+        String cabinClass = 'Economy';
+        String cabinCode = 'Y';
+        final bookingCodes = segment['bookingCodes'] as List?;
+        if (bookingCodes != null && bookingCodes.isNotEmpty) {
+          final firstBookingCode = bookingCodes[0];
+          if (firstBookingCode is Map) {
+            cabinCode = firstBookingCode['cabin']?.toString() ?? 
+                       firstBookingCode['Cabin']?.toString() ?? 'ECONOMY';
+            cabinClass = _getCabinClassName(cabinCode);
+          }
+        }
+
+        // Determine flight type
+        String flightTypeLabel = "One-Way";
+        if (flightType == 'roundtrip') {
+          flightTypeLabel = i == 0 ? "One-Way" : "Return";
+        } else if (flightType == 'multicity') {
+          flightTypeLabel = "Multi-City";
+        }
+
+        flights.add({
+          "departure": {
+            "airport": origin,
+            "city": origin,
+            "date": depDateTime.toIso8601String().split('T')[0],
+            "time": "${depDateTime.hour.toString().padLeft(2, '0')}:${depDateTime.minute.toString().padLeft(2, '0')}",
+            "terminal": "Main",
+          },
+          "arrival": {
+            "airport": destination,
+            "city": destination,
+            "date": arrDateTime.toIso8601String().split('T')[0],
+            "time": "${arrDateTime.hour.toString().padLeft(2, '0')}:${arrDateTime.minute.toString().padLeft(2, '0')}",
+            "terminal": "Main",
+          },
+          "flight_number": displayFlightNum,
+          "airline_code": mrktCarrier,
+          "airline_name": marketingAirlineName,
+          "operating_flight_number": operFlightNum.isNotEmpty ? operFlightNum : displayFlightNum,
+          "operating_airline_code": operCarrier,
+          "operating_airline_name": operatingAirlineName,
+          "cabin_class": cabinClass,
+          "sub_class": cabinCode,
+          "booking_class": cabinCode,
+          "hand_baggage": "7kg",
+          "check_baggage": "20kg", // Default for FlyDubai
+          "meal": "Meal",
+          "layover": i > 0 ? "Yes" : "None",
+          "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+          "duration_minutes": duration.inMinutes,
+          "type": flightTypeLabel,
+          "fare_basis": "",
+          "seats_available": "",
+          "is_refundable": true,
+          "aircraft_type": segment['AircraftType']?.toString() ?? 
+                          segment['aircraftType']?.toString() ?? 
+                          "B737",
+        });
+      }
     } catch (e, stackTrace) {
+      print('❌ Error preparing FlyDubai flight data: $e');
+      print('Stack trace: $stackTrace');
     }
 
     return flights;

@@ -176,8 +176,8 @@ class RegisterAccount extends StatelessWidget {
 
                           // Agency Name field
                           _buildModernTextField(
-                            label: 'Agency Name',
-                            hint: 'Enter agency name',
+                            label: 'Name',
+                            hint: 'Enter your name',
                             controller: controller.agencyNameController,
                             prefixIcon: Icons.business_outlined,
                             errorText: controller.getErrorText(controller.agencyNameError),
@@ -213,16 +213,7 @@ class RegisterAccount extends StatelessWidget {
 
                           const SizedBox(height: 20),
 
-                          // Address field
-                          _buildModernTextField(
-                            label: 'Address',
-                            hint: 'Enter your address',
-                            controller: controller.addressController,
-                            prefixIcon: Icons.location_on_outlined,
-                            errorText: controller.getErrorText(controller.addressError),
-                          ),
 
-                          const SizedBox(height: 20),
 
                     // City Name field
                           _buildModernTextField(

@@ -62,6 +62,7 @@ class _FlightBookingPageState extends State<FlightBookingPage> {
     if (!airportController.isAirportsLoaded.value) {
       airportController.fetchAirports();
     }
+
   }
 
   @override
@@ -77,6 +78,7 @@ class _FlightBookingPageState extends State<FlightBookingPage> {
             Get.offAll(() => HomeScreen()); // Replace with the page you want
           },
         ),
+
         title: Obx(() {
           final flightBookingController = Get.find<FlightBookingController>();
           
@@ -305,9 +307,53 @@ Widget _buildFlightList(BuildContext context) {
         return _buildNoFlightsState();
       }
 
-      return Column(
+        return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+            // Animated Progress Bar - Shows progress of remaining API calls
+            if (isAnyLoading)
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                child: TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0, end: _calculateLoadProgress()),
+                  duration: const Duration(milliseconds: 500),
+                  curve: Curves.easeInOut,
+                  builder: (context, value, _) => Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Searching more flights...',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: TColors.primary,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                          Text(
+                            '${(value * 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: TColors.primary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      LinearProgressIndicator(
+                        value: value,
+                        backgroundColor: TColors.grey.withOpacity(0.1),
+                        valueColor: const AlwaysStoppedAnimation(TColors.primary),
+                        minHeight: 4,
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
           _buildTotalFlightsCount(
             totalFlights: combinedFlights.length,
             isLoading: isAnyLoading,
@@ -328,6 +374,32 @@ Widget _buildFlightList(BuildContext context) {
     }),
   );
 }
+
+double _calculateLoadProgress() {
+    int total = 6;
+    final flightBookingController = Get.find<FlightBookingController>();
+    
+    // Adjust total based on active APIs
+    if (flightBookingController.tripType.value == TripType.multiCity) {
+      total = 5; // Emirates is skipped for multi-city
+    }
+    
+    int loadingCount = 0;
+    if (controller.isLoading.value) loadingCount++;
+    if (airBlueController.isLoading.value) loadingCount++;
+    if (piaController.isLoading.value) loadingCount++;
+    if (airArabiaController.isLoading.value) loadingCount++;
+    if (flyDubaiController.isLoading.value) loadingCount++;
+    
+    // Emirates only counts if included
+    if (flightBookingController.tripType.value != TripType.multiCity) {
+       if (emiratesController.isLoading.value) loadingCount++;
+    }
+    
+    int completed = total - loadingCount;
+    // Return at least a small value so the bar starts visible (optional) or starts at 0
+    return completed / total;
+  }
 // Add this to the FlightBookingPage class
 
 Widget _buildTotalFlightsCount({

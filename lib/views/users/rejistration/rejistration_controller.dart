@@ -166,11 +166,7 @@ class RegisterController extends GetxController {
       isValid = false;
     }
 
-    // Validate Address
-    if (addressController.text.trim().isEmpty) {
-      addressError.value = 'Address is required';
-      isValid = false;
-    }
+
 
     // Validate City Name
     if (cityNameController.text.trim().isEmpty) {
@@ -213,7 +209,7 @@ class RegisterController extends GetxController {
         email: emailController.text.trim(),
         countryCode: '+${selectedCountry.value.phoneCode}',
         cellNumber: cellController.text.trim(),
-        address: addressController.text.trim(),
+        address: "",
         city: cityNameController.text.trim(),
       );
 

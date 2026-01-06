@@ -83,6 +83,8 @@ class ApiClient {
   /// [serviceName] - Required label to identify the API source (e.g., 'AIRBLUE', 'FLYDUBAI', 'HOTELS')
   /// [printRequestBody] - Optional flag to print the request body (default: false)
   /// [printResponseBody] - Optional flag to print the response body (default: false)
+  /// [sendCall] - Optional flag to actually send the API call (default: true)
+  ///               When false, only prints the request but does not send it
   Future<ResponseModel> request({
     required String url,
     required HttpMethod method,
@@ -94,6 +96,7 @@ class ApiClient {
     bool printRequestBody = false,
     bool printResponseBody = false,
     bool convertXmlToJson = false,
+    bool sendCall = true,
   }) async {
     final startTime = DateTime.now();
     
@@ -103,6 +106,19 @@ class ApiClient {
     // Optionally print request body
     if (printRequestBody && body != null) {
       _printBody('📦 REQUEST BODY ${serviceName.toUpperCase()}', body.toString(), contentType);
+    }
+    
+    // If sendCall is false, skip the actual API call and return a placeholder response
+    if (!sendCall) {
+      _printLog('');
+      _printLog('⚠️ [$serviceName] API call skipped (sendCall = false)');
+      _printDivider();
+      return ResponseModel(
+        isSuccess: false,
+        message: 'API call skipped (sendCall = false)',
+        statusCode: 0,
+        responseBody: '',
+      );
     }
     
     try {
