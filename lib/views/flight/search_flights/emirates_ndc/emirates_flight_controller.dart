@@ -7,6 +7,7 @@ import 'package:ready_flights/views/flight/search_flights/flight_package/emirate
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_return_flights_page.dart';
 import 'package:ready_flights/views/flight/booking_flight/airblue/airblue_booking_flight.dart';
 import 'package:ready_flights/views/flight/search_flights/emirates_ndc/emirates_multicity_flight_selection.dart';
+import '../../../../services/margin_service_flight.dart';
 import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 
@@ -95,10 +96,10 @@ class EmiratesFlightController extends GetxController {
     _lastSearchDestination = searchDestination?.toUpperCase();
 
     // Fetch margin for Emirates (airline code EK)
-    final sabreApiService = Get.put(ApiServiceSabre());
+    final marginApiService = Get.put(ApiServiceMargin());
     Map<String, dynamic> marginData = {};
     try {
-      marginData = await sabreApiService.getMargin('EK', 'Emirates', "Emirates NDC");
+      marginData = await marginApiService.getMargin('EK', 'Emirates', "Emirates NDC");
     } catch (e) {
       debugPrint('Error fetching Emirates margin: $e');
     }
@@ -178,7 +179,7 @@ class EmiratesFlightController extends GetxController {
         // Extract buying price to calculate selling price with margin
         final priceInfo = _extractPriceInfoFromOffer(offerData);
         final buyingPrice = priceInfo['total'];
-        final sellingPrice = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+        final sellingPrice = marginApiService.calculatePriceWithMargin(buyingPrice, marginData);
 
         final flight = EmiratesFlight.fromJson(
           offerData,

@@ -1,11 +1,14 @@
 import 'package:dio/dio.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
 import 'dart:convert';
 
 import '../views/flight/booking_flight/booking_flight_controller.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
 import '../views/flight/search_flights/search_flight_utils/helper_functions.dart';
 import 'api_client.dart';
-import 'logger_service.dart';
+import 'api_service_sabre.dart';
+import 'margin_service_flight.dart';
 
 class ApiServiceFlyDubai {
   // FlyDubai API credentials and constants
@@ -23,6 +26,14 @@ class ApiServiceFlyDubai {
   static Map<String, AirlineInfo>? _airlineMap;
   static final Dio _dioForAirline = Dio();
   
+  // Cache for margin data so we can reuse it between search and booking
+  Map<String, dynamic>? _cachedMarginData;
+
+  // Expose a safe setter so other layers (e.g. controllers) can inject margin data
+  void setMarginData(Map<String, dynamic> margin) {
+    _cachedMarginData = Map<String, dynamic>.from(margin);
+  }
+
   // ApiClient instance
   final ApiClient _apiClient = ApiClient();
 
@@ -206,14 +217,7 @@ class ApiServiceFlyDubai {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
       };
       
-      // Log request to file (only in debug mode)
-      final logger = LoggerService();
-      await logger.logFlightsRequest(
-        endpoint: endpoint,
-        headers: requestHeaders,
-        body: searchParams,
-      );
-      
+
       // Make API request using ApiClient
       final response = await _apiClient.request(
         url: endpoint,
@@ -226,22 +230,6 @@ class ApiServiceFlyDubai {
         printResponseBody: printResponse,
       );
       
-      // Log response to file (only in debug mode)
-      try {
-        final responseBody = json.decode(response.responseBody);
-        await logger.logFlightsResponse(
-          endpoint: endpoint,
-          statusCode: response.statusCode,
-          body: responseBody,
-        );
-      } catch (e) {
-        await logger.logFlightsResponse(
-          endpoint: endpoint,
-          statusCode: response.statusCode,
-          body: response.responseBody,
-        );
-      }
-
       if (response.isSuccess) {
         final Map<String, dynamic> responseData = json.decode(response.responseBody);
         return {
@@ -292,23 +280,7 @@ class ApiServiceFlyDubai {
       };
 
     } catch (e, stackTrace) {
-      final logger = LoggerService();
-      await logger.logError(
-        error: e,
-        stackTrace: stackTrace,
-        context: {
-          'method': 'searchFlights',
-          'type': type,
-          'origin': origin,
-          'destination': destination,
-          'depDate': depDate,
-          'adult': adult,
-          'child': child,
-          'infant': infant,
-          'cabin': cabin,
-        },
-      );
-      
+
       return {
         'error': 'FlyDubai search failed: $e',
         'flights': [],
@@ -436,7 +408,7 @@ class ApiServiceFlyDubai {
     required List<Map<String, dynamic>> segmentArray,
     required Map<String, dynamic> cartData,
     bool printRequest = false,
-    bool printResponse = false,
+    bool printResponse = true,
   }) async {
     try {
       if (_accessToken == null) {
@@ -482,9 +454,9 @@ class ApiServiceFlyDubai {
           'Accept-Encoding': 'gzip, deflate',
         },
         contentType: ContentType.JSON,
-        // printRequestBody: printRequest,
-        printRequestBody: true,
+        printRequestBody: printRequest,
         printResponseBody: printResponse,
+
       );
 
       if (response.isSuccess) {
@@ -554,6 +526,21 @@ class ApiServiceFlyDubai {
         }
 
         try {
+          // Calculate selling price with margin and BSP
+          final buyingPrice = _extractTotalPriceFromCartData(cartData);
+          final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+          // Prefer cached margin data if available (set during search in controller)
+          Map<String, dynamic> marginData = _cachedMarginData ?? {};
+          if (marginData.isEmpty) {
+            try {
+
+              marginData = await apiServiceMargin.getMargin('FZ', 'flydubai', "Fly Dubai");
+            } catch (e) {
+              // Margin fetch failed, using defaults
+            }
+          }
+          final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(buyingPrice, marginData);
+
           await saveFlyDubaiBooking(
             adults: adults,
             children: children,
@@ -564,6 +551,7 @@ class ApiServiceFlyDubai {
             segmentArray: segmentArray,
             cartData: cartData,
             flightType: flightType,
+            sellingPrice: calculatedSellingPrice,
           );
         } catch (saveError) {
         }
@@ -579,6 +567,21 @@ class ApiServiceFlyDubai {
         };
 
         try {
+          // Calculate selling price with margin and BSP
+          final buyingPrice = _extractTotalPriceFromCartData(cartData);
+          final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+          // Prefer cached margin data if available (set during search in controller)
+          Map<String, dynamic> marginData = _cachedMarginData ?? {};
+          if (marginData.isEmpty) {
+            try {
+
+              marginData = await apiServiceMargin.getMargin('FZ', 'flydubai', "Fly Dubai");
+            } catch (e) {
+              // Margin fetch failed, using defaults
+            }
+          }
+          final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(buyingPrice, marginData);
+
           await saveFlyDubaiBooking(
             adults: adults,
             children: children,
@@ -589,6 +592,7 @@ class ApiServiceFlyDubai {
             segmentArray: segmentArray,
             cartData: cartData,
             flightType: flightType,
+            sellingPrice: calculatedSellingPrice,
           );
         } catch (saveError) {
         }
@@ -610,6 +614,21 @@ class ApiServiceFlyDubai {
         };
 
         try {
+          // Calculate selling price with margin and BSP
+          final buyingPrice = _extractTotalPriceFromCartData(cartData);
+          final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+          // Prefer cached margin data if available (set during search in controller)
+          Map<String, dynamic> marginData = _cachedMarginData ?? {};
+          if (marginData.isEmpty) {
+            try {
+
+              marginData = await apiServiceMargin.getMargin('FZ', 'flydubai', "Fly Dubai");
+            } catch (e) {
+              // Margin fetch failed, using defaults
+            }
+          }
+          final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(buyingPrice, marginData);
+
           await saveFlyDubaiBooking(
             adults: adults,
             children: children,
@@ -620,6 +639,7 @@ class ApiServiceFlyDubai {
             segmentArray: segmentArray,
             cartData: cartData,
             flightType: flightType,
+            sellingPrice: calculatedSellingPrice,
           );
         } catch (saveError) {
         }
@@ -634,6 +654,21 @@ class ApiServiceFlyDubai {
       };
 
       try {
+        // Calculate selling price with margin and BSP
+        final buyingPrice = _extractTotalPriceFromCartData(cartData);
+        final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+        // Prefer cached margin data if available (set during search in controller)
+        Map<String, dynamic> marginData =  {};
+        if (marginData.isEmpty) {
+          try {
+
+            marginData = await apiServiceMargin.getMargin('FZ', 'flydubai', "Fly Dubai");
+          } catch (e) {
+            // Margin fetch failed, using defaults
+          }
+        }
+        final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(buyingPrice, marginData);
+
         await saveFlyDubaiBooking(
           adults: adults,
           children: children,
@@ -644,6 +679,7 @@ class ApiServiceFlyDubai {
           segmentArray: segmentArray,
           cartData: cartData,
           flightType: flightType,
+          sellingPrice: calculatedSellingPrice,
         );
       } catch (saveError) {
       }
@@ -956,9 +992,7 @@ class ApiServiceFlyDubai {
             break;
           }
         }
-        if (arrayStart == null) {
-          arrayStart = basicArray[0];
-        }
+        arrayStart ??= basicArray[0];
       } else if (basicArray is Map) {
         arrayStart = basicArray;
       }
@@ -2706,6 +2740,7 @@ class ApiServiceFlyDubai {
     required List<Map<String, dynamic>> segmentArray,
     required Map<String, dynamic> cartData,
     required String flightType,
+    required double sellingPrice,
   }) async {
     try {
       final totalPrice = _extractTotalPriceFromCartData(cartData);
@@ -2779,7 +2814,7 @@ class ApiServiceFlyDubai {
         "flights": flights,
         "pnr": pnr,
         "buyingPrice": totalPrice.toStringAsFixed(0),
-        "sellingPrice": totalPrice.toStringAsFixed(0),
+        "sellingPrice": sellingPrice.toStringAsFixed(0),
         "pnrStatus": pnrStatus,
         "booking_from": "1",
         "gds": "flydubai"
@@ -2889,6 +2924,8 @@ class ApiServiceFlyDubai {
     return 0.0;
   }
 
+
+
   // Fetch airline data from API (similar to Sabre)
   Future<Map<String, AirlineInfo>> _fetchAirlineData() async {
     if (_airlineMap != null) {
@@ -2936,9 +2973,7 @@ class ApiServiceFlyDubai {
     final flights = <Map<String, dynamic>>[];
 
     try {
-      // Debug: Print cartData keys to identify the structure
-      print('📦 FLYDUBAI cartData keys: ${cartData.keys.toList()}');
-      
+
       List<Map<String, dynamic>> allSegments = [];
 
       // Preload leg details to recover flight numbers when missing
@@ -2972,7 +3007,6 @@ class ApiServiceFlyDubai {
       // Method 1: Try flightGroups structure (API response format)
       final flightGroups = cartData['flightGroups'] as List?;
       if (flightGroups != null && flightGroups.isNotEmpty) {
-        print('📦 Using flightGroups structure');
         for (var group in flightGroups) {
           if (group is! Map) continue;
           
@@ -2992,7 +3026,6 @@ class ApiServiceFlyDubai {
       if (allSegments.isEmpty) {
         final originDestinations = _extractArray(cartData['originDestinations']);
         if (originDestinations != null) {
-          print('📦 Using originDestinations structure');
           final odsList = originDestinations is List ? originDestinations : [originDestinations];
           for (var od in odsList) {
             if (od is! Map) continue;
@@ -3015,7 +3048,6 @@ class ApiServiceFlyDubai {
       if (allSegments.isEmpty) {
         final retrieveResult = cartData['RetrieveFareQuoteDateRangeResponse']?['RetrieveFareQuoteDateRangeResult'];
         if (retrieveResult != null) {
-          print('📦 Using RetrieveFareQuoteDateRangeResponse structure');
           final legDetails = _extractArray(retrieveResult['LegDetails']?['LegDetail']);
           final segmentDetails = _extractArray(retrieveResult['SegmentDetails']?['SegmentDetail']);
           

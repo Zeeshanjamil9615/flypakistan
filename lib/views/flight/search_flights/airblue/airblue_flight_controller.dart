@@ -8,6 +8,7 @@ import 'package:intl/intl.dart';
 
 import '../../../../services/api_service_sabre.dart';
 
+import '../../../../services/margin_service_flight.dart';
 import '../../booking_flight/airblue/airblue_booking_flight.dart';
 import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
@@ -19,6 +20,7 @@ import 'airblue_multicity_flight_selection.dart';
 
 class AirBlueFlightController extends GetxController {
   final ApiServiceSabre apiService = Get.find<ApiServiceSabre>();
+  final ApiServiceMargin apiServiceMargin = Get.find<ApiServiceMargin>();
 
   // Original list of AirBlue flights (never modified after parsing)
   final RxList<AirBlueFlight> _originalFlights = <AirBlueFlight>[].obs;
@@ -148,10 +150,20 @@ class AirBlueFlightController extends GetxController {
       fareOptionsByRPH.clear();
       flightsBySegment.clear();
 
+      // Cache for margin data so we can reuse it between search and booking
+      Map<String, dynamic>? _cachedMarginData;
+
+      // Expose a safe setter so other layers (e.g. controllers) can inject margin data
+      void setMarginData(Map<String, dynamic> margin) {
+        _cachedMarginData = Map<String, dynamic>.from(margin);
+      }
+
+
       // Fetch margin for AirBlue (airline code PA)
       Map<String, dynamic> marginData = {};
       try {
-        marginData = await apiService.getMargin('PA', 'blue', "Air Blue");
+        marginData = await apiServiceMargin.getMargin('PA', 'blue', "Air Blue");
+        setMarginData(marginData);
       } catch (e) {
         print('DEBUG: Error fetching AirBlue margin: $e');
       }
@@ -230,7 +242,7 @@ class AirBlueFlightController extends GetxController {
                 final pricingInfo = itinerary['AirItineraryPricingInfo'];
                 final totalFare = pricingInfo?['ItinTotalFare']?['TotalFare'];
                 final buyingPrice = double.tryParse(totalFare?['Amount']?.toString() ?? '0') ?? 0.0;
-                final sellingPrice = apiService.calculatePriceWithMargin(buyingPrice, marginData);
+                final sellingPrice = apiServiceMargin.calculatePriceWithMargin(buyingPrice, marginData);
 
                 final flight = AirBlueFlight.fromJson(
                   itinerary,
@@ -265,7 +277,7 @@ class AirBlueFlightController extends GetxController {
               final repPricingInfo = lowestPriceOption.rawData['AirItineraryPricingInfo'];
               final repTotalFare = repPricingInfo?['ItinTotalFare']?['TotalFare'];
               final repBuyingPrice = double.tryParse(repTotalFare?['Amount']?.toString() ?? '0') ?? 0.0;
-              final repSellingPrice = apiService.calculatePriceWithMargin(repBuyingPrice, marginData);
+              final repSellingPrice = apiServiceMargin.calculatePriceWithMargin(repBuyingPrice, marginData);
 
               final representativeFlight = AirBlueFlight.fromJson(
                 lowestPriceOption.rawData,

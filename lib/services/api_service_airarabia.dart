@@ -316,7 +316,7 @@ class ApiServiceAirArabia {
           'Cookie': 'PHPSESSID=trfun4hl59lq621fvrhus9oti5'
         },
         contentType: ContentType.JSON,
-        printRequestBody: printRequest,
+        printRequestBody: true,
         printResponseBody: printResponse,
       );
 

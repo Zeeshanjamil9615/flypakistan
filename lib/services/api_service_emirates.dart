@@ -1,10 +1,14 @@
 // services/api_service_emirates.dart
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
 import 'package:xml/xml.dart' as xml;
 import 'api_client.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
 import '../views/flight/search_flights/search_flight_utils/helper_functions.dart';
 import 'api_service_airblue.dart';
+import 'margin_service_flight.dart';
 
 class _EmiratesSegment {
   final String origin;
@@ -1579,14 +1583,116 @@ $passengerListXml
                          </IdentityDocument>''';
   }
 
+
+  // Helper method to extract total price from selected offers
+ double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
+    double totalPrice = 0.0;
+    try {
+      for (var offer in selectedOffers) {
+        final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
+        final possiblePriceNodes = [
+          offerData['TotalPrice'],
+          offerData['OfferPrice'],
+          offerData['PricedOffer']?['TotalPrice'],
+          offerData['PricedOffer']?['OfferPrice'],
+        ];
+
+        double priceForOffer = 0.0;
+        for (final node in possiblePriceNodes) {
+          priceForOffer = _extractPriceValue(node);
+          if (priceForOffer > 0) break;
+        }
+
+        totalPrice += priceForOffer;
+      }
+    } catch (e) {
+      // Error extracting total price
+    }
+    return totalPrice > 0 ? totalPrice : 0.0;
+  }
+
+  double _extractPriceValue(dynamic node) {
+    if (node == null) return 0.0;
+
+    if (node is num) return node.toDouble();
+
+    if (node is String) {
+      final cleaned = node.replaceAll(',', '');
+      final match = RegExp(r'[-+]?\d*\.?\d+').firstMatch(cleaned);
+      return match != null ? double.tryParse(match.group(0)!) ?? 0.0 : 0.0;
+    }
+
+    if (node is List) {
+      double sum = 0.0;
+      for (final item in node) {
+        sum += _extractPriceValue(item);
+      }
+      return sum;
+    }
+
+    if (node is Map) {
+      // Direct numeric/text fields
+      if (node.containsKey('\$t')) {
+        final value = _extractPriceValue(node['\$t']);
+        if (value > 0) return value;
+      }
+      if (node.containsKey('value')) {
+        final value = _extractPriceValue(node['value']);
+        if (value > 0) return value;
+      }
+      if (node.containsKey('text')) {
+        final value = _extractPriceValue(node['text']);
+        if (value > 0) return value;
+      }
+      if (node.containsKey('_text')) {
+        final value = _extractPriceValue(node['_text']);
+        if (value > 0) return value;
+      }
+
+      // Common price blocks
+      if (node.containsKey('SimpleCurrencyPrice')) {
+        final value = _extractPriceValue(node['SimpleCurrencyPrice']);
+        if (value > 0) return value;
+      }
+      if (node.containsKey('DetailCurrencyPrice')) {
+        final value = _extractPriceValue(node['DetailCurrencyPrice']);
+        if (value > 0) return value;
+      }
+      if (node.containsKey('Total')) {
+        final value = _extractPriceValue(node['Total']);
+        if (value > 0) return value;
+      }
+
+      // Fallback: scan remaining map values
+      for (final value in node.values) {
+        final extracted = _extractPriceValue(value);
+        if (extracted > 0) return extracted;
+      }
+    }
+
+    return 0.0;
+  }
+
+
+  // Replace the saveEmiratesBooking method in api_service_emirates.dart
+
   Future<Map<String, dynamic>> saveEmiratesBooking({
     required List<Map<String, dynamic>> selectedOffers,
     required Map<String, dynamic> pnrResponse,
     required dynamic bookingController,
-    bool printRequest = false,
+    bool printRequest = true,
     bool printResponse = false,
   }) async {
     try {
+      // Extract flights data from PNR response
+      final flights = await _extractFlightsFromPnrResponse(pnrResponse);
+
+      // Extract deadline time from PNR response
+      final deadlineTime = _extractDeadlineFromPnrResponse(pnrResponse);
+
+      debugPrint('✅ Extracted ${flights.length} flights from PNR response');
+      debugPrint('✅ Extracted deadline time: $deadlineTime');
+
       final bookingInfo = {
         "bfname": bookingController.firstNameController.text,
         "blname": bookingController.lastNameController.text,
@@ -1641,15 +1747,22 @@ $passengerListXml
         };
       }).toList();
 
-      // Prepare flights data from selected offers
-      final flights = await _prepareEmiratesFlightData(selectedOffers);
-
       // Determine PNR status (1 for success, 0 for failure)
       final pnrStatus = pnrResponse['success'] == true ? 1 : 0;
       final pnr = pnrResponse['pnr']?.toString() ?? '';
 
       // Calculate total price
       final totalPrice = _extractTotalPriceFromOffers(selectedOffers);
+
+      final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+      Map<String, dynamic> marginData = {};
+      try {
+        marginData = await apiServiceMargin.getMargin('EK', 'Emirates', "Emirates NDC");
+      } catch (e) {
+        debugPrint('⚠️ Error fetching margin: $e');
+      }
+
+      final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(totalPrice, marginData);
 
       // Prepare final request body
       final requestBody = {
@@ -1660,10 +1773,11 @@ $passengerListXml
         "flights": flights,
         "pnr": pnr,
         "buyingPrice": totalPrice.toStringAsFixed(0),
-        "sellingPrice": totalPrice.toStringAsFixed(0),
+        "sellingPrice": calculatedSellingPrice,
         "pnrStatus": pnrStatus,
         "booking_from": "1",
-        "gds": "Emirates"
+        "gds": "Emirates",
+        "deadline_time": deadlineTime, // Add deadline time
       };
 
       final response = await _apiClient.request(
@@ -1674,6 +1788,7 @@ $passengerListXml
         contentType: ContentType.JSON,
         printRequestBody: printRequest,
         printResponseBody: printResponse,
+
       );
 
       if (response.isSuccess) {
@@ -1689,6 +1804,8 @@ $passengerListXml
         );
       }
     } catch (e, stackTrace) {
+      debugPrint('❌ Error saving Emirates booking: $e');
+      debugPrint('Stack trace: $stackTrace');
       if (e is ApiException) rethrow;
       return {
         'success': false,
@@ -1697,33 +1814,317 @@ $passengerListXml
     }
   }
 
-  // Helper method to extract total price from selected offers
-  double _extractTotalPriceFromOffers(List<Map<String, dynamic>> selectedOffers) {
-    double totalPrice = 0.0;
-    try {
-      for (var offer in selectedOffers) {
-        final offerData = offer['offerData'] ?? offer['data'] ?? offer['rawFlightData'] ?? offer;
-        final totalPriceNode = offerData['TotalPrice'];
+// Extract flights from PNR response
+  Future<List<Map<String, dynamic>>> _extractFlightsFromPnrResponse(
+      Map<String, dynamic> pnrResponse) async {
+    final flights = <Map<String, dynamic>>[];
 
-        if (totalPriceNode != null) {
-          if (totalPriceNode is Map) {
-            final simpleCurrencyPrice = totalPriceNode['SimpleCurrencyPrice'];
-            if (simpleCurrencyPrice is Map) {
-              final priceValue = simpleCurrencyPrice['\$t'] ?? simpleCurrencyPrice['value'];
-              if (priceValue != null) {
-                totalPrice += double.tryParse(priceValue.toString()) ?? 0.0;
+    try {
+      // Parse the raw XML response if available
+      String? rawXml = pnrResponse['rawResponse'];
+
+      if (rawXml == null || rawXml.isEmpty) {
+        debugPrint('⚠️ No raw XML in PNR response');
+        return flights;
+      }
+
+      final document = xml.XmlDocument.parse(rawXml);
+
+      // Navigate to DataLists > FlightSegmentList
+      final dataLists = document.findAllElements('DataLists').firstOrNull;
+      if (dataLists == null) {
+        debugPrint('⚠️ DataLists not found in PNR response');
+        return flights;
+      }
+
+      final flightSegmentList = dataLists.findElements('FlightSegmentList').firstOrNull;
+      if (flightSegmentList == null) {
+        debugPrint('⚠️ FlightSegmentList not found');
+        return flights;
+      }
+
+      // Extract OrderItems to get cabin class info
+      final orderItems = document.findAllElements('OrderItem').toList();
+      String cabinClass = 'Economy';
+      String cabinCode = 'Y';
+
+      if (orderItems.isNotEmpty) {
+        final fareDetail = orderItems.first.findElements('FareDetail').firstOrNull;
+        if (fareDetail != null) {
+          final fareComponent = fareDetail.findElements('FareComponent').firstOrNull;
+          if (fareComponent != null) {
+            final fareBasis = fareComponent.findElements('FareBasis').firstOrNull;
+            if (fareBasis != null) {
+              final cabinType = fareBasis.findElements('CabinType').firstOrNull;
+              if (cabinType != null) {
+                final cabinTypeCode = cabinType.findElements('CabinTypeCode').firstOrNull;
+                final cabinTypeName = cabinType.findElements('CabinTypeName').firstOrNull;
+
+                if (cabinTypeCode != null && cabinTypeCode.text.isNotEmpty) {
+                  cabinCode = cabinTypeCode.text.trim();
+                }
+                if (cabinTypeName != null && cabinTypeName.text.isNotEmpty) {
+                  cabinClass = cabinTypeName.text.trim();
+                }
               }
             }
-          } else if (totalPriceNode is num) {
-            totalPrice += totalPriceNode.toDouble();
           }
         }
       }
-    } catch (e) {
-      // Error extracting total price
+
+      // Process each flight segment
+      for (var segmentElement in flightSegmentList.findElements('FlightSegment')) {
+        try {
+          // Extract departure info
+          final departure = segmentElement.findElements('Departure').firstOrNull;
+          if (departure == null) continue;
+
+          final depAirportCode = departure.findElements('AirportCode').firstOrNull?.text.trim() ?? '';
+          final depDate = departure.findElements('Date').firstOrNull?.text.trim() ?? '';
+          final depTime = departure.findElements('Time').firstOrNull?.text.trim() ?? '';
+          final depTerminalElement = departure.findElements('Terminal').firstOrNull;
+          final depTerminal = depTerminalElement?.findElements('Name').firstOrNull?.text.trim() ?? 'Main';
+
+          // Extract arrival info
+          final arrival = segmentElement.findElements('Arrival').firstOrNull;
+          if (arrival == null) continue;
+
+          final arrAirportCode = arrival.findElements('AirportCode').firstOrNull?.text.trim() ?? '';
+          final arrDate = arrival.findElements('Date').firstOrNull?.text.trim() ?? '';
+          final arrTime = arrival.findElements('Time').firstOrNull?.text.trim() ?? '';
+          final arrTerminalElement = arrival.findElements('Terminal').firstOrNull;
+          final arrTerminal = arrTerminalElement?.findElements('Name').firstOrNull?.text.trim() ?? 'Main';
+
+          // Validate essential data
+          if (depAirportCode.isEmpty || arrAirportCode.isEmpty ||
+              depDate.isEmpty || arrDate.isEmpty) {
+            debugPrint('⚠️ Missing essential flight data, skipping segment');
+            continue;
+          }
+
+          // Extract marketing carrier info
+          final marketingCarrier = segmentElement.findElements('MarketingCarrier').firstOrNull;
+          final airlineCode = marketingCarrier?.findElements('AirlineID').firstOrNull?.text.trim() ?? 'EK';
+          final airlineName = marketingCarrier?.findElements('Name').firstOrNull?.text.trim() ?? 'Emirates';
+          final flightNumber = marketingCarrier?.findElements('FlightNumber').firstOrNull?.text.trim() ?? '';
+
+          // Extract operating carrier (if different from marketing)
+          final operatingCarrier = segmentElement.findElements('OperatingCarrier').firstOrNull;
+          final operatingAirlineCode = operatingCarrier?.findElements('AirlineID').firstOrNull?.text.trim() ?? airlineCode;
+          final operatingAirlineName = operatingCarrier?.findElements('Name').firstOrNull?.text.trim() ?? airlineName;
+
+          // Get airline names from API
+          final marketingAirlineNameFromApi = await _getAirlineNameFromCode(airlineCode);
+          final operatingAirlineNameFromApi = await _getAirlineNameFromCode(operatingAirlineCode);
+
+          // Extract equipment
+          final equipment = segmentElement.findElements('Equipment').firstOrNull;
+          final aircraftCode = equipment?.findElements('AircraftCode').firstOrNull?.text.trim() ?? 'Unknown';
+
+          // Extract flight details for duration
+          final flightDetail = segmentElement.findElements('FlightDetail').firstOrNull;
+          String durationString = '';
+          int durationMinutes = 0;
+
+          if (flightDetail != null) {
+            final flightDuration = flightDetail.findElements('FlightDuration').firstOrNull;
+            if (flightDuration != null) {
+              final durationValue = flightDuration.findElements('Value').firstOrNull?.text.trim() ?? '';
+              if (durationValue.startsWith('PT')) {
+                final hoursMatch = RegExp(r'(\d+)H').firstMatch(durationValue);
+                final minutesMatch = RegExp(r'(\d+)M').firstMatch(durationValue);
+                final hours = hoursMatch != null ? int.parse(hoursMatch.group(1)!) : 0;
+                final minutes = minutesMatch != null ? int.parse(minutesMatch.group(1)!) : 0;
+                durationMinutes = hours * 60 + minutes;
+                durationString = '${hours}h ${minutes}m';
+              }
+            }
+          }
+
+          // If no duration found, calculate from times
+          if (durationMinutes == 0) {
+            try {
+              final depDateTime = DateTime.parse('${depDate}T$depTime');
+              final arrDateTime = DateTime.parse('${arrDate}T$arrTime');
+              final duration = arrDateTime.difference(depDateTime);
+              durationMinutes = duration.inMinutes;
+              durationString = '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
+            } catch (e) {
+              durationString = 'N/A';
+            }
+          }
+
+          // Build flight object
+          flights.add({
+            "departure": {
+              "airport": depAirportCode,
+              "city": depAirportCode,
+              "date": depDate,
+              "time": depTime,
+              "terminal": depTerminal,
+            },
+            "arrival": {
+              "airport": arrAirportCode,
+              "city": arrAirportCode,
+              "date": arrDate,
+              "time": arrTime,
+              "terminal": arrTerminal,
+            },
+            "flight_number": flightNumber,
+            "airline_code": airlineCode,
+            "airline_name": marketingAirlineNameFromApi.isNotEmpty ? marketingAirlineNameFromApi : airlineName,
+            "operating_flight_number": flightNumber,
+            "operating_airline_code": operatingAirlineCode,
+            "operating_airline_name": operatingAirlineNameFromApi.isNotEmpty ? operatingAirlineNameFromApi : operatingAirlineName,
+            "cabin_class": cabinClass,
+            "sub_class": cabinCode,
+            "booking_class": cabinCode,
+            "hand_baggage": "7kg",
+            "check_baggage": "30kg",
+            "meal": "Meal",
+            "layover": flights.isNotEmpty ? "Yes" : "None",
+            "duration": durationString,
+            "duration_minutes": durationMinutes,
+            "type": flights.isEmpty ? "One-Way" : "Return",
+            "fare_basis": "",
+            "seats_available": "",
+            "is_refundable": true,
+            "aircraft_type": aircraftCode,
+          });
+
+          debugPrint('✅ Added flight: $depAirportCode -> $arrAirportCode on $depDate at $depTime');
+
+        } catch (e, stackTrace) {
+          debugPrint('❌ Error processing flight segment: $e');
+          continue;
+        }
+      }
+
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error extracting flights from PNR: $e');
+      debugPrint('Stack trace: $stackTrace');
     }
-    return totalPrice > 0 ? totalPrice : 0.0;
+
+    if (flights.isEmpty) {
+      debugPrint('⚠️ No flights were extracted from PNR response');
+    } else {
+      debugPrint('✅ Successfully extracted ${flights.length} flight segments from PNR');
+    }
+
+    return flights;
   }
+
+// Extract deadline time from PNR response
+  String _extractDeadlineFromPnrResponse(Map<String, dynamic> pnrResponse) {
+    try {
+      String? rawXml = pnrResponse['rawResponse'];
+
+      if (rawXml == null || rawXml.isEmpty) {
+        debugPrint('⚠️ No raw XML for deadline extraction');
+        return '';
+      }
+
+      final document = xml.XmlDocument.parse(rawXml);
+
+      // Look for TimeLimits > PaymentTimeLimit or TicketingTimeLimits
+      final timeLimits = document.findAllElements('TimeLimits').firstOrNull;
+
+      if (timeLimits != null) {
+        // Try PaymentTimeLimit first
+        final paymentTimeLimit = timeLimits.findElements('PaymentTimeLimit').firstOrNull;
+        if (paymentTimeLimit != null) {
+          final timestamp = paymentTimeLimit.getAttribute('Timestamp');
+          if (timestamp != null && timestamp.isNotEmpty) {
+            return _formatDeadlineTimestamp(timestamp);
+          }
+        }
+
+        // Fallback to TicketingTimeLimits
+        final ticketingTimeLimit = timeLimits.findElements('TicketingTimeLimits').firstOrNull;
+        if (ticketingTimeLimit != null) {
+          final timestamp = ticketingTimeLimit.getAttribute('Timestamp');
+          if (timestamp != null && timestamp.isNotEmpty) {
+            return _formatDeadlineTimestamp(timestamp);
+          }
+        }
+      }
+
+      // Alternative: Look for Warning messages with deadline info
+      final warnings = document.findAllElements('Warning').toList();
+      for (var warning in warnings) {
+        final shortText = warning.getAttribute('ShortText');
+        if (shortText != null && shortText.contains('BY')) {
+          try {
+            // Parse format like "BOOK BY 15FEB 0320"
+            final parts = shortText.split('BY');
+            if (parts.length > 1) {
+              final dateParts = parts[1].trim().split(' ');
+              if (dateParts.length >= 2) {
+                final day = dateParts[0].substring(0, 2);
+                final month = dateParts[0].substring(2, 5);
+                final time = dateParts[1].replaceAll(':', '');
+                final timeFormatted = '${time.substring(0, 2)}:${time.substring(2, 4)}';
+
+                final year = DateTime.now().year;
+                final dateString = '$year-$month-$day $timeFormatted';
+
+                try {
+                  // Use replaceAllMapped so we can provide a function that maps Match -> String
+                  final normalizedDateString = dateString.replaceAllMapped(
+                    RegExp(r'[A-Z]{3}'),
+                    _getMonthNumber,
+                  );
+                  final dateTime = DateTime.parse(normalizedDateString);
+                  return dateTime.toIso8601String().replaceAll('T', ' ').substring(0, 19);
+                } catch (e) {
+                  debugPrint('⚠️ Error parsing deadline from warning: $e');
+                }
+              }
+            }
+          } catch (e) {
+            debugPrint('⚠️ Error processing warning text: $e');
+          }
+        }
+      }
+
+      debugPrint('⚠️ No deadline time found in PNR response');
+      return '';
+
+    } catch (e, stackTrace) {
+      debugPrint('❌ Error extracting deadline: $e');
+      debugPrint('Stack trace: $stackTrace');
+      return '';
+    }
+  }
+
+// Format deadline timestamp from ISO format to Y-m-d H:i:s
+  String _formatDeadlineTimestamp(String timestamp) {
+    try {
+      // Parse ISO 8601 format: 2026-02-15T03:20:00
+      final dateTime = DateTime.parse(timestamp);
+      // Format as: 2026-02-15 03:20:00
+      return '${dateTime.year.toString().padLeft(4, '0')}-'
+          '${dateTime.month.toString().padLeft(2, '0')}-'
+          '${dateTime.day.toString().padLeft(2, '0')} '
+          '${dateTime.hour.toString().padLeft(2, '0')}:'
+          '${dateTime.minute.toString().padLeft(2, '0')}:'
+          '${dateTime.second.toString().padLeft(2, '0')}';
+    } catch (e) {
+      debugPrint('⚠️ Error formatting deadline timestamp: $e');
+      return '';
+    }
+  }
+
+// Helper to convert month name to number
+  String _getMonthNumber(Match match) {
+    final months = {
+      'JAN': '01', 'FEB': '02', 'MAR': '03', 'APR': '04',
+      'MAY': '05', 'JUN': '06', 'JUL': '07', 'AUG': '08',
+      'SEP': '09', 'OCT': '10', 'NOV': '11', 'DEC': '12',
+    };
+    return months[match.group(0)] ?? '01';
+  }
+
 
   // Fetch airline data from API
   Future<Map<String, AirlineInfo>> _fetchAirlineData() async {
@@ -1788,71 +2189,117 @@ $passengerListXml
         for (var offerItem in offerItemsList) {
           if (offerItem is! Map) continue;
 
-          final serviceRefs = offerItem['Service'] ?? [];
-          final serviceRefsList = serviceRefs is List ? serviceRefs : [serviceRefs];
+          // Get FareDetail to access FareComponent
+          final fareDetail = offerItem['FareDetail'];
+          if (fareDetail == null) continue;
 
-          for (var serviceRef in serviceRefsList) {
-            if (serviceRef is! Map) continue;
+          final fareComponentRaw = fareDetail['FareComponent'];
+          if (fareComponentRaw == null) continue;
 
-            final segmentRefs = serviceRef['SegmentRefs'] ?? [];
-            final segmentRefsList = segmentRefs is List ? segmentRefs : [segmentRefs];
+          final fareComponents = fareComponentRaw is List ? fareComponentRaw : [fareComponentRaw];
 
-            for (var segmentRef in segmentRefsList) {
-              final segmentKey = _extractNodeText(segmentRef);
+          for (var fareComponent in fareComponents) {
+            if (fareComponent is! Map) continue;
+
+            // Extract segment references
+            final segmentRefsNode = fareComponent['SegmentRefs'] ??
+                fareComponent['SegmentRef'] ??
+                fareComponent['SegmentReference'];
+
+            final segmentKeys = _extractStringValues(segmentRefsNode);
+
+            for (var segmentKey in segmentKeys) {
               if (segmentKey.isEmpty) continue;
 
+              // Get the flight segment data
               final flightSegment = flightSegmentList is Map ? flightSegmentList[segmentKey] : null;
               if (flightSegment == null || flightSegment is! Map) continue;
 
-              // Extract flight details
+              // Extract flight details with proper null checks
               final departure = flightSegment['Departure'] ?? {};
               final arrival = flightSegment['Arrival'] ?? {};
               final operatingCarrier = flightSegment['OperatingCarrier'] ?? {};
               final marketingCarrier = flightSegment['MarketingCarrier'] ?? {};
 
-              final depAirport = _extractNodeText(departure['AirportCode']);
-              final arrAirport = _extractNodeText(arrival['AirportCode']);
-              final depDateTime = _extractNodeText(departure['Date']) + ' ' + _extractNodeText(departure['Time']);
-              final arrDateTime = _extractNodeText(arrival['Date']) + ' ' + _extractNodeText(arrival['Time']);
+              // Extract airport codes
+              final depAirportCode = _extractNodeText(departure['AirportCode']);
+              final arrAirportCode = _extractNodeText(arrival['AirportCode']);
+
+              if (depAirportCode.isEmpty || arrAirportCode.isEmpty) {
+                debugPrint('⚠️ Skipping segment - missing airport codes');
+                continue;
+              }
+
+              // Extract dates and times
+              final depDate = _extractNodeText(departure['Date']);
+              final depTime = _extractNodeText(departure['Time']) ?? '00:00';
+              final arrDate = _extractNodeText(arrival['Date']);
+              final arrTime = _extractNodeText(arrival['Time']) ?? '00:00';
+
+              if (depDate.isEmpty || arrDate.isEmpty) {
+                debugPrint('⚠️ Skipping segment - missing dates');
+                continue;
+              }
+
+              // Extract flight number
               final flightNumber = _extractNodeText(flightSegment['FlightNumber']);
+
+              // Extract carrier codes
               final operatingCarrierCode = _extractNodeText(operatingCarrier['AirlineID']);
               final marketingCarrierCode = _extractNodeText(marketingCarrier['AirlineID']);
 
               // Get airline names from carrier codes using API
               final effectiveMarketingCode = marketingCarrierCode.isNotEmpty ? marketingCarrierCode : 'EK';
               final effectiveOperatingCode = operatingCarrierCode.isNotEmpty ? operatingCarrierCode : effectiveMarketingCode;
+
               final marketingAirlineName = await _getAirlineNameFromCode(effectiveMarketingCode);
               final operatingAirlineName = await _getAirlineNameFromCode(effectiveOperatingCode);
 
-              // Parse dates
-              DateTime? depDate;
-              DateTime? arrDate;
+              // Parse dates and times properly
+              DateTime? depDateTime;
+              DateTime? arrDateTime;
+
               try {
-                depDate = DateTime.parse(depDateTime);
+                // Try parsing full datetime
+                depDateTime = DateTime.parse('${depDate}T$depTime');
               } catch (e) {
                 try {
-                  depDate = DateTime.parse(_extractNodeText(departure['Date']));
-                } catch (_) {}
+                  // Fallback: parse just date
+                  depDateTime = DateTime.parse(depDate);
+                } catch (_) {
+                  debugPrint('⚠️ Could not parse departure date: $depDate');
+                  continue;
+                }
               }
+
               try {
-                arrDate = DateTime.parse(arrDateTime);
+                // Try parsing full datetime
+                arrDateTime = DateTime.parse('${arrDate}T$arrTime');
               } catch (e) {
                 try {
-                  arrDate = DateTime.parse(_extractNodeText(arrival['Date']));
-                } catch (_) {}
+                  // Fallback: parse just date
+                  arrDateTime = DateTime.parse(arrDate);
+                } catch (_) {
+                  debugPrint('⚠️ Could not parse arrival date: $arrDate');
+                  continue;
+                }
               }
 
-              if (depDate == null || arrDate == null) continue;
-
-              final duration = arrDate.difference(depDate);
+              // Calculate duration
+              final duration = arrDateTime.difference(depDateTime);
+              final durationString = '${duration.inHours}h ${duration.inMinutes.remainder(60)}m';
 
               // Get cabin class from PriceClass
               String cabinClass = 'Economy';
               String cabinCode = 'Y';
-              final priceClassRefs = serviceRef['PriceClassRefs'] ?? [];
+
+              final priceClassRefs = offerItem['Service']?['PriceClassRefs'] ??
+                  fareComponent['PriceClassRef'] ?? [];
+
               if (priceClassRefs is List && priceClassRefs.isNotEmpty) {
                 final priceClassId = _extractNodeText(priceClassRefs[0]);
                 final priceClassList = dataLists['PriceClassList']?['PriceClass'] ?? {};
+
                 if (priceClassList is Map) {
                   final priceClass = priceClassList[priceClassId];
                   if (priceClass is Map) {
@@ -1862,22 +2309,38 @@ $passengerListXml
                     cabinCode = code.isNotEmpty ? code : cabinCode;
                   }
                 }
+              } else if (priceClassRefs is String && priceClassRefs.isNotEmpty) {
+                final priceClassList = dataLists['PriceClassList']?['PriceClass'] ?? {};
+                if (priceClassList is Map) {
+                  final priceClass = priceClassList[priceClassRefs];
+                  if (priceClass is Map) {
+                    final name = _extractNodeText(priceClass['Name']);
+                    cabinClass = name.isNotEmpty ? name : cabinClass;
+                    final code = _extractNodeText(priceClass['Code']);
+                    cabinCode = code.isNotEmpty ? code : cabinCode;
+                  }
+                }
               }
 
+              // Extract terminals
+              final depTerminal = _extractNodeText(departure['Terminal']?['Name']) ?? 'Main';
+              final arrTerminal = _extractNodeText(arrival['Terminal']?['Name']) ?? 'Main';
+
+              // Build the flight object
               flights.add({
                 "departure": {
-                  "airport": depAirport,
-                  "city": depAirport,
-                  "date": depDate.toIso8601String().split('T')[0],
-                  "time": "${depDate.hour.toString().padLeft(2, '0')}:${depDate.minute.toString().padLeft(2, '0')}",
-                  "terminal": _extractNodeText(departure['Terminal']) ?? 'Main',
+                  "airport": depAirportCode,
+                  "city": depAirportCode, // Will be resolved by backend
+                  "date": depDate,
+                  "time": depTime.length == 5 ? depTime : '${depTime.padLeft(5, '0')}',
+                  "terminal": depTerminal,
                 },
                 "arrival": {
-                  "airport": arrAirport,
-                  "city": arrAirport,
-                  "date": arrDate.toIso8601String().split('T')[0],
-                  "time": "${arrDate.hour.toString().padLeft(2, '0')}:${arrDate.minute.toString().padLeft(2, '0')}",
-                  "terminal": _extractNodeText(arrival['Terminal']) ?? 'Main',
+                  "airport": arrAirportCode,
+                  "city": arrAirportCode, // Will be resolved by backend
+                  "date": arrDate,
+                  "time": arrTime.length == 5 ? arrTime : '${arrTime.padLeft(5, '0')}',
+                  "terminal": arrTerminal,
                 },
                 "flight_number": flightNumber,
                 "airline_code": effectiveMarketingCode,
@@ -1889,26 +2352,63 @@ $passengerListXml
                 "sub_class": cabinCode,
                 "booking_class": cabinCode,
                 "hand_baggage": "7kg",
-                "check_baggage": "30kg", // Default for Emirates
+                "check_baggage": "30kg",
                 "meal": "Meal",
-                "layover": flights.length > 0 ? "Yes" : "None",
-                "duration": "${duration.inHours}h ${duration.inMinutes.remainder(60)}m",
+                "layover": flights.isNotEmpty ? "Yes" : "None",
+                "duration": durationString,
                 "duration_minutes": duration.inMinutes,
                 "type": flights.isEmpty ? "One-Way" : "Return",
                 "fare_basis": "",
                 "seats_available": "",
                 "is_refundable": true,
-                "aircraft_type": "Unknown",
+                "aircraft_type": _extractNodeText(flightSegment['Equipment']?['AircraftCode']) ?? "Unknown",
               });
+
+              debugPrint('✅ Added flight: $depAirportCode -> $arrAirportCode on $depDate at $depTime');
             }
           }
         }
       }
     } catch (e, stackTrace) {
-      // Error preparing Emirates flight data
+      debugPrint('❌ Error preparing Emirates flight data: $e');
+      debugPrint('Stack trace: $stackTrace');
+    }
+
+    if (flights.isEmpty) {
+      debugPrint('⚠️ No flights were extracted from offers');
+    } else {
+      debugPrint('✅ Successfully prepared ${flights.length} flight segments');
     }
 
     return flights;
+  }
+
+  // Helper method to extract string values from various node types
+  List<String> _extractStringValues(dynamic node) {
+    final values = <String>[];
+    if (node == null) return values;
+
+    if (node is String) {
+      values.addAll(
+        node
+            .split(RegExp(r'\s+'))
+            .where((element) => element.isNotEmpty)
+            .map((e) => e.trim()),
+      );
+    } else if (node is Map) {
+      if (node.containsKey('\$t')) {
+        values.addAll(_extractStringValues(node['\$t']));
+      } else {
+        for (var entry in node.values) {
+          values.addAll(_extractStringValues(entry));
+        }
+      }
+    } else if (node is List) {
+      for (var item in node) {
+        values.addAll(_extractStringValues(item));
+      }
+    }
+    return values.where((value) => value.isNotEmpty).toList();
   }
 
   String _getCabinClassName(String cabinCode) {

@@ -1,16 +1,15 @@
 // ignore_for_file: empty_catches
 
 import 'dart:convert';
-import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:get/get.dart';
-import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../views/flight/booking_flight/booking_flight_controller.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
 import 'api_client.dart';
 import 'api_service_airblue.dart';
+import 'margin_service_flight.dart';
 
 class ApiServiceSabre extends GetxService {
   late final Dio dio;
@@ -27,9 +26,6 @@ class ApiServiceSabre extends GetxService {
     BookingFlightController(),
   );
 
-  final AuthController authController = Get.put(
-    AuthController(),
-  );
 
   // Add a property to store the airline map
   final Rx<Map<String, AirlineInfo>> airlineMap = Rx<Map<String, AirlineInfo>>({});
@@ -485,150 +481,6 @@ class ApiServiceSabre extends GetxService {
     return tempAirlineMap;
   }
 
-  static const String _marginApiBaseUrl = 'https://readyflights.pk/api';
-  static const String _marginUserId = 'Group-121';
-  static const String _marginUsername = 'travelocity';
-
-  // Add these methods to the ApiServiceFlight class
-  Future<String> _generateMarginToken() async {
-    try {
-      // Use ApiClient for margin token generation
-      final response = await _apiClient.request(
-        url: '$_marginApiBaseUrl/generate_token.php',
-        method: HttpMethod.POST,
-        serviceName: 'MARGIN TOKEN',
-        body: jsonEncode({
-          "req_type": "get_margin",
-        }),
-        headers: {
-          'Userid': _marginUserId,
-          'Username': _marginUsername,
-          'Content-Type': 'application/json',
-        },
-        contentType: ContentType.JSON,
-      );
-
-      if (response.isSuccess && response.responseJson != null && response.responseJson!['token'] != null) {
-        return response.responseJson!['token'] as String;
-      } else {
-        throw Exception('Failed to generate margin token');
-      }
-    } catch (e) {
-      throw Exception('Error generating margin token: $e');
-    }
-  }
-
-  Future<Map<String, dynamic>> getMargin(String airlineCode, String gds, String Api) async {
-    try {
-      // Check if user is logged in by getting valid token
-      final token = await authController.getValidToken();
-      final isLoggedIn = token != null;
-
-      // Get user data if logged in
-      Map<String, dynamic>? userData;
-      String email = "";
-
-      if (isLoggedIn) {
-        userData = await authController.getUserData();
-        // Get cs_email from userData, fallback to empty string if not found
-        email = userData?['cs_email'] ?? "";
-      }
-
-      // Use ApiClient for margin data
-      final response = await _apiClient.request(
-        url: '$_marginApiBaseUrl/get-margin',
-        method: HttpMethod.POST,
-        serviceName: 'GET MARGIN: $Api $gds',
-        body: jsonEncode({
-          "airline_code": airlineCode,
-          "gds": gds,
-          "login": isLoggedIn ? 1 : 0, // Send 1 if logged in, 0 if not
-          "email": email, // Send cs_email if logged in, empty string if not
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        contentType: ContentType.JSON,
-      );
-
-      if (response.isSuccess) {
-        Map<String, dynamic> marginMap = {};
-
-        // Handle different response types
-        if (response.responseJson != null) {
-          // Already parsed JSON
-          marginMap = Map<String, dynamic>.from(response.responseJson!);
-        } else if (response.responseBody.isNotEmpty) {
-          // Parse JSON string
-          try {
-            marginMap = jsonDecode(response.responseBody) as Map<String, dynamic>;
-          } catch (e) {
-            return {};
-          }
-        } else {
-          return {};
-        }
-
-        return marginMap;
-      } else {
-        throw Exception('Failed to get margin: ${response.message}');
-      }
-    } catch (e) {
-      throw Exception('Error getting margin: $e');
-    }
-  }
-
-  // Calculate price with margin based on margin type
-  // marginType: "per" for percentage, "val" for fixed value
-  double calculatePriceWithMargin(double basePrice, Map<String, dynamic> marginData) {
-    try {
-      if (marginData.isEmpty) {
-        // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
-        return basePrice.ceil().toDouble();
-      }
-
-      final marginType = marginData['flight_margin_type']?.toString().toLowerCase().trim() ?? '';
-      final marginValRaw = marginData['margin_val'];
-      final marginPerRaw = marginData['margin_per'];
-
-      // Handle numeric types (int, double) and string representations
-      double marginVal = 0.0;
-      if (marginValRaw != null) {
-        if (marginValRaw is num) {
-          marginVal = marginValRaw.toDouble();
-        } else {
-          marginVal = double.tryParse(marginValRaw.toString()) ?? 0.0;
-        }
-      }
-
-      double marginPer = 0.0;
-      if (marginPerRaw != null) {
-        if (marginPerRaw is num) {
-          marginPer = marginPerRaw.toDouble();
-        } else {
-          marginPer = double.tryParse(marginPerRaw.toString()) ?? 0.0;
-        }
-      }
-
-      // Use margin type to determine which calculation to use
-      double finalPrice = basePrice;
-      if (marginType == 'per' && marginPer > 0) {
-        // Percentage margin: API returns as decimal (0.03 = 3%), so multiply directly
-        // basePrice * (1 + marginPer) where marginPer is already a decimal
-        finalPrice = basePrice * (1 + marginPer);
-      } else if (marginType == 'val' && marginVal > 0) {
-        // Fixed value margin: basePrice + marginValue
-        finalPrice = basePrice + marginVal;
-      }
-
-      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
-      return finalPrice.ceil().toDouble();
-    } catch (e) {
-      // Round up to next integer if there's a decimal (matching Laravel PHP behavior)
-      return basePrice.ceil().toDouble();
-    }
-  }
-
   Future<dynamic> createPNRRequest({
     required SabreFlight flight,
     required List<TravelerInfo> adults,
@@ -956,7 +808,7 @@ class ApiServiceSabre extends GetxService {
                   },
                 ])
                     .expand((x) => x)
-                    .toList(),
+                    ,
                 ...passengers
                     .where((passenger) => passenger["PassengerType"] == "INF")
                     .map((passenger) => {
@@ -967,7 +819,7 @@ class ApiServiceSabre extends GetxService {
                   "Text":
                   "${passenger["Surname"]}/${passenger["GivenName"].split(' ')[0]}${passenger["GivenName"].split(' ').length > 1 ? passenger["GivenName"].split(' ')[1] : ''}/${passenger["DateOfBirth"]}"
                 })
-                    .toList(),
+                    ,
               ],
             },
           },
@@ -1043,24 +895,6 @@ class ApiServiceSabre extends GetxService {
           ? revalidatePricing['offerItemId']
           : 'default-offer-item-id';
 
-      // Helper function to format phone number for contactInfos and SSR (just number without country code)
-      String formatPhoneNumberForContact(String phone, String countryCode) {
-        // Remove any non-digit characters and spaces
-        phone = phone.replaceAll(RegExp(r'\D'), '');
-
-        // Remove leading zero if present
-        if (phone.startsWith('0')) {
-          phone = phone.substring(1);
-        }
-
-        // Remove country code if present at the start
-        if (phone.startsWith(countryCode)) {
-          phone = phone.substring(countryCode.length);
-        }
-
-        // Return just the phone number without country code
-        return phone;
-      }
 
       // Helper function to format phone number in full format (0092...)
       String formatPhoneNumberFull(String phone, String countryCode) {
@@ -1628,6 +1462,23 @@ class ApiServiceSabre extends GetxService {
       final pnrStatus = pnrResponse != null && _isPnrSuccessful(pnrResponse) ? 1 : 0;
       final pnr = pnrResponse != null ? _extractPnrFromResponse(pnrResponse) : "";
 
+
+      final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+      // Get airline code from flight
+      final airlineCode = flight.airlineCode;
+      // Prefer cached margin data if available (set during search in controller)
+      Map<String, dynamic> marginData =  {};
+      if (marginData.isEmpty) {
+        try {
+          marginData = await apiServiceMargin.getMargin(airlineCode, 'sabre', "Sabre");
+        } catch (e) {
+          // Margin fetch failed, using defaults
+        }
+      }
+      final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(flight.buyingPrice, marginData);
+
+
+
       // Prepare final request body
       final requestBody = {
         "booking_info": bookingInfo,
@@ -1636,8 +1487,8 @@ class ApiServiceSabre extends GetxService {
         "infants": infantsData,
         "flights": flights,
         "pnr": pnr,
-        "buyingPrice": flight.price.toStringAsFixed(0),
-        "sellingPrice": flight.price.toStringAsFixed(0),
+        "buyingPrice": flight.buyingPrice.toStringAsFixed(0),
+        "sellingPrice": calculatedSellingPrice.toStringAsFixed(0),
         "pnrStatus": pnrStatus,
         "booking_from": "1", // Sabre booking source
         "gds": "sabre"

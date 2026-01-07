@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/common/bottom_navbar.dart';
 import 'package:ready_flights/services/api_service_airarabia.dart';
+import 'package:ready_flights/services/margin_service_flight.dart';
 import 'package:ready_flights/splash.dart';
 import 'package:ready_flights/views/flight/search_flights/airarabia/airarabia_flight_controller.dart';
 import 'package:ready_flights/views/flight/search_flights/airblue/airblue_flight_controller.dart';
@@ -36,7 +37,8 @@ class MyApp extends StatelessWidget {
     Get.lazyPut(() => ApiServiceAirArabia(), fenix: true);
     Get.lazyPut(() => AirBlueFlightController(), fenix: true);
     Get.lazyPut(() => FlydubaiFlightController(), fenix: true);
-    
+    Get.lazyPut(() => ApiServiceMargin(), fenix: true);
+
     // Initialize AirportController and preload airports
     final airportController = Get.put(AirportController());
     airportController.fetchAirports(); // Preload airports at app start

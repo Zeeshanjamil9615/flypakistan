@@ -3,11 +3,14 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:dio/dio.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:get/get_instance/src/extension_instance.dart';
 import 'api_client.dart';
 import '../views/flight/booking_flight/booking_flight_controller.dart';
 import '../views/flight/search_flights/airblue/airblue_flight_model.dart';
 import '../views/flight/search_flights/airblue/airblue_pnr_pricing.dart';
 import '../views/flight/search_flights/sabre/sabre_flight_models.dart';
+import 'margin_service_flight.dart';
 
 class AirBlueFlightApiService {
   final String link = 'https://ota2.zapways.com/v3.0/OTAAPI.asmx';
@@ -22,6 +25,14 @@ class AirBlueFlightApiService {
 
   // ApiClient instance
   final ApiClient _apiClient = ApiClient();
+
+  // Cache for margin data so we can reuse it between search and booking
+  Map<String, dynamic>? _cachedMarginData;
+
+  // Expose a safe setter so other layers (e.g. controllers) can inject margin data
+  void setMarginData(Map<String, dynamic> margin) {
+    _cachedMarginData = Map<String, dynamic>.from(margin);
+  }
 
   /// Search AirBlue flights
   Future<Map<String, dynamic>> airBlueFlightSearch({
@@ -152,7 +163,7 @@ class AirBlueFlightApiService {
     required String pnr,
     required String finalPrice,
     required int pnrStatus,
-    bool printRequest = false,
+    bool printRequest = true,
     bool printResponse = false,
   }) async {
     try {
@@ -230,6 +241,20 @@ class AirBlueFlightApiService {
           flights.add(_prepareFlightData(multicityFlights[i], "Flight ${i + 1}"));
         }
       }
+      final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
+       // Prefer cached margin data if available (set during search in controller)
+      Map<String, dynamic> marginData = _cachedMarginData ?? {};
+      if (marginData.isEmpty) {
+        try {
+
+          marginData = await apiServiceMargin.getMargin('PA', 'blue', "Air Blue");
+        } catch (e) {
+          // Margin fetch failed, using defaults
+        }
+      }
+      final calculatedSellingPrice = apiServiceMargin.calculatePriceWithMargin(double.parse(finalPrice), marginData);
+
+
 
       // Prepare final request body
       final requestBody = {
@@ -240,7 +265,7 @@ class AirBlueFlightApiService {
         "flights": flights,
         "pnr": pnr,
         "buyingPrice": finalPrice,
-        "sellingPrice": finalPrice,
+        "sellingPrice": calculatedSellingPrice,
         "pnrStatus": pnrStatus,
         "booking_from": "1",
         "gds": "blue"

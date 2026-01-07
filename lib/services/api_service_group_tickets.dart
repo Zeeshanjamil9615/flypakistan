@@ -1,9 +1,10 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'api_client.dart';
 
 class ApiServiceGroupTickets {
-  late final Dio dio;
+  final ApiClient _apiClient = ApiClient();
   
   // Al Saboor API credentials
   static const String _agentCode = '2737';
@@ -17,19 +18,6 @@ class ApiServiceGroupTickets {
   static const String _tokenKey = 'alsaboor_auth_token';
   static const String _tokenExpiryKey = 'alsaboor_token_expiry';
   
-  ApiServiceGroupTickets() {
-    dio = Dio(
-      BaseOptions(
-        baseUrl: _baseUrl,
-        connectTimeout: const Duration(seconds: 30),
-        receiveTimeout: const Duration(seconds: 30),
-        headers: {
-          'Accept': 'application/json',
-        },
-      ),
-    );
-  }
-  
   /// Authenticate with Al Saboor API
   /// Returns token and expiry timestamp
   /// According to docs: POST /login with formdata (email, password, Agent_code)
@@ -41,31 +29,19 @@ class ApiServiceGroupTickets {
         'agent_code': _agentCode,
       });
       
-      final response = await dio.post(
-        '/login',
-        data: formData,
-        options: Options(
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-          },
-        ),
+      final response = await _apiClient.request(
+        serviceName: 'AL_SABOOR_AUTH',
+        url: '$_baseUrl/login',
+        method: HttpMethod.POST,
+        body: formData,
+        headers: {
+          'Accept': 'application/json',
+        },
       );
       
-      if (response.statusCode == 200 && response.data != null) {
-        // Handle response - it might be a Map or String (JSON string)
-        Map<String, dynamic> data;
-        if (response.data is String) {
-          // Parse JSON string
-          data = jsonDecode(response.data as String);
-        } else if (response.data is Map) {
-          data = response.data as Map<String, dynamic>;
-        } else {
-          return {
-            'success': false,
-            'message': 'Invalid response format',
-          };
-        }
+      if (response.isSuccess && response.responseJson != null) {
+        // Use the parsed JSON response
+        Map<String, dynamic> data = response.responseJson!;
         
         // Check for error status first
         if (data['status'] == 'error') {
@@ -120,29 +96,7 @@ class ApiServiceGroupTickets {
       
       return {
         'success': false,
-        'message': 'Authentication failed: Invalid response',
-      };
-    } on DioException catch (e) {
-      String errorMessage = e.message ?? 'Authentication failed';
-      if (e.response?.data != null) {
-        try {
-          Map<String, dynamic> errorData;
-          if (e.response!.data is String) {
-            errorData = jsonDecode(e.response!.data as String);
-          } else if (e.response!.data is Map) {
-            errorData = e.response!.data as Map<String, dynamic>;
-          } else {
-            errorData = {};
-          }
-          errorMessage = errorData['message'] ?? errorMessage;
-        } catch (parseError) {
-          // If parsing fails, use default message
-        }
-      }
-      
-      return {
-        'success': false,
-        'message': errorMessage,
+        'message': response.message,
       };
     } catch (e) {
       return {
@@ -201,21 +155,17 @@ class ApiServiceGroupTickets {
         apiGroupType = 'ONEWAY';
       }
       
-      final response = await dio.get(
-        '/groups',
-        queryParameters: {
-          'type': apiGroupType, // "UMRAH GROUP" or "ONEWAY"
-          'token': token,
+      final response = await _apiClient.request(
+        serviceName: 'AL_SABOOR_GROUPS',
+        url: '$_baseUrl/groups?type=$apiGroupType&token=$token',
+        method: HttpMethod.GET,
+        headers: {
+          'Authorization': 'Token $token',
         },
-        options: Options(
-          headers: {
-            'Authorization': 'Token $token', // Also include in header as per docs
-          },
-        ),
       );
       
-      if (response.statusCode == 200 && response.data != null) {
-        dynamic responseData = response.data;
+      if (response.isSuccess && response.responseJson != null) {
+        dynamic responseData = response.responseJson;
         if (responseData is String) {
           // Parse JSON string
           responseData = jsonDecode(responseData);
@@ -227,12 +177,8 @@ class ApiServiceGroupTickets {
         };
       }
       
-      return {
-        'success': false,
-        'message': 'Failed to fetch groups',
-      };
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
+      // Check for 401 unauthorized
+      if (response.statusCode == 401) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
         await prefs.remove(_tokenExpiryKey);
@@ -243,7 +189,7 @@ class ApiServiceGroupTickets {
       
       return {
         'success': false,
-        'message': e.response?.data?['message'] ?? e.message ?? 'Failed to fetch groups',
+        'message': response.message,
       };
     } catch (e) {
       return {
@@ -257,6 +203,8 @@ class ApiServiceGroupTickets {
   /// GET /group-details?group_id=ID&token=TOKEN
   /// Create a group booking
   /// POST /booking with JSON body containing passenger details
+  /// Create a group booking
+  /// POST /booking with FormData containing passenger details
   Future<Map<String, dynamic>> createBooking({
     required String groupId,
     required String roe,
@@ -274,6 +222,8 @@ class ApiServiceGroupTickets {
     required List<String> adultPrice,
     required List<String> childPrice,
     required List<String> infantPrice,
+    String? agentId,
+    String? agentName,
   }) async {
     try {
       final token = await getValidToken();
@@ -281,49 +231,77 @@ class ApiServiceGroupTickets {
         return {'success': false, 'message': 'Authentication failed. Please try again.'};
       }
 
-      final requestBody = {
+      // Build FormData map with array fields using the correct format
+      Map<String, dynamic> formDataMap = {
+        'token': token,
         'roe': roe,
         'no_of_seat': noOfSeat.toString(),
         'group_id': groupId,
         'pnr_1': pnr1,
-        if (pnr2 != null) 'pnr_2': pnr2,
-        'pax_title': paxTitle,
-        'human_type': humanType,
-        'sur_name': surName,
-        'given_name': givenName,
-        'pass_no': passNo,
-        'dob': dob,
-        'doi': doi,
-        'doe': doe,
-        'adult_price': adultPrice,
-        'child_price': childPrice,
-        'infant_price': infantPrice,
+        'pnr_2': pnr2 ?? '',
+        'agent_id': agentId ?? '10',
+        'agent_name': agentName ?? 'API USER',
       };
 
-      final response = await dio.post(
-        '/booking',
-        queryParameters: {
-          'token': token,
-        },
-        data: requestBody,
-        options: Options(
+      // Add array fields - each element separately with [] suffix
+      for (int i = 0; i < paxTitle.length; i++) {
+        formDataMap['pax_title[$i]'] = paxTitle[i];
+      }
+      for (int i = 0; i < humanType.length; i++) {
+        formDataMap['human_type[$i]'] = humanType[i];
+      }
+      for (int i = 0; i < surName.length; i++) {
+        formDataMap['sur_name[$i]'] = surName[i];
+      }
+      for (int i = 0; i < givenName.length; i++) {
+        formDataMap['given_name[$i]'] = givenName[i];
+      }
+      for (int i = 0; i < passNo.length; i++) {
+        formDataMap['pass_no[$i]'] = passNo[i];
+      }
+      for (int i = 0; i < dob.length; i++) {
+        formDataMap['dob[$i]'] = dob[i];
+      }
+      for (int i = 0; i < doi.length; i++) {
+        formDataMap['doi[$i]'] = doi[i];
+      }
+      for (int i = 0; i < doe.length; i++) {
+        formDataMap['doe[$i]'] = doe[i];
+      }
+
+      // Add price arrays if they have values
+      if (adultPrice.isNotEmpty) {
+        for (int i = 0; i < adultPrice.length; i++) {
+          formDataMap['adult_price[$i]'] = adultPrice[i];
+        }
+      }
+      if (childPrice.isNotEmpty) {
+        for (int i = 0; i < childPrice.length; i++) {
+          formDataMap['child_price[$i]'] = childPrice[i];
+        }
+      }
+      if (infantPrice.isNotEmpty) {
+        for (int i = 0; i < infantPrice.length; i++) {
+          formDataMap['infant_price[$i]'] = infantPrice[i];
+        }
+      }
+
+      final formData = FormData.fromMap(formDataMap);
+
+      final response = await _apiClient.request(
+          serviceName: 'AL_SABOOR_BOOKING',
+          url: '$_baseUrl/booking',
+          method: HttpMethod.POST,
+          body: formData,
           headers: {
-            'Content-Type': 'application/json',
             'Accept': 'application/json',
-            'Authorization': 'Token $token',
           },
-        ),
+          printRequestBody: true,
+          printResponseBody: true
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        Map<String, dynamic> data;
-        if (response.data is String) {
-          data = jsonDecode(response.data as String);
-        } else if (response.data is Map) {
-          data = response.data as Map<String, dynamic>;
-        } else {
-          return {'success': false, 'message': 'Invalid response format'};
-        }
+      if (response.isSuccess && response.responseJson != null) {
+        Map<String, dynamic> data = response.responseJson!;
 
         if (data.containsKey('status') && data['status'] == 'error') {
           return {'success': false, 'message': data['message'] ?? 'Booking failed'};
@@ -337,23 +315,19 @@ class ApiServiceGroupTickets {
         };
       }
 
-      return {'success': false, 'message': 'Booking failed: Invalid response'};
-    } on DioException catch (e) {
+      // Handle 401 unauthorized - clear token and retry
+      if (response.statusCode == 401) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove(_tokenKey);
+        await prefs.remove(_tokenExpiryKey);
+        return {'success': false, 'message': 'Authentication expired. Please try again.'};
+      }
+
       String errorMessage = 'Failed to create booking';
-      if (e.response != null) {
-        final statusCode = e.response!.statusCode;
-        final responseData = e.response!.data;
-        
-        if (responseData is Map && responseData.containsKey('message')) {
-          errorMessage = responseData['message'].toString();
-        } else if (statusCode == 401) {
-          errorMessage = 'Authentication failed. Please try again.';
-        } else if (statusCode == 400) {
-          errorMessage = 'Invalid booking data. Please check your input.';
-        }
-      } else if (e.type == DioExceptionType.connectionTimeout ||
-                 e.type == DioExceptionType.receiveTimeout) {
-        errorMessage = 'Connection timeout. Please check your internet connection.';
+      if (response.statusCode == 400) {
+        errorMessage = 'Invalid booking data. Please check your input.';
+      } else {
+        errorMessage = response.message;
       }
 
       return {'success': false, 'message': errorMessage};
@@ -361,7 +335,6 @@ class ApiServiceGroupTickets {
       return {'success': false, 'message': 'An unexpected error occurred: ${e.toString()}'};
     }
   }
-
   Future<Map<String, dynamic>> getGroupDetails({required String groupId}) async {
     try {
       final token = await getValidToken();
@@ -372,21 +345,17 @@ class ApiServiceGroupTickets {
         };
       }
 
-      final response = await dio.get(
-        '/group-details',
-        queryParameters: {
-          'group_id': groupId,
-          'token': token,
+      final response = await _apiClient.request(
+        serviceName: 'AL_SABOOR_GROUP_DETAILS',
+        url: '$_baseUrl/group-details?group_id=$groupId&token=$token',
+        method: HttpMethod.GET,
+        headers: {
+          'Authorization': 'Token $token',
         },
-        options: Options(
-          headers: {
-            'Authorization': 'Token $token',
-          },
-        ),
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        dynamic responseData = response.data;
+      if (response.isSuccess && response.responseJson != null) {
+        dynamic responseData = response.responseJson;
         if (responseData is String) {
           responseData = jsonDecode(responseData);
         }
@@ -396,20 +365,17 @@ class ApiServiceGroupTickets {
         };
       }
 
-      return {
-        'success': false,
-        'message': 'Failed to fetch group details',
-      };
-    } on DioException catch (e) {
-      if (e.response?.statusCode == 401) {
+      // Check for 401 unauthorized
+      if (response.statusCode == 401) {
         final prefs = await SharedPreferences.getInstance();
         await prefs.remove(_tokenKey);
         await prefs.remove(_tokenExpiryKey);
         return await getGroupDetails(groupId: groupId);
       }
+
       return {
         'success': false,
-        'message': e.response?.data?['message'] ?? e.message ?? 'Failed to fetch group details',
+        'message': response.message,
       };
     } catch (e) {
       return {

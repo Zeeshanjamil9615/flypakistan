@@ -831,7 +831,7 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withOpacity(0.3),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -852,7 +852,7 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                   end: Alignment.centerRight,
                   colors: [
                     TColors.primary.withOpacity(0.08),
-                    TColors.primary.withOpacity(0.02),
+                    TColors.primary.withOpacity(0.06),
                   ],
                 ),
                 borderRadius: BorderRadius.vertical(
@@ -893,25 +893,25 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 10,
-                            vertical: 4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: TColors.primary.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: Text(
-                            '${widget.rooms.length} ${widget.rooms.length == 1 ? 'option' : 'options'} available',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w500,
-                              color: TColors.primary,
-                            ),
-                          ),
-                        ),
+                        // const SizedBox(height: 4),
+                        // Container(
+                        //   padding: const EdgeInsets.symmetric(
+                        //     horizontal: 10,
+                        //     vertical: 4,
+                        //   ),
+                        //   decoration: BoxDecoration(
+                        //     color: TColors.primary.withOpacity(0.1),
+                        //     borderRadius: BorderRadius.circular(20),
+                        //   ),
+                        //   child: Text(
+                        //     '${widget.rooms.length} ${widget.rooms.length == 1 ? 'option' : 'options'} available',
+                        //     style: TextStyle(
+                        //       fontSize: 11,
+                        //       fontWeight: FontWeight.w500,
+                        //       color: TColors.primary,
+                        //     ),
+                        //   ),
+                        // ),
                       ],
                     ),
                   ),

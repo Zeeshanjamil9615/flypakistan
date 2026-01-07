@@ -8,6 +8,7 @@ import 'package:ready_flights/views/flight/search_flights/flydubai/flydubai_mode
 
 import '../../../../services/api_service_flydubai.dart';
 import '../../../../services/api_service_sabre.dart';
+import '../../../../services/margin_service_flight.dart';
 import '../../form/flight_booking_controller.dart';
 import '../filters/filter_flight_model.dart';
 import '../flight_package/flydubai/flydubai_package.dart';
@@ -20,7 +21,7 @@ class FlydubaiFlightController extends GetxController {
   // Use the separate API service
   final ApiServiceFlyDubai apiService = Get.put(ApiServiceFlyDubai());
   // Use Sabre service for margin
-  final ApiServiceSabre sabreApiService = Get.put(ApiServiceSabre());
+  final ApiServiceMargin marginApiService = Get.put(ApiServiceMargin());
 
   // Separate lists for outbound and return flights
   final RxList<FlydubaiFlight> _originalOutboundFlights =
@@ -115,11 +116,21 @@ class FlydubaiFlightController extends GetxController {
     _returnDate = null;
   }
 
+  // Cache for margin data so we can reuse it between search and booking
+  Map<String, dynamic>? _cachedMarginData;
+
+  // Expose a safe setter so other layers (e.g. controllers) can inject margin data
+  void setMarginData(Map<String, dynamic> margin) {
+    _cachedMarginData = Map<String, dynamic>.from(margin);
+  }
+
+
+
   // Calculate price with margin and BSP (BSP only for FlyDubai GDS, not Sabre)
   // BSP is a special fee that should be added only to FlyDubai GDS flights
   double _calculateFlyDubaiSellingPrice(double buyingPrice, Map<String, dynamic> marginData) {
     // First calculate price with margin
-    double priceWithMargin = sabreApiService.calculatePriceWithMargin(buyingPrice, marginData);
+    double priceWithMargin = marginApiService.calculatePriceWithMargin(buyingPrice, marginData);
     
     // Then add BSP if it exists in marginData (only for FlyDubai GDS)
     final bspRaw = marginData['bsp'];
@@ -319,7 +330,9 @@ class FlydubaiFlightController extends GetxController {
       // Fetch margin for FlyDubai (airline code FZ)
       Map<String, dynamic> marginData = {};
       try {
-        marginData = await sabreApiService.getMargin('FZ', 'flydubai', "Fly Dubai");
+        marginData = await marginApiService.getMargin('FZ', 'flydubai', "Fly Dubai");
+        // Cache margin data in FlyDubai API service for reuse during booking/PNR creation
+        setMarginData(marginData);
       } catch (e) {
         // Margin fetch failed, using defaults
       }

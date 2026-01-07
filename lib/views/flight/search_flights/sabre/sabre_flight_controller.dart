@@ -3,6 +3,7 @@
 import 'package:get/get.dart';
 
 import '../../../../../services/api_service_sabre.dart';
+import '../../../../services/margin_service_flight.dart';
 import '../filters/filter_flight_model.dart';
 import '../flight_package/sabre/sabre_flight_package.dart';
 import '../search_flight_utils/helper_functions.dart';
@@ -311,6 +312,7 @@ extension FlightDateTimeExtension on SabreFlightController {
       // Cache for margins by airline code to avoid multiple API calls
       final Map<String, Map<String, dynamic>> marginCache = {};
       final ApiServiceSabre apiService = Get.put(ApiServiceSabre());
+      final ApiServiceMargin apiServiceMargin = Get.put(ApiServiceMargin());
 
       final groupedResponse = response['groupedItineraryResponse'];
 
@@ -391,7 +393,7 @@ extension FlightDateTimeExtension on SabreFlightController {
           // Fetch margin for this airline if not already cached (MUST be before packages processing)
           if (!marginCache.containsKey(airlineCode)) {
             try {
-              final margin = await apiService.getMargin(airlineCode, 'sabre', "Sabre");
+              final margin = await apiServiceMargin.getMargin(airlineCode, 'sabre', "Sabre");
               marginCache[airlineCode] = margin;
             } catch (e) {
               // If margin fetch fails, use empty margin (will return buying price)
@@ -414,7 +416,7 @@ extension FlightDateTimeExtension on SabreFlightController {
                 // Apply margin to package base price (totalPrice - taxAmount)
                 final packageBasePrice = package.totalPrice - package.taxAmount;
                 final marginData = marginCache[airlineCode] ?? {};
-                final marginedBasePrice = apiService.calculatePriceWithMargin(packageBasePrice, marginData);
+                final marginedBasePrice = apiServiceMargin.calculatePriceWithMargin(packageBasePrice, marginData);
                 // Total = margined base + tax
                 final packageSellingPrice = marginedBasePrice + package.taxAmount;
                 
@@ -623,7 +625,7 @@ extension FlightDateTimeExtension on SabreFlightController {
             // Fetch margin for this airline if not cached
             if (!marginCache.containsKey(airlineCode)) {
               try {
-                final margin = await apiService.getMargin(airlineCode, 'sabre', "Sabre");
+                final margin = await apiServiceMargin.getMargin(airlineCode, 'sabre', "Sabre");
                 marginCache[airlineCode] = margin;
               } catch (e) {
                 // If margin fetch fails, use empty margin (will return buying price)
@@ -633,7 +635,7 @@ extension FlightDateTimeExtension on SabreFlightController {
 
             // Calculate selling price with margin
             final marginData = marginCache[airlineCode] ?? {};
-            final sellingPrice = apiService.calculatePriceWithMargin(buyingPrice, marginData);
+            final sellingPrice = apiServiceMargin.calculatePriceWithMargin(buyingPrice, marginData);
 
             final flight = SabreFlight(
               imgPath: airlineInfo.logoPath,

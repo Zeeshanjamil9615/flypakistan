@@ -8,7 +8,6 @@ import '../../../../widgets/travelers_selection_bottom_sheet.dart';
 import '../../search_flights/sabre/sabre_flight_models.dart';
 import '../../../hotel/search_hotels/booking_hotel/payment_hotel/payment_controller.dart';
 import '../booking_flight_controller.dart';
-import 'sabre_flight_voucher.dart';
 
 class SabreCardPaymentDetailsScreen extends StatelessWidget {
   final SabreFlight flight;

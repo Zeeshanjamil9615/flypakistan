@@ -736,8 +736,8 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
         color: isSelected ? TColors.primary.withOpacity(0.04) : Colors.white,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: isSelected ? TColors.primary : Colors.grey.shade200,
-          width: isSelected ? 1.5 : 1,
+          color: isSelected ? TColors.primary : Colors.grey.shade100,
+          width: isSelected ? 1.5 : 0.5,
         ),
       ),
       child: Column(
@@ -921,36 +921,36 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                   ),
                 ),
                 
-                // Remarks (if any)
-                if (room['remarks']?['remark'] != null) ...[
-                  const SizedBox(height: 10),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(
-                        Icons.info_outline_rounded,
-                        size: 14,
-                        color: Colors.grey.shade400,
-                      ),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          room['remarks']['remark'][0]['text'] ?? '',
-                          style: TextStyle(
-                            color: Colors.grey.shade500,
-                            fontSize: 11,
-                            height: 1.4,
-                          ),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-                
+                // // Remarks (if any)
+                // if (room['remarks']?['remark'] != null) ...[
+                //   const SizedBox(height: 10),
+                //   Row(
+                //     crossAxisAlignment: CrossAxisAlignment.start,
+                //     children: [
+                //       Icon(
+                //         Icons.info_outline_rounded,
+                //         size: 14,
+                //         color: Colors.grey.shade400,
+                //       ),
+                //       const SizedBox(width: 6),
+                //       Expanded(
+                //         child: Text(
+                //           room['remarks']['remark'][0]['text'] ?? '',
+                //           style: TextStyle(
+                //             color: Colors.grey.shade500,
+                //             fontSize: 11,
+                //             height: 1.4,
+                //           ),
+                //           maxLines: 2,
+                //           overflow: TextOverflow.ellipsis,
+                //         ),
+                //       ),
+                //     ],
+                //   ),
+                // ],
+                //
                 const SizedBox(height: 12),
-                
+                //
                 // Action Buttons Row
                 Row(
                   children: [
