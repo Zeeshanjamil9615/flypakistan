@@ -74,7 +74,7 @@ class ApiServiceHotel extends GetxService {
       }
 
       var response = await dio.request(
-        'https://readyflights.pk/api/margin-hotel',
+        'https://flypakistan.pk/api/margin-hotel',
         options: Options(
           method: 'POST',
           headers: headers,
@@ -103,31 +103,25 @@ class ApiServiceHotel extends GetxService {
       // Keep default values if API fails
     }
   }
-
   // Simple pricing logic - only ROE and margin
   double applyPricingLogic(double originalPrice) {
     // Apply ROE conversion (multiply)
     double convertedPrice = originalPrice * currentROE;
-
     // Apply margin percentage
     convertedPrice = convertedPrice * (1 + (currentMargin / 100));
-
     return convertedPrice;
   }
 
   Future<List<dynamic>> fetchCities(String cityKeyword) async {
     var headers = {'Cookie': 'PHPSESSID=n2sduu2sfi2p57nhr9h8fc74p0'};
-
     var dio = Dio();
     try {
       var response = await dio.request(
-        'https://readyflights.pk/api/getDestination.php?keyword=$cityKeyword',
+        'https://flypakistan.pk/api/getDestination.php?keyword=$cityKeyword',
         options: Options(method: 'GET', headers: headers),
       );
-
       if (response.statusCode == 200) {
         // Print raw response data type for debugging
-
         // Handle string response that needs to be parsed as JSON
         if (response.data is String) {
           try {
@@ -213,7 +207,6 @@ class ApiServiceHotel extends GetxService {
         data: requestBody,
         options: _defaultHeaders(),
       );
-
       if (response.statusCode == 200) {
         final data = response.data;
         final hotels = data['hotels']?['hotel'] ?? [];
@@ -261,7 +254,7 @@ class ApiServiceHotel extends GetxService {
 
     try {
       var response = await dio.request(
-        'https://readyflights.pk/api/hotel-details',
+        'https://flypakistan.pk/api/hotel-details',
         options: Options(
           method: 'POST',
           headers: headers,
@@ -317,6 +310,7 @@ class ApiServiceHotel extends GetxService {
       "Rooms": {"Room": rooms},
     },
   };
+  print(requestBody);
 
   try {
     final response = await dio.post(
@@ -327,6 +321,7 @@ class ApiServiceHotel extends GetxService {
 
     if (response.statusCode == 200) {
       final data = response.data;
+      print(data);
 
       final hotelInfo = data['hotel']?['hotelInfo'];
       final roomData = data['hotel']?['rooms']?['room'];
@@ -534,7 +529,7 @@ class ApiServiceHotel extends GetxService {
   Future<bool> bookHotel(Map<String, dynamic> requestBody) async {
     final BookingController bookingcontroller = Get.put(BookingController());
 
-    const String bookingEndpoint = 'https://readyflights.pk/api/create-hotel-booking';
+    const String bookingEndpoint = 'https://flypakistan.pk/api/create-hotel-booking';
 
     try {
       final response = await dio.post(

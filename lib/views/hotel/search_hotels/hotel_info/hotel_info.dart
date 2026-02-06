@@ -33,10 +33,14 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchHotelDetails();
+    print("hotel 1");
+
+    fetchHotelDetails();
+    print("hotel 2");
+
   }
 
-  Future<void> _fetchHotelDetails() async {
+  Future<void> fetchHotelDetails() async {
     try {
       setState(() {
         isLoading = true;
@@ -122,7 +126,7 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
           ),
           const SizedBox(height: 16),
           ElevatedButton(
-            onPressed: _fetchHotelDetails,
+            onPressed: fetchHotelDetails,
             style: ElevatedButton.styleFrom(
               backgroundColor: TColors.primary,
               foregroundColor: TColors.white,

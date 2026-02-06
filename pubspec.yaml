@@ -2,7 +2,7 @@ name: ready_flights
 description: "A new journey online project."
 publish_to: "none"
 
-version: 0.1.0+20
+version: 0.1.0+4
 
 environment:
   sdk: ^3.7.2

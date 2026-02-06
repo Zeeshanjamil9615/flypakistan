@@ -17,7 +17,7 @@ class BookingCard extends StatefulWidget {
 }
 
 class _BookingCardState extends State<BookingCard> {
-  String selectedType = 'Flights'; // Default type
+  String selectedType = 'Hotels'; // Default type
 
   @override
   Widget build(BuildContext context) {
@@ -43,11 +43,11 @@ class _BookingCardState extends State<BookingCard> {
                 });
               },
             ),
-            const SizedBox(height: 12),
+            // const SizedBox(height: 12),s
             // Show the relevant form based on the selected type
-            if (selectedType == 'Flights') FlightBookingScreen(),
+            // if (selectedType == 'Flights') FlightBookingScreen(),
             if (selectedType == 'Hotels') HotelForm(),
-            if (selectedType == 'Group Tickets') const GroupTicketsSelector(),
+            // if (selectedType == 'Group Tickets') const GroupTicketsSelector(),
           ],
         ),
       ),

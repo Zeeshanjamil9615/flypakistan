@@ -93,7 +93,7 @@ class _SplashState extends State<Splash> with SingleTickerProviderStateMixin {
                 const SizedBox(height: 24),
                 // App name with a cleaner style
                 Text(
-                  'Ready Flights',
+                  'Fly Pakistan',
                   style: TextStyle(
                     color: TColors.primary,
                     fontSize: 32,

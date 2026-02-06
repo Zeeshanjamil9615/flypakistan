@@ -645,7 +645,7 @@ class HotelCard extends StatelessWidget {
   final HotelDateController dateController = Get.find<HotelDateController>();
 
   // Extract the select room functionality into a separate method
-  void _selectRoom() {
+  void _selectRoom() async {
     controller.ratingstar.value = (hotel['rating'] as double).toInt();
     controller.hotelCode.value = hotel['hotelCode'];
     controller.hotelCity.value = hotel['hotelCity'];
@@ -655,15 +655,96 @@ class HotelCard extends StatelessWidget {
     // controller.hotelid.value=(hotel['code'] as double).toInt()??0;
 
     controller.roomsdata.clear();
+          
+          // Show loading indicator
+          Get.dialog(
+            const Center(
+              child: CircularProgressIndicator(color: TColors.primary),
+            ),
+            barrierDismissible: false,
+          );
+          
+          await ApiServiceHotel().fetchRoomDetails(
+          hotel['hotelCode'] ?? '',
+            controller.sessionId.value,
+          );
+          
+          // Close loading dialog
+          Get.back();
+          
+          // Check if rooms are available
+          if (controller.roomsdata.isEmpty) {
+            Get.dialog(
+              AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: TColors.third, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'No Rooms Available',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: TColors.text,
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  'Sorry, there are no rooms available for this hotel at the moment. Please try another hotel or different dates.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: TColors.text,
+                    height: 1.5,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      try {
+                        Get.back();
+                      } catch (e) {
+                        // Dialog already closed
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: TColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        color: TColors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              barrierDismissible: false,
+            );
+          } else {
+            controller.filterhotler();
+            Get.to(() => const SelectRoomScreen());
+          }
 
-    ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
-    controller.filterhotler();
-    Get.to(
-      () => HotelInfoScreen(
-        hotelId: hotel['hotelCode'],
-        hotelData: hotel as Map<String, dynamic>,
-      ),
-    );
+    // ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
+    // controller.filterhotler();
+    
+  
+    // Get.to(
+    //   () => HotelInfoScreen(
+    //     hotelId: hotel['hotelCode'],
+    //     hotelData: hotel as Map<String, dynamic>,
+    //   ),
+      
+    // );
   }
 
   @override

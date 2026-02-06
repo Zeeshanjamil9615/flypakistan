@@ -12,12 +12,12 @@ class TypeSelector extends StatefulWidget {
 }
 
 class TypeSelectorState extends State<TypeSelector> {
-  String selectedType = 'Flights';
+  String selectedType = 'Hotels';
 
   final List<Map<String, dynamic>> travelTypes = [
-    {'icon': Icons.flight_takeoff, 'label': 'Flights'},
+    // {'icon': Icons.flight_takeoff, 'label': 'Flights'},
     {'icon': Icons.hotel, 'label': 'Hotels'},
-    {'icon': Icons.group, 'label': 'Group Tickets'},
+    // {'icon': Icons.group, 'label': 'Group Tickets'},
   ];
 
   @override

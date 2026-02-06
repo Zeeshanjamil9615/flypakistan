@@ -12,7 +12,7 @@ class CustomSnackBar {
 
   void show() {
     Get.snackbar(
-      "Sastay Hotels", // Title can be left empty if not needed
+      "Fly Pakistan", // Title can be left empty if not needed
       message,
       backgroundColor: backgroundColor,
 

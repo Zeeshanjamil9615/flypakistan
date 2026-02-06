@@ -394,15 +394,15 @@ class _AgentDashboardState extends State<AgentDashboard> {
               ),
             ),
             _buildDrawerItem(Icons.dashboard, 'Dashboard', true, () {}),
-            _buildDrawerItem(Icons.flight, 'All Flight Bookings', false, () {
-              Get.to(() => AllFlightBookingScreen());
-            }),
+            // _buildDrawerItem(Icons.flight, 'All Flight Bookings', false, () {
+            //   Get.to(() => AllFlightBookingScreen());
+            // }),
             _buildDrawerItem(Icons.hotel, 'Hotel Bookings', false, () {
               Get.to(() => AllHotelBooking());
             }),
-            _buildDrawerItem(Icons.group, 'All Group Bookings', false, () {
-              Get.to(() => AllGroupBooking());
-            }),
+            // _buildDrawerItem(Icons.group, 'All Group Bookings', false, () {
+            //   Get.to(() => AllGroupBooking());
+            // }),
             _buildDrawerItem(Icons.logout, 'Logout', false, () async {
               await authController.logout();
               Get.offAll(() => HomeScreen());

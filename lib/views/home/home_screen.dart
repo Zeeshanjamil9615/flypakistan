@@ -39,13 +39,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SizedBox(height: 30),
                 const FeatureCarousel(),
                 const SizedBox(height: 30),
-                const StatsSection(),
-                const SizedBox(height: 30),
-                const FeaturedPartners(),
-                const SizedBox(height: 20),
+                // const StatsSection(),
+                // const SizedBox(height: 30),
+                // const FeaturedPartners(),
+                // const SizedBox(height: 20),
+
               ],
-            ),
-          ),
+            ),           
+                      ),
         ),
       ),
     );
@@ -274,6 +275,19 @@ class StatsSection extends StatelessWidget {
   const StatsSection({super.key});
 
   @override
+
+
+
+
+
+
+
+
+
+
+
+
+            
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: AppConstants.screenPadding),
@@ -281,7 +295,7 @@ class StatsSection extends StatelessWidget {
       child: const Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          StatItem(
+                     StatItem(
             icon: Icons.flight,
             number: '700k+',
             label: 'Flights booked',
@@ -346,25 +360,25 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
           Image.asset("assets/images/logo.png", height: logoHeight),
           const Spacer(),
           // Currency selector
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              border: Border.all(color: AppConstants.fieldBorderColor),
-              borderRadius: BorderRadius.circular(AppConstants.borderRadius),
-            ),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text('PKR', style: TextStyle(color: TColors.primary, fontSize: 12)),
-                SizedBox(width: 4),
-                Icon(Icons.keyboard_arrow_down, color: TColors.primary, size: 16),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          // Support icon
-          Icon(Icons.headset_mic_outlined, color: TColors.primary, size: AppConstants.iconSize),
-          const SizedBox(width: 8),
+          // Container(
+          //   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          //   decoration: BoxDecoration(
+          //     border: Border.all(color: AppConstants.fieldBorderColor),
+          //     borderRadius: BorderRadius.circular(AppConstants.borderRadius),
+          //   ),
+          //   child: const Row(
+          //     mainAxisSize: MainAxisSize.min,
+          //     children: [
+          //       Text('PKR', style: TextStyle(color: TColors.primary, fontSize: 12)),
+          //       SizedBox(width: 4),
+          //       Icon(Icons.keyboard_arrow_down, color: TColors.primary, size: 16),
+          //     ],
+          //   ),
+          // ),
+          // const SizedBox(width: 8),
+          // // Support icon
+          // Icon(Icons.headset_mic_outlined, color: TColors.primary, size: AppConstants.iconSize),
+          // const SizedBox(width: 8),
           // Profile icon
           GestureDetector(
             onTap: () {

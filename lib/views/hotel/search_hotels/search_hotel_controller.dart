@@ -19,9 +19,39 @@ class SearchHotelController extends GetxController {
   var dio = Dio();
 
   // Initialize the filter data - call this after fetching hotels
-  filterhotler() {
-    originalHotels.value = List<Map<String, dynamic>>.from(hotels);
-    filteredHotels.value = List<Map<String, dynamic>>.from(hotels);
+  void filterhotler() {
+    // Take a snapshot of the latest API result and normalize default ordering
+    final List<Map<String, dynamic>> snapshot = List<Map<String, dynamic>>.from(
+      hotels,
+    );
+
+    // Default "Recommended" sorting so list is not random by default.
+    // Primary: higher rating first
+    // Secondary: lower price first (stable tie-breaker)
+    snapshot.sort((a, b) {
+      final double ratingA = _parseRating(a['rating']);
+      final double ratingB = _parseRating(b['rating']);
+      final int ratingCompare = ratingB.compareTo(ratingA); // desc
+      if (ratingCompare != 0) return ratingCompare;
+
+      final double priceA = _parsePrice(a['price']);
+      final double priceB = _parsePrice(b['price']);
+      return priceA.compareTo(priceB); // asc
+    });
+
+    originalHotels.value = snapshot;
+    filteredHotels.value = List<Map<String, dynamic>>.from(snapshot);
+    hotels.value = List<Map<String, dynamic>>.from(snapshot);
+  }
+
+  double _parsePrice(dynamic price) {
+    final String priceStr = price?.toString().replaceAll(',', '').trim() ?? '';
+    return double.tryParse(priceStr) ?? 0.0;
+  }
+
+  double _parseRating(dynamic rating) {
+    if (rating is num) return rating.toDouble();
+    return double.tryParse(rating?.toString() ?? '') ?? 0.0;
   }
 
   void filterByRating() {
@@ -64,7 +94,7 @@ class SearchHotelController extends GetxController {
       filteredHotels.value =
           originalHotels.where((hotel) {
             // Convert rating to int for comparison (round to nearest integer)
-            int hotelRating = (hotel['rating'] as double).round();
+            int hotelRating = _parseRating(hotel['rating']).round();
             bool matches = selectedStars.contains(hotelRating);
             if (kDebugMode) {
               print(
@@ -95,9 +125,7 @@ class SearchHotelController extends GetxController {
       List<Map<String, dynamic>> filtered =
           originalHotels.where((hotel) {
             // Remove commas and parse the price to a double
-            String priceStr =
-                hotel['price'].toString().replaceAll(',', '').trim();
-            double price = double.tryParse(priceStr) ?? 0.0;
+            double price = _parsePrice(hotel['price']);
             bool inRange = price >= minPrice && price <= maxPrice;
 
             if (kDebugMode) {
@@ -132,32 +160,16 @@ class SearchHotelController extends GetxController {
       switch (sortOption) {
         case 'Price (low to high)':
           sortedList.sort((a, b) {
-            double priceA =
-                double.tryParse(
-                  a['price'].toString().replaceAll(',', '').trim(),
-                ) ??
-                0.0;
-            double priceB =
-                double.tryParse(
-                  b['price'].toString().replaceAll(',', '').trim(),
-                ) ??
-                0.0;
+            double priceA = _parsePrice(a['price']);
+            double priceB = _parsePrice(b['price']);
             return priceA.compareTo(priceB);
           });
           break;
 
         case 'Price (high to low)':
           sortedList.sort((a, b) {
-            double priceA =
-                double.tryParse(
-                  a['price'].toString().replaceAll(',', '').trim(),
-                ) ??
-                0.0;
-            double priceB =
-                double.tryParse(
-                  b['price'].toString().replaceAll(',', '').trim(),
-                ) ??
-                0.0;
+            double priceA = _parsePrice(a['price']);
+            double priceB = _parsePrice(b['price']);
             return priceB.compareTo(priceA);
           });
           break;
@@ -246,7 +258,7 @@ class SearchHotelController extends GetxController {
   // Helper method to get hotels count by rating for UI display
   int getHotelCountByRating(int rating) {
     return originalHotels.where((hotel) {
-      int hotelRating = (hotel['rating'] as double).round();
+      int hotelRating = _parseRating(hotel['rating']).round();
       return hotelRating == rating;
     }).length;
   }
