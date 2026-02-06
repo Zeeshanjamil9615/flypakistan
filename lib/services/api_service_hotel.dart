@@ -163,6 +163,50 @@ class ApiServiceHotel extends GetxService {
     }
   }
 
+  /// Fetches hotel details (images) from flypakistan getHotelsDetails API for a city.
+  /// Returns a map of arabian_hotel_id (hotelCode) -> logo_url for matching with search results.
+  Future<Map<String, String>> fetchHotelDetailsImages(String cityId) async {
+    try {
+      var dio = Dio();
+      var response = await dio.request(
+        'https://flypakistan.pk/api/getHotelsDetails.php',
+        options: Options(
+          method: 'POST',
+          headers: {'Cookie': 'PHPSESSID=p1iu90god1rf31p7ab5ss5kc11'},
+        ),
+        data: FormData.fromMap({'city_id': cityId}),
+      );
+
+      if (response.statusCode != 200) return {};
+
+      var data = response.data;
+      if (data is String) {
+        try {
+          data = json.decode(data);
+        } catch (e) {
+          return {};
+        }
+      }
+      if (data is! Map || data['status'] != 200) return {};
+
+      var details = data['details'];
+      if (details == null || details is! List) return {};
+
+      Map<String, String> map = {};
+      for (var item in details) {
+        if (item is! Map<String, dynamic>) continue;
+        var arabianId = item['arabian_hotel_id']?.toString();
+        var logoUrl = item['logo_url']?.toString();
+        if (arabianId != null && arabianId.isNotEmpty && logoUrl != null && logoUrl.isNotEmpty) {
+          map[arabianId] = logoUrl;
+        }
+      }
+      return map;
+    } catch (e) {
+      return {};
+    }
+  }
+
   Future<void> fetchHotels({
     required String destinationCode,
     required String countryCode,
@@ -171,6 +215,7 @@ class ApiServiceHotel extends GetxService {
     required String checkInDate,
     required String checkOutDate,
     required List<Map<String, dynamic>> rooms,
+    String? cityId,
   }) async {
     final searchController = Get.find<SearchHotelController>();
 
@@ -179,6 +224,14 @@ class ApiServiceHotel extends GetxService {
 
     try {
       await fetchMarginAndROE();
+
+      // Fetch and store hotel images by id (for this city) before search
+      if (cityId != null && cityId.isNotEmpty) {
+        final imagesMap = await fetchHotelDetailsImages(cityId);
+        searchController.hotelImagesByCode.value = Map<String, String>.from(imagesMap);
+      } else {
+        searchController.hotelImagesByCode.value = {};
+      }
 
       final requestBody = {
         "SearchParameter": {
@@ -218,16 +271,21 @@ class ApiServiceHotel extends GetxService {
         searchController.hotels.value = hotels.map<Map<String, dynamic>>((hotel) {
           double originalPrice = double.tryParse(hotel['minPrice']?.toString() ?? '0') ?? 0;
           double finalPrice = applyPricingLogic(originalPrice);
+          String hotelCode = hotel['code']?.toString() ?? '';
+          // Use image from getHotelsDetails (matched by arabian_hotel_id) if available
+          String imageUrl = searchController.hotelImagesByCode.value[hotelCode] ??
+              hotel['hotelInfo']?['image'] ??
+              'assets/img/cardbg/broken-image.png';
 
           return {
             'name': hotel['name'] ?? 'Unknown Hotel',
             'price': finalPrice,
             'address': hotel['hotelInfo']?['add1'] ?? 'Address not available',
-            'image': hotel['hotelInfo']?['image'] ?? 'assets/img/cardbg/broken-image.png',
+            'image': imageUrl,
             'rating': double.tryParse(hotel['hotelInfo']?['starRating']?.toString() ?? '0') ?? 3.0,
             'latitude': hotel['hotelInfo']?['lat'] ?? 0.0,
             'longitude': hotel['hotelInfo']?['lon'] ?? 0.0,
-            'hotelCode': hotel['code'] ?? '',
+            'hotelCode': hotelCode,
             'hotelCity': hotel['hotelInfo']?['city'] ?? '',
           };
         }).toList();

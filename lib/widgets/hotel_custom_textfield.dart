@@ -10,12 +10,15 @@ class CityData {
   final String countryCode;
   final String zone;
   final String label;
+  /// Optional city id for flypakistan getHotelsDetails API (e.g. '1' for Lahore)
+  final String? cityId;
 
   CityData({
     required this.value,
     required this.countryCode,
     required this.zone,
     required this.label,
+    this.cityId,
   });
 
   factory CityData.fromJson(Map<String, dynamic> json) {
@@ -24,6 +27,7 @@ class CityData {
       countryCode: json['country_code']?.toString() ?? '',
       zone: json['zone']?.toString() ?? '',
       label: json['label']?.toString() ?? '',
+      cityId: json['city_id']?.toString() ?? json['id']?.toString(),
     );
   }
 

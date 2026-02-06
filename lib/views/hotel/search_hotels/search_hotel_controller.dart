@@ -242,6 +242,9 @@ class SearchHotelController extends GetxController {
   var hotelImage = ''.obs;
   var hotelAddress = ''.obs;
 
+  /// Map of hotelCode (arabian_hotel_id) -> logo_url from getHotelsDetails API
+  final hotelImagesByCode = <String, String>{}.obs;
+
   // Add this property to store selected rooms data
   final RxList<Map<String, dynamic>> selectedRoomsData =
       <Map<String, dynamic>>[].obs;

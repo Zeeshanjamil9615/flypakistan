@@ -447,6 +447,7 @@ class _HotelFormState extends State<HotelForm> {
               checkInDate: checkInDate,
               checkOutDate: checkOutDate,
               rooms: rooms,
+              cityId: selectedCity.value!.cityId ?? '1',
             );
           } catch (e) {
             // Check if it's a network-related error
