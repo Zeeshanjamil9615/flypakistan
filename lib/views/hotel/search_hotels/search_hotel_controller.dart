@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
+import 'package:ready_flights/services/api_service_hotel.dart';
 
 class SearchHotelController extends GetxController {
   // Define the hotels list with explicit type
@@ -242,8 +243,29 @@ class SearchHotelController extends GetxController {
   var hotelImage = ''.obs;
   var hotelAddress = ''.obs;
 
-  /// Map of hotelCode (arabian_hotel_id) -> logo_url from getHotelsDetails API
+  /// Map of hotelCode -> image URL from getHotelsDetails (hotel_id) API when user scrolls
   final hotelImagesByCode = <String, String>{}.obs;
+  final Set<String> _hotelImageLoadingIds = {};
+
+  /// Call when a hotel card is shown: fetches image by hotel_id if not cached. No-op if already have image or request in progress.
+  Future<void> ensureHotelImage(String hotelCode) async {
+    if (hotelCode.isEmpty) return;
+    if (hotelImagesByCode.value.containsKey(hotelCode)) return;
+    if (_hotelImageLoadingIds.contains(hotelCode)) return;
+    _hotelImageLoadingIds.add(hotelCode);
+    try {
+      final url = await ApiServiceHotel().fetchHotelDetailImage(hotelCode);
+      if (url != null && url.isNotEmpty) {
+        hotelImagesByCode.value = Map<String, String>.from(hotelImagesByCode.value)..[hotelCode] = url;
+      }
+    } finally {
+      _hotelImageLoadingIds.remove(hotelCode);
+    }
+  }
+
+  void clearHotelImageLoading() {
+    _hotelImageLoadingIds.clear();
+  }
 
   // Add this property to store selected rooms data
   final RxList<Map<String, dynamic>> selectedRoomsData =

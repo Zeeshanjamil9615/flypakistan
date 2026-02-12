@@ -749,6 +749,11 @@ class HotelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // When card is shown (e.g. on scroll), fetch hotel image by hotel_id if not yet loaded
+    final hotelCode = hotel['hotelCode']?.toString() ?? '';
+    if (hotelCode.isNotEmpty) {
+      controller.ensureHotelImage(hotelCode);
+    }
     return InkWell(
       onTap: _selectRoom,
       borderRadius: BorderRadius.circular(12),
@@ -911,22 +916,21 @@ class HotelCard extends StatelessWidget {
   }
 
   Widget _buildHotelImage() {
-    String imageUrl = hotel['image'] ?? '';
+    final hotelCode = hotel['hotelCode']?.toString() ?? '';
+    // Priority: 1) getHotelsDetails (hotel_id) API, 2) search API image, 3) asset
+    return Obx(() {
+      String imageUrl = controller.hotelImagesByCode.value[hotelCode] ??
+          hotel['image']?.toString() ??
+          '';
 
-    // Print the original image URL from hotel data
-    print('Hotel image URL: $imageUrl');
-
-    // Check if the image is a full URL (starts with http/https)
-    if (imageUrl.startsWith('http')) {
-      print('Loading network image from: $imageUrl');
-
-      return CachedNetworkImage(
+      // Check if the image is a full URL (starts with http/https)
+      if (imageUrl.startsWith('http')) {
+        return CachedNetworkImage(
         imageUrl: imageUrl,
         height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
         placeholder: (context, url) {
-          print('Loading placeholder for: $url');
           return Container(
             color: Colors.grey[300],
             child: const Center(
@@ -935,8 +939,6 @@ class HotelCard extends StatelessWidget {
           );
         },
         errorWidget: (context, url, error) {
-          print('Error loading image from: $url');
-          print('Error details: $error');
           return Image.asset(
             'assets/img/cardbg/broken-image.png',
             height: 180,
@@ -947,18 +949,14 @@ class HotelCard extends StatelessWidget {
       );
     }
     // Check if the image is a relative path starting with '/'
-    else if (imageUrl.startsWith('/')) {
-      // Convert relative path to full URL
+    if (imageUrl.startsWith('/')) {
       String fullImageUrl = 'https://static.giinfotech.ae/medianew$imageUrl';
-      print('Converting relative path to full URL: $fullImageUrl');
-
       return CachedNetworkImage(
         imageUrl: fullImageUrl,
-        height: 200,
+        height: 180,
         width: double.infinity,
         fit: BoxFit.cover,
         placeholder: (context, url) {
-          print('Loading placeholder for: $url');
           return Container(
             color: Colors.grey[300],
             child: const Center(
@@ -967,8 +965,6 @@ class HotelCard extends StatelessWidget {
           );
         },
         errorWidget: (context, url, error) {
-          print('Error loading image from: $url');
-          print('Error details: $error');
           return Image.asset(
             'assets/img/cardbg/broken-image.png',
             height: 180,
@@ -978,28 +974,24 @@ class HotelCard extends StatelessWidget {
         },
       );
     }
-    // If imageUrl is empty or doesn't match above conditions, use default asset
-    else {
-      String assetPath =
-          imageUrl.isEmpty ? 'assets/images/hotel1.jpg' : imageUrl;
-      print('Loading local asset: $assetPath');
-
-      return Image.asset(
-        assetPath,
-        height: 180,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) {
-          print('Error loading asset: $assetPath');
-          return Image.asset(
-            'assets/img/cardbg/broken-image.png',
-            height: 180,
-            width: double.infinity,
-            fit: BoxFit.cover,
-          );
-        },
-      );
-    }
+    // Empty or non-URL: use default asset
+    String assetPath =
+        imageUrl.isEmpty ? 'assets/images/hotel1.jpg' : imageUrl;
+    return Image.asset(
+      assetPath,
+      height: 180,
+      width: double.infinity,
+      fit: BoxFit.cover,
+      errorBuilder: (context, error, stackTrace) {
+        return Image.asset(
+          'assets/img/cardbg/broken-image.png',
+          height: 180,
+          width: double.infinity,
+          fit: BoxFit.cover,
+        );
+      },
+    );
+    });
   }
 }
 

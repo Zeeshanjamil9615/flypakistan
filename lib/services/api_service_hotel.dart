@@ -163,47 +163,38 @@ class ApiServiceHotel extends GetxService {
     }
   }
 
-  /// Fetches hotel details (images) from flypakistan getHotelsDetails API for a city.
-  /// Returns a map of arabian_hotel_id (hotelCode) -> logo_url for matching with search results.
-  Future<Map<String, String>> fetchHotelDetailsImages(String cityId) async {
+  /// Fetches a single hotel's image from flypakistan getHotelsDetails API.
+  /// POST with hotel_id; response: {"status":200,"hotel_image":"https://..."}
+  /// Returns the hotel_image URL or null.
+  Future<String?> fetchHotelDetailImage(String hotelId) async {
+    if (hotelId.isEmpty) return null;
     try {
       var dio = Dio();
       var response = await dio.request(
         'https://flypakistan.pk/api/getHotelsDetails.php',
         options: Options(
           method: 'POST',
-          headers: {'Cookie': 'PHPSESSID=p1iu90god1rf31p7ab5ss5kc11'},
+          headers: {'Cookie': 'PHPSESSID=tn7u2id1c3q1im57f4dcente83'},
         ),
-        data: FormData.fromMap({'city_id': cityId}),
+        data: FormData.fromMap({'hotel_id': hotelId}),
       );
 
-      if (response.statusCode != 200) return {};
+      if (response.statusCode != 200) return null;
 
       var data = response.data;
       if (data is String) {
         try {
           data = json.decode(data);
         } catch (e) {
-          return {};
+          return null;
         }
       }
-      if (data is! Map || data['status'] != 200) return {};
+      if (data is! Map || data['status'] != 200) return null;
 
-      var details = data['details'];
-      if (details == null || details is! List) return {};
-
-      Map<String, String> map = {};
-      for (var item in details) {
-        if (item is! Map<String, dynamic>) continue;
-        var arabianId = item['arabian_hotel_id']?.toString();
-        var logoUrl = item['logo_url']?.toString();
-        if (arabianId != null && arabianId.isNotEmpty && logoUrl != null && logoUrl.isNotEmpty) {
-          map[arabianId] = logoUrl;
-        }
-      }
-      return map;
+      var hotelImage = data['hotel_image']?.toString();
+      return (hotelImage != null && hotelImage.isNotEmpty) ? hotelImage : null;
     } catch (e) {
-      return {};
+      return null;
     }
   }
 
@@ -221,17 +212,12 @@ class ApiServiceHotel extends GetxService {
 
     // Set loading state
     searchController.isLoading.value = true;
+    // Clear per-hotel images from previous search so we fetch again for new results
+    searchController.hotelImagesByCode.value = {};
+    searchController.clearHotelImageLoading();
 
     try {
       await fetchMarginAndROE();
-
-      // Fetch and store hotel images by id (for this city) before search
-      if (cityId != null && cityId.isNotEmpty) {
-        final imagesMap = await fetchHotelDetailsImages(cityId);
-        searchController.hotelImagesByCode.value = Map<String, String>.from(imagesMap);
-      } else {
-        searchController.hotelImagesByCode.value = {};
-      }
 
       final requestBody = {
         "SearchParameter": {
@@ -272,10 +258,8 @@ class ApiServiceHotel extends GetxService {
           double originalPrice = double.tryParse(hotel['minPrice']?.toString() ?? '0') ?? 0;
           double finalPrice = applyPricingLogic(originalPrice);
           String hotelCode = hotel['code']?.toString() ?? '';
-          // Use image from getHotelsDetails (matched by arabian_hotel_id) if available
-          String imageUrl = searchController.hotelImagesByCode.value[hotelCode] ??
-              hotel['hotelInfo']?['image'] ??
-              'assets/img/cardbg/broken-image.png';
+          // Default image from search API; per-hotel image fetched on scroll via fetchHotelDetailImage
+          String imageUrl = hotel['hotelInfo']?['image'] ?? '';
 
           return {
             'name': hotel['name'] ?? 'Unknown Hotel',
