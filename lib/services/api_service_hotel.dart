@@ -168,16 +168,29 @@ class ApiServiceHotel extends GetxService {
   /// Returns the hotel_image URL or null.
   Future<String?> fetchHotelDetailImage(String hotelId) async {
     if (hotelId.isEmpty) return null;
+    const String url = 'https://flypakistan.pk/api/getHotelsDetails.php';
     try {
+      var requestData = FormData.fromMap({'hotel_id': hotelId});
+      // Log request
+      print('━━━ fetchHotelDetailImage REQUEST ━━━');
+      print('URL: $url');
+      print('Method: POST');
+      print('Body: { hotel_id: $hotelId }');
+
       var dio = Dio();
       var response = await dio.request(
-        'https://flypakistan.pk/api/getHotelsDetails.php',
+        url,
         options: Options(
           method: 'POST',
           headers: {'Cookie': 'PHPSESSID=tn7u2id1c3q1im57f4dcente83'},
         ),
-        data: FormData.fromMap({'hotel_id': hotelId}),
+        data: requestData,
       );
+
+      // Log response
+      print('━━━ fetchHotelDetailImage RESPONSE ━━━');
+      print('Status: ${response.statusCode}');
+      print('Data: ${response.data}');
 
       if (response.statusCode != 200) return null;
 
@@ -192,8 +205,15 @@ class ApiServiceHotel extends GetxService {
       if (data is! Map || data['status'] != 200) return null;
 
       var hotelImage = data['hotel_image']?.toString();
+      if (hotelImage != null && hotelImage.isNotEmpty) {
+        print('hotel_image: $hotelImage');
+      }
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return (hotelImage != null && hotelImage.isNotEmpty) ? hotelImage : null;
     } catch (e) {
+      print('━━━ fetchHotelDetailImage ERROR ━━━');
+      print('$e');
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return null;
     }
   }
