@@ -209,7 +209,11 @@ class ApiServiceHotel extends GetxService {
         print('hotel_image: $hotelImage');
       }
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      return (hotelImage != null && hotelImage.isNotEmpty) ? hotelImage : null;
+      // Only use when it's a valid URL (e.g. not "123" or other non-URL placeholder)
+      final isValidUrl = hotelImage != null &&
+          hotelImage.isNotEmpty &&
+          (hotelImage.startsWith('http://') || hotelImage.startsWith('https://'));
+      return isValidUrl ? hotelImage : null;
     } catch (e) {
       print('━━━ fetchHotelDetailImage ERROR ━━━');
       print('$e');
