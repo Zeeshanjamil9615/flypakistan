@@ -31,7 +31,7 @@ class _GuestsFieldState extends State<GuestsField> {
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         child: Row(
           children: [
-            Icon(Icons.person_outline, color: ucol.TColors.primary, size: AppConstants.smallIconSize),
+            Icon(Icons.person_outline, color: ucol.TColors.iconclr, size: AppConstants.smallIconSize),
             const SizedBox(width: 8),
             Expanded(
               child: Obx(() => Text(
@@ -143,12 +143,12 @@ class _GuestsFieldState extends State<GuestsField> {
           children: [
             IconButton(
               onPressed: controller.decrementRooms,
-              icon: const Icon(Icons.remove_circle_outline, color: TColors.primary),
+              icon: const Icon(Icons.remove_circle_outline, color: ucol.TColors.iconclr),
             ),
             Text('${controller.roomCount.value}'),
             IconButton(
               onPressed: controller.incrementRooms,
-              icon: const Icon(Icons.add_circle_outline, color: TColors.primary),
+              icon: const Icon(Icons.add_circle_outline, color: ucol.TColors.iconclr),
             ),
           ],
         )),
@@ -161,7 +161,7 @@ class _GuestsFieldState extends State<GuestsField> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text('Room ${roomIndex + 1}',
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: TColors.primary)),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: ucol.TColors.primary)),
         const SizedBox(height: 8),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -171,12 +171,12 @@ class _GuestsFieldState extends State<GuestsField> {
               children: [
                 IconButton(
                   onPressed: () => controller.decrementAdults(roomIndex),
-                  icon: const Icon(Icons.remove_circle_outline, color: TColors.primary),
+                  icon: const Icon(Icons.remove_circle_outline, color: ucol.TColors.iconclr),
                 ),
                 Text('${controller.rooms[roomIndex].adults.value}'),
                 IconButton(
                   onPressed: () => controller.incrementAdults(roomIndex),
-                  icon: const Icon(Icons.add_circle_outline, color: TColors.primary),
+                  icon: const Icon(Icons.add_circle_outline, color: ucol.TColors.iconclr),
                 ),
               ],
             )),
@@ -190,12 +190,12 @@ class _GuestsFieldState extends State<GuestsField> {
               children: [
                 IconButton(
                   onPressed: () => controller.decrementChildren(roomIndex),
-                  icon: const Icon(Icons.remove_circle_outline, color: TColors.primary),
+                  icon: const Icon(Icons.remove_circle_outline, color: ucol.TColors.iconclr),
                 ),
                 Text('${controller.rooms[roomIndex].children.value}'),
                 IconButton(
                   onPressed: () => controller.incrementChildren(roomIndex),
-                  icon: const Icon(Icons.add_circle_outline, color: TColors.primary),
+                  icon: const Icon(Icons.add_circle_outline, color: ucol.TColors.iconclr),
                 ),
               ],
             )),

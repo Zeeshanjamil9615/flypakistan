@@ -249,7 +249,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                     child: const Icon(
                       Icons.storefront_rounded,
                       size: 60,
-                      color: TColors.primary,
+                      color: TColors.iconclr,
                     ),
                   ),
                   const SizedBox(height: 32),
@@ -301,7 +301,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                           children: [
                             Icon(
                               Icons.location_on_rounded,
-                              color: TColors.primary,
+                              color: TColors.iconclr,
                               size: 24,
                             ),
                             const SizedBox(width: 12),
@@ -379,7 +379,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                         ),
                         child: const Icon(
                           Icons.account_balance,
-                          color: TColors.primary,
+                          color: TColors.iconclr,
                           size: 28,
                         ),
                       ),
@@ -473,7 +473,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                               child: Row(
                                 children: [
                                   const Icon(Icons.account_balance, 
-                                           color: TColors.primary, size: 20),
+                                           color: TColors.iconclr, size: 20),
                                   const SizedBox(width: 12),
                                   Text(
                                     bank,
@@ -755,7 +755,7 @@ Widget _buildModernTab(int index, String title, dynamic iconOrImage) {
                 : isRed 
                     ? Colors.red[700] 
                     : isBold 
-                        ? TColors.primary
+                        ? TColors.iconclr
                         : Colors.grey[600],
           ),
         ),

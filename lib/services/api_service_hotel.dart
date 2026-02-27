@@ -2,7 +2,7 @@
 
 import 'dart:convert';
 import 'package:dio/dio.dart';
-import 'package:get/get.dart';
+import 'package:get/get.dart' hide FormData;
 import 'package:intl/intl.dart';
 import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
 
@@ -209,11 +209,7 @@ class ApiServiceHotel extends GetxService {
         print('hotel_image: $hotelImage');
       }
       print('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-      // Only use when it's a valid URL (e.g. not "123" or other non-URL placeholder)
-      final isValidUrl = hotelImage != null &&
-          hotelImage.isNotEmpty &&
-          (hotelImage.startsWith('http://') || hotelImage.startsWith('https://'));
-      return isValidUrl ? hotelImage : null;
+      return (hotelImage != null && hotelImage.isNotEmpty) ? hotelImage : null;
     } catch (e) {
       print('━━━ fetchHotelDetailImage ERROR ━━━');
       print('$e');

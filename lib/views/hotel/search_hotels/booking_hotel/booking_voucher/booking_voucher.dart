@@ -185,7 +185,7 @@ class HotelBookingThankYouScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.assignment, color: TColors.primary),
+                const Icon(Icons.assignment, color: TColors.iconclr),
                 const SizedBox(width: 8),
                 const Text(
                   'Booking Details',
@@ -288,7 +288,7 @@ class HotelBookingThankYouScreen extends StatelessWidget {
             ),
             child: Row(
               children: [
-                const Icon(Icons.hotel, color: TColors.third),
+                const Icon(Icons.hotel, color: TColors.iconclr),
                 const SizedBox(width: 8),
                 const Text(
                   'Hotel details',
@@ -693,7 +693,7 @@ Container(
             ),
             child: Row(
               children: [
-                const Icon(Icons.headset_mic, color: TColors.third),
+                const Icon(Icons.headset_mic, color: TColors.iconclr),
                 const SizedBox(width: 8),
                 const Text(
                   'Need help?',

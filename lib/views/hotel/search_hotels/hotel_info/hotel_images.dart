@@ -550,9 +550,9 @@ class _HotelImagesGalleryScreenState extends State<HotelImagesGalleryScreen>
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: const Center(
-                                      child: Icon(
-                                        Icons.check_circle,
-                                        color: TColors.primary,
+child: Icon(
+        Icons.check_circle,
+        color: TColors.iconclr,
                                         size: 30,
                                       ),
                                     ),

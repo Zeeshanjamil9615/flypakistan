@@ -213,7 +213,7 @@ class _CustomTextFieldState extends State<CustomTextField> {
           children: [
             Icon(
               widget.icon,
-              color: widget.controller.text.isNotEmpty ? TColors.primary : AppConstants.tabInactiveColor,
+              color: widget.controller.text.isNotEmpty ? TColors.iconclr : AppConstants.tabInactiveColor,
               size: AppConstants.smallIconSize,
             ),
             const SizedBox(width: 8),

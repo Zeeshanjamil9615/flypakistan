@@ -15,7 +15,6 @@ class CustomSnackBar {
       "Fly Pakistan", // Title can be left empty if not needed
       message,
       backgroundColor: backgroundColor,
-
       colorText: Colors.white, // Text color
       snackPosition: SnackPosition.TOP,
       borderRadius: 22,
@@ -26,4 +25,3 @@ class CustomSnackBar {
     );
   }
 }
- 

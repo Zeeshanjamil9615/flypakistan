@@ -284,7 +284,7 @@ Widget build(BuildContext context) {
                           Icon(
                             Icons.check_circle,
                             size: 16,
-                            color: TColors.primary,
+                            color: TColors.iconclr,
                           ),
                         ],
                       ],
@@ -546,7 +546,7 @@ Widget build(BuildContext context) {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.star_rounded, color: TColors.primary, size: 14),
+                              Icon(Icons.star_rounded, color: TColors.iconclr, size: 14),
                               const SizedBox(width: 4),
                               Text(
                                 '${controller.ratingstar.value} Star',
@@ -872,7 +872,7 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                     ),
                     child: Icon(
                       Icons.bed_rounded,
-                      color: TColors.primary,
+                      color: TColors.iconclr,
                       size: 24,
                     ),
                   ),
@@ -935,7 +935,7 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                           ? Icons.keyboard_arrow_up_rounded 
                           : Icons.keyboard_arrow_down_rounded,
                       size: 20,
-                      color: TColors.primary,
+                      color: TColors.iconclr,
                     ),
                   ),
                 ],
@@ -1010,7 +1010,7 @@ class _RoomTypeSectionState extends State<RoomTypeSection> {
                                     ? Icons.keyboard_arrow_up_rounded 
                                     : Icons.keyboard_arrow_down_rounded,
                                 size: 18,
-                                color: TColors.primary,
+                                color: TColors.iconclr,
                               ),
                             ],
                           ),

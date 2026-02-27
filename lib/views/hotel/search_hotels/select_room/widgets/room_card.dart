@@ -96,7 +96,7 @@ class RoomCard extends StatelessWidget {
                             IconButton(
                               icon: const Icon(
                                 Icons.close,
-                                color: TColors.third,
+                                color: TColors.iconclr,
                               ),
                               onPressed: () {
                                 try {
@@ -193,7 +193,7 @@ class RoomCard extends StatelessWidget {
                                                         ),
                                                         child: const Icon(
                                                           Icons.calendar_today,
-                                                          color: TColors.primary,
+                                                          color: TColors.iconclr,
                                                           size: 20,
                                                         ),
                                                       ),
@@ -256,7 +256,7 @@ class RoomCard extends StatelessWidget {
                                                         ),
                                                         child: const Icon(
                                                           Icons.access_time,
-                                                          color: TColors.primary,
+                                                          color: TColors.iconclr,
                                                           size: 20,
                                                         ),
                                                       ),
@@ -318,7 +318,7 @@ class RoomCard extends StatelessWidget {
                                                       ),
                                                       child: const Icon(
                                                         Icons.payments_outlined,
-                                                        color: TColors.primary,
+                                                        color: TColors.iconclr,
                                                         size: 20,
                                                       ),
                                                     ),
@@ -523,7 +523,7 @@ class RoomCard extends StatelessWidget {
                           IconButton(
                             icon: const Icon(
                               Icons.close,
-                              color: TColors.third,
+                              color: TColors.iconclr,
                             ),
                             onPressed: () {
                               try {
@@ -637,7 +637,7 @@ class RoomCard extends StatelessWidget {
                                               ),
                                               child: const Icon(
                                                 Icons.calendar_today,
-                                                color: TColors.primary,
+                                                color: TColors.iconclr,
                                                 size: 20,
                                               ),
                                             ),
@@ -706,7 +706,7 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
     children: [
       Row(
         children: [
-          Icon(icon, size: 15, color: TColors.primary),
+          Icon(icon, size: 15, color: TColors.iconclr),
           const SizedBox(width: 8),
           Text(
             label,
@@ -773,7 +773,7 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                             ),
                             child: Icon(
                               _getMealIcon(room['meal'] ?? ''),
-                              color: TColors.primary,
+                              color: TColors.iconclr,
                               size: 18,
                             ),
                           ),
@@ -966,7 +966,7 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                             Icon(
                               Icons.policy_outlined,
                               size: 14,
-                              color: TColors.primary.withOpacity(0.8),
+                              color: TColors.iconclr.withOpacity(0.8),
                             ),
                             const SizedBox(width: 4),
                             Text(
@@ -998,7 +998,7 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                             Icon(
                               Icons.receipt_outlined,
                               size: 14,
-                              color: TColors.primary.withOpacity(0.8),
+                              color: TColors.iconclr.withOpacity(0.8),
                             ),
                             const SizedBox(width: 4),
                             Text(

@@ -189,7 +189,7 @@ class _HotelScreenState extends State<HotelScreen> {
                       decoration: InputDecoration(
                         hintText: 'Search for hotels...',
                         hintStyle: TextStyle(color: Colors.grey.shade600),
-                        prefixIcon: Icon(Icons.search, color: TColors.primary),
+                        prefixIcon: Icon(Icons.search, color: TColors.iconclr),
                         fillColor: Colors.white,
                         filled: true,
                         border: OutlineInputBorder(
@@ -266,7 +266,7 @@ class _HotelScreenState extends State<HotelScreen> {
   ) {
     return TextButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon, size: 16, color: Colors.grey.shade600),
+      icon: Icon(icon, size: 16, color: TColors.iconclr),
       label: Text(
         label,
         style: TextStyle(
@@ -681,7 +681,7 @@ class HotelCard extends StatelessWidget {
                 ),
                 title: Row(
                   children: [
-                    Icon(Icons.info_outline, color: TColors.third, size: 28),
+                    Icon(Icons.info_outline, color: TColors.iconclr, size: 28),
                     SizedBox(width: 12),
                     Text(
                       'No Rooms Available',
@@ -836,7 +836,7 @@ class HotelCard extends StatelessWidget {
                       padding: const EdgeInsets.all(8),
                       child: Icon(
                         Icons.location_on_rounded,
-                        color: TColors.primary,
+                        color: TColors.iconclr,
                         size: 24,
                       ),
                     ),
@@ -921,7 +921,7 @@ class HotelCard extends StatelessWidget {
     return Obx(() {
       String imageUrl = controller.hotelImagesByCode.value[hotelCode] ??
           hotel['image']?.toString() ??
-          '';
+          'assets/images/hotel1.jpg';
 
       // Check if the image is a full URL (starts with http/https)
       if (imageUrl.startsWith('http')) {
@@ -940,7 +940,7 @@ class HotelCard extends StatelessWidget {
         },
         errorWidget: (context, url, error) {
           return Image.asset(
-            'assets/img/cardbg/broken-image.png',
+            'assets/images/hotel1.jpg',
             height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
@@ -966,7 +966,7 @@ class HotelCard extends StatelessWidget {
         },
         errorWidget: (context, url, error) {
           return Image.asset(
-            'assets/img/cardbg/broken-image.png',
+            'assets/images/hotel1.jpg',
             height: 180,
             width: double.infinity,
             fit: BoxFit.cover,
@@ -984,7 +984,7 @@ class HotelCard extends StatelessWidget {
       fit: BoxFit.cover,
       errorBuilder: (context, error, stackTrace) {
         return Image.asset(
-          'assets/img/cardbg/broken-image.png',
+          'assets/images/hotel1.jpg',
           height: 180,
           width: double.infinity,
           fit: BoxFit.cover,
@@ -1317,7 +1317,7 @@ class _MapScreenState extends State<MapScreen> {
                           const SizedBox(height: 8),
                           Icon(
                             Icons.arrow_forward_ios,
-                            color: TColors.primary,
+                            color: TColors.iconclr,
                             size: 16,
                           ),
                         ],
@@ -1459,7 +1459,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
         errorWidget:
             (context, url, error) => Image.asset(
-              'assets/img/cardbg/broken-image.png',
+              'assets/images/hotel1.jpg',
               width: 60,
               height: 60,
               fit: BoxFit.cover,
@@ -1488,7 +1488,7 @@ class _MapScreenState extends State<MapScreen> {
             ),
         errorWidget:
             (context, url, error) => Image.asset(
-              'assets/img/cardbg/broken-image.png',
+              'assets/images/hotel1.jpg',
               width: 60,
               height: 60,
               fit: BoxFit.cover,
@@ -1506,7 +1506,7 @@ class _MapScreenState extends State<MapScreen> {
         fit: BoxFit.cover,
         errorBuilder:
             (context, error, stackTrace) => Image.asset(
-              'assets/img/cardbg/broken-image.png',
+              'assets/images/hotel1.jpg',
               width: 60,
               height: 60,
               fit: BoxFit.cover,
@@ -1534,14 +1534,14 @@ class _MapScreenState extends State<MapScreen> {
         elevation: 1,
         leading: IconButton(
           onPressed: () => Get.back(),
-          icon: Icon(Icons.arrow_back, color: TColors.primary),
+          icon: Icon(Icons.arrow_back, color: TColors.iconclr),
         ),
         actions: [
           IconButton(
             onPressed: () {
               _showLegend();
             },
-            icon: Icon(Icons.info_outline, color: TColors.primary),
+            icon: Icon(Icons.info_outline, color: TColors.iconclr),
           ),
           // IconButton(
           //   onPressed: () {

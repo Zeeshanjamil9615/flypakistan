@@ -100,7 +100,7 @@ class _ImportantBookingDetailsCardState
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.timer, size: 18, color: TColors.primary),
+                      const Icon(Icons.timer, size: 18, color: TColors.iconclr),
                       const SizedBox(width: 4),
                       Text(
                         formattedTime,
@@ -173,7 +173,7 @@ class _ImportantBookingDetailsCardState
                 color: TColors.primary.withOpacity(0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: const Icon(Icons.meeting_room, color: TColors.primary, size: 20),
+              child: const Icon(Icons.meeting_room, color: TColors.iconclr, size: 20),
             ),
             const SizedBox(width: 12),
             Padding(
@@ -246,7 +246,7 @@ class _ImportantBookingDetailsCardState
             color: TColors.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(icon, color: TColors.primary, size: 20),
+          child: Icon(icon, color: TColors.iconclr, size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(

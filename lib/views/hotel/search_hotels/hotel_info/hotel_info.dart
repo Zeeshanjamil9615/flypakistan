@@ -287,7 +287,7 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
                       },
                       child: Icon(
                         Icons.location_on_rounded,
-                        color: TColors.primary,
+                        color: TColors.iconclr,
                         size: 30,
                       ),
                     ),
@@ -361,7 +361,7 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
                   children: [
                     const Icon(
                       Icons.photo_library,
-                      color: TColors.primary,
+                      color: TColors.iconclr,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -385,7 +385,7 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
                   icon: const Icon(
                     Icons.fullscreen,
                     size: 16,
-                    color: TColors.primary,
+                    color: TColors.iconclr,
                   ),
                   label: const Text(
                     'View All',
@@ -530,7 +530,7 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
             children: [
               const Icon(
                 Icons.description,
-                color: TColors.primary,
+                color: TColors.iconclr,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -585,7 +585,7 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
             children: [
               const Icon(
                 Icons.star,
-                color: TColors.primary,
+                color: TColors.iconclr,
                 size: 20,
               ),
               const SizedBox(width: 8),
@@ -683,7 +683,7 @@ Widget _buildFloatingSelectRoomButton() {
                 ),
                 title: Row(
                   children: [
-                    Icon(Icons.info_outline, color: TColors.third, size: 28),
+                    Icon(Icons.info_outline, color: TColors.iconclr, size: 28),
                     SizedBox(width: 12),
                     Text(
                       'No Rooms Available',
@@ -795,7 +795,7 @@ class MapScreen extends StatelessWidget {
           onPressed: () {
             Get.back();
           },
-          icon: const Icon(Icons.arrow_back, color: TColors.primary),
+          icon: const Icon(Icons.arrow_back, color: TColors.iconclr),
         ),
       ),
       body: GoogleMap(

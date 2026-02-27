@@ -270,7 +270,7 @@ class _HotelFormState extends State<HotelForm> {
         children: [
           Row(
             children: [
-              const Icon(Icons.hotel, color: TColors.third, size: 30),
+              const Icon(Icons.hotel, color: TColors.iconclr, size: 30),
               const SizedBox(width: 10),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -324,7 +324,7 @@ class _HotelFormState extends State<HotelForm> {
       padding: const EdgeInsets.only(left: 5),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: TColors.primary),
+          Icon(icon, size: 18, color: TColors.iconclr),
           const SizedBox(width: 8),
           Text(
             title,
@@ -373,7 +373,7 @@ class _HotelFormState extends State<HotelForm> {
           children: [
             Icon(
               leadingIcon,
-              color: hasValue ? TColors.primary : AppConstants.tabInactiveColor,
+              color: hasValue ? TColors.iconclr : AppConstants.tabInactiveColor,
               size: AppConstants.smallIconSize,
             ),
             const SizedBox(width: 8),
