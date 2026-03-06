@@ -201,7 +201,7 @@ class _LoginState extends State<Login> {
                           child: ElevatedButton(
                             onPressed: controller.isLoading.value ? null : controller.login,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: TColors.secondary,
+                              backgroundColor: TColors.primary,
                               disabledBackgroundColor: TColors.secondary.withOpacity(0.6),
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(16),

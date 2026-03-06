@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:intl/intl.dart';
 import 'package:country_picker/country_picker.dart';
-import 'package:ready_flights/utility/utils.dart';
 import '../../../../services/api_service_hotel.dart';
 import '../../../users/login/login_api_service/login_api.dart';
 import '../../hotel/guests/guests_controller.dart';
@@ -166,22 +165,94 @@ HotelDateController hotelDateController = Get.find<HotelDateController>();
     super.onInit();
     // Initialize with existing GuestsController data
     initializeRoomGuests();
-    loadUserEmail();
+    loadLoggedInBookerInfo();
   }
 
-  // New method to load user email from shared preferences
-  Future<void> loadUserEmail() async {
-    try {
-      // Import the AuthController to access user data
-      final authController = Get.find<AuthController>();
-      final userData = await authController.getUserData();
+  void _setIfEmpty(TextEditingController controller, String? value) {
+    final v = value?.toString().trim();
+    if (v == null || v.isEmpty) return;
+    if (controller.text.trim().isEmpty) {
+      controller.text = v;
+    }
+  }
 
-      if (userData != null && userData['cs_email'] != null) {
-        // Set the email controller with the user's email
-        emailController.text = userData['cs_email'];
+  void _tryParseAndSetPhone(String rawPhone) {
+    // We store local-part (without country code) in `phoneController` because
+    // request body uses `getFullPhoneNumber()` = +code + local-part.
+    final normalized = rawPhone.replaceAll(' ', '').replaceAll('-', '');
+
+    // If phone already includes a +countrycode, strip it when possible.
+    if (normalized.startsWith('+')) {
+      // Common case in Pakistan market.
+      if (normalized.startsWith('+92')) {
+        selectedCountry.value = Country.parse('PK');
+        phoneController.text = normalized.substring(3); // remove +92
+        return;
       }
+
+      final currentCode = '+${selectedCountry.value.phoneCode}';
+      if (normalized.startsWith(currentCode)) {
+        phoneController.text = normalized.substring(currentCode.length);
+        return;
+      }
+    }
+
+    // Otherwise just fill as-is (user can adjust country picker).
+    phoneController.text = rawPhone.trim();
+  }
+
+  Future<void> loadLoggedInBookerInfo() async {
+    try {
+      if (!Get.isRegistered<AuthController>()) return;
+
+      final authController = Get.find<AuthController>();
+      final isLoggedIn = await authController.isLoggedIn();
+      if (!isLoggedIn) return;
+
+      final userData = await authController.getUserData();
+      if (userData == null || userData.isEmpty) return;
+
+      // Booker basic info (only fill if user hasn't typed anything yet)
+      _setIfEmpty(emailController, userData['cs_email'] ?? userData['email']);
+
+      final rawFirstName =
+          (userData['cs_fname'] ?? userData['contact_name'] ?? userData['name'])
+              ?.toString();
+      final rawLastName =
+          (userData['cs_lname'] ?? userData['cs_lastname'] ?? userData['lname'])
+              ?.toString();
+
+      if ((rawLastName == null || rawLastName.trim().isEmpty) &&
+          rawFirstName != null &&
+          rawFirstName.trim().contains(' ')) {
+        // If API gives a full name in cs_fname, split it into first/last.
+        final parts =
+            rawFirstName.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty);
+        final list = parts.toList();
+        if (list.length >= 2) {
+          _setIfEmpty(firstNameController, list.first);
+          _setIfEmpty(lastNameController, list.sublist(1).join(' '));
+        } else {
+          _setIfEmpty(firstNameController, rawFirstName);
+        }
+      } else {
+        _setIfEmpty(firstNameController, rawFirstName);
+        _setIfEmpty(lastNameController, rawLastName);
+      }
+
+      final phone = (userData['cs_phone'] ?? userData['phone'])?.toString();
+      if (phone != null && phone.trim().isNotEmpty && phoneController.text.trim().isEmpty) {
+        _tryParseAndSetPhone(phone);
+      }
+
+      // Optional defaults
+      _setIfEmpty(cityController, userData['cs_city'] ?? userData['city']);
+      _setIfEmpty(addressController, userData['full_addrss'] ?? userData['address']);
+
+      // If you store a title, respect it; otherwise leave user's choice.
+      _setIfEmpty(titleController, userData['title'] ?? userData['cs_title']);
     } catch (e) {
-      print('Error loading user email: $e');
+      print('Error loading logged-in booker info: $e');
     }
   }
 
@@ -467,13 +538,14 @@ HotelDateController hotelDateController = Get.find<HotelDateController>();
     };
 
     print('=== FINAL REQUEST BODY BUYING PRICE ===');
-    print('======================================0');
+    print(requestBody);
+    print('======================================');
 
     isLoading.value = true;
     // Send the booking request
     final bool success = await apiService.bookHotel(requestBody);
-    print('======================================1');
-    print('======================================2');
+    print('=== BOOKING API RESULT ===');
+    print('Success: $success');
 
     isLoading.value = false;
     return success;

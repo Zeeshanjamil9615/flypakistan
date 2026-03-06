@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthController extends GetxController {
   var dio = Dio();
-  static const String _baseUrl = 'https://readyflights.pk/api';
+  static const String _baseUrl = 'https://flypakistan.pk/api';
 
   // Keys for SharedPreferences
   static const String _tokenKey = 'user_auth_token';
@@ -100,6 +100,7 @@ class AuthController extends GetxController {
       );
 
       if (response.statusCode == 200 && response.data != null) {
+        print(response.data);
         final token = response.data['token'];
         final expiryTimestamp = response.data['expire'];
         final userData = response.data['UserData'] ?? {};
@@ -219,12 +220,14 @@ class AuthController extends GetxController {
 
   Future<Map<String, dynamic>> registerRequest({
     required String agencyName,
-    required String contactName,
+    required String firstName,
+    required String lastName,
     required String email,
     required String countryCode,
     required String cellNumber,
     required String address,
     required String city,
+    required String password,
   }) async {
     isLoading.value = true;
 
@@ -233,12 +236,14 @@ class AuthController extends GetxController {
         '$_baseUrl/registerRequest',
         data: {
           "agency_name": agencyName,
-          "contact_name": contactName,
+          "cs_fname": firstName,
+          "cs_lname": lastName,
           "email": email,
           "country_code": countryCode,
           "csphno": cellNumber,
-          "full_addrss": address,
           "city": city,
+          "full_addrss": address,
+          "password": password,
         },
       );
 
@@ -276,10 +281,7 @@ class AuthController extends GetxController {
           'success': true,
           'data': responseData,
           'email': responseData['email'] ?? email,
-          'message':
-              responseData is Map
-                  ? (responseData['message'] ?? 'OTP sent successfully')
-                  : 'OTP sent successfully',
+          'message': responseData['message'] ?? 'OTP sent successfully',
         };
       } else {
         // Handle other HTTP error codes
@@ -357,9 +359,7 @@ class AuthController extends GetxController {
           'success': true,
           'data': responseData,
           'message':
-              responseData is Map
-                  ? (responseData['message'] ?? 'Registration completed successfully')
-                  : 'Registration completed successfully',
+              responseData['message'] ?? 'Registration completed successfully',
         };
       } else {
         // Handle other HTTP error codes

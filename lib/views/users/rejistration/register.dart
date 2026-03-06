@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import 'package:country_picker/country_picker.dart';
 import '../../../../utility/colors.dart';
-import '../../../../utility/app_constants.dart';
 import '../login/login.dart';
 import 'rejistration_controller.dart';
 
@@ -29,8 +27,8 @@ class RegisterAccount extends StatelessWidget {
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                         colors: [
-                          TColors.secondary,
-                          TColors.secondary.withOpacity(0.8),
+                          TColors.primary,
+                          TColors.primary.withOpacity(0.8),
                         ],
                       ),
                           ),
@@ -176,8 +174,8 @@ class RegisterAccount extends StatelessWidget {
 
                           // Agency Name field
                           _buildModernTextField(
-                            label: 'Name',
-                            hint: 'Enter your name',
+                            label: 'Agency Name',
+                            hint: 'Enter agency name',
                             controller: controller.agencyNameController,
                             prefixIcon: Icons.business_outlined,
                             errorText: controller.getErrorText(controller.agencyNameError),
@@ -185,13 +183,24 @@ class RegisterAccount extends StatelessWidget {
 
                           const SizedBox(height: 20),
 
-                          // Contact Name field
+                          // First Name field
                           _buildModernTextField(
-                            label: 'Contact Name',
-                            hint: 'Enter contact name',
-                            controller: controller.contactNameController,
+                            label: 'First Name',
+                            hint: 'Enter first name',
+                            controller: controller.contactFirstNameController,
                             prefixIcon: Icons.person_outline,
-                            errorText: controller.getErrorText(controller.contactNameError),
+                            errorText: controller.getErrorText(controller.contactFirstNameError),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // Last Name field
+                          _buildModernTextField(
+                            label: 'Last Name',
+                            hint: 'Enter last name',
+                            controller: controller.contactLastNameController,
+                            prefixIcon: Icons.person_outline,
+                            errorText: controller.getErrorText(controller.contactLastNameError),
                           ),
 
                           const SizedBox(height: 20),
@@ -207,19 +216,38 @@ class RegisterAccount extends StatelessWidget {
                           ),
 
                           const SizedBox(height: 20),
+                           _buildModernTextField(
+                            label: 'Password',
+                            hint: 'Enter your password',
+                            controller: controller.passwordController,
+                            prefixIcon: Icons.lock,
+                            obscureText: true,
+                            errorText: controller.getErrorText(controller.passwordError),
+                          ),
+
+                          const SizedBox(height: 20),
 
                           // Phone Number with Country Code (No space between them)
                           _buildPhoneFieldWithCountryCode(context),
 
                           const SizedBox(height: 20),
 
+                          // Address field
+                          _buildModernTextField(
+                            label: 'Address',
+                            hint: 'Enter full address',
+                            controller: controller.addressController,
+                            prefixIcon: Icons.location_on_outlined,
+                            errorText: controller.getErrorText(controller.addressError),
+                          ),
 
+                          const SizedBox(height: 20),
 
-                    // City Name field
+                          // City Name field
                           _buildModernTextField(
                             label: 'City',
                             hint: 'Enter city name',
-                        controller: controller.cityNameController,
+                            controller: controller.cityNameController,
                             prefixIcon: Icons.location_city_outlined,
                             errorText: controller.getErrorText(controller.cityNameError),
                           ),
@@ -242,7 +270,7 @@ class RegisterAccount extends StatelessWidget {
                             child: ElevatedButton(
                             onPressed: controller.isLoading.value ? null : controller.register,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: TColors.secondary,
+                              backgroundColor: TColors.primary,
                                 disabledBackgroundColor: TColors.secondary.withOpacity(0.6),
                               shape: RoundedRectangleBorder(
                                   borderRadius: BorderRadius.circular(16),
@@ -330,6 +358,7 @@ class RegisterAccount extends StatelessWidget {
     required IconData prefixIcon,
     TextInputType keyboardType = TextInputType.text,
     String? errorText,
+    bool obscureText = false,
   }) {
     final hasError = errorText != null && errorText.isNotEmpty;
     
@@ -359,6 +388,7 @@ class RegisterAccount extends StatelessWidget {
           child: TextField(
             controller: controller,
             keyboardType: keyboardType,
+            obscureText: obscureText,
             style: TextStyle(
               fontSize: 16,
               color: Colors.grey.shade900,

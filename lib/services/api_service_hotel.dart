@@ -594,6 +594,11 @@ class ApiServiceHotel extends GetxService {
     const String bookingEndpoint = 'https://flypakistan.pk/api/create-hotel-booking';
 
     try {
+      // Log request
+      print('━━━ bookHotel REQUEST ━━━');
+      print('URL: $bookingEndpoint');
+      print('Body: ${jsonEncode(requestBody)}');
+
       final response = await dio.post(
         bookingEndpoint,
         data: requestBody,
@@ -604,6 +609,11 @@ class ApiServiceHotel extends GetxService {
           maxRedirects: 5,
         ),
       );
+
+      // Log response
+      print('━━━ bookHotel RESPONSE ━━━');
+      print('Status: ${response.statusCode}');
+      print('Data: ${response.data}');
 
       if (response.data != null) {
         final decoded = response.data is String
@@ -620,8 +630,19 @@ class ApiServiceHotel extends GetxService {
 
       return false;
     } on DioException catch (e) {
+      print('━━━ bookHotel DIO ERROR ━━━');
+      print('Message: ${e.message}');
+      if (e.response != null) {
+        print('Status: ${e.response?.statusCode}');
+        print('Data: ${e.response?.data}');
+      }
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return false;
     } catch (e, st) {
+      print('━━━ bookHotel ERROR ━━━');
+      print(e);
+      print(st);
+      print('━━━━━━━━━━━━━━━━━━━━━━━━━━━');
       return false;
     }
   }

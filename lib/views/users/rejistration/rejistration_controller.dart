@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:country_picker/country_picker.dart';
-import '../../../b2b/agent_dashboard/agent_dashboard.dart';
 import '../../../utility/colors.dart';
-import '../login/login.dart';
 import '../login/login_api_service/login_api.dart';
 import 'otp_verification_screen.dart';
 
@@ -56,11 +54,14 @@ class RegisterController extends GetxController {
 
   // Text controllers for form fields
   final TextEditingController agencyNameController = TextEditingController();
-  final TextEditingController contactNameController = TextEditingController();
+  final TextEditingController contactFirstNameController = TextEditingController();
+  final TextEditingController contactLastNameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
   final TextEditingController cellController = TextEditingController();
   final TextEditingController addressController = TextEditingController();
   final TextEditingController cityNameController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
+
 
   // Observable variables
   var selectedCountry = Country.parse('PK').obs; // Default to Pakistan
@@ -69,34 +70,40 @@ class RegisterController extends GetxController {
 
   // Form validation variables
   var agencyNameError = ''.obs;
-  var contactNameError = ''.obs;
+  var contactFirstNameError = ''.obs;
+  var contactLastNameError = ''.obs;
   var emailError = ''.obs;
   var countryCodeError = ''.obs;
   var cellError = ''.obs;
   var addressError = ''.obs;
   var cityNameError = ''.obs;
+  var passwordError = ''.obs;
 
   @override
   void onInit() {
     super.onInit();
     // Add listeners to clear errors when text changes
     agencyNameController.addListener(() => agencyNameError.value = '');
-    contactNameController.addListener(() => contactNameError.value = '');
+    contactFirstNameController.addListener(() => contactFirstNameError.value = '');
+    contactLastNameController.addListener(() => contactLastNameError.value = '');
     emailController.addListener(() => emailError.value = '');
     cellController.addListener(() => cellError.value = '');
     addressController.addListener(() => addressError.value = '');
     cityNameController.addListener(() => cityNameError.value = '');
+    passwordController.addListener(() => passwordError.value = '');
   }
 
   @override
   void onClose() {
     // Dispose all controllers
     agencyNameController.dispose();
-    contactNameController.dispose();
+    contactFirstNameController.dispose();
+    contactLastNameController.dispose();
     emailController.dispose();
     cellController.dispose();
     addressController.dispose();
     cityNameController.dispose();
+    passwordController.dispose();
     super.onClose();
   }
 
@@ -105,13 +112,15 @@ class RegisterController extends GetxController {
   // Reset all form errors
   void resetErrors() {
     agencyNameError.value = '';
-    contactNameError.value = '';
+    contactFirstNameError.value = '';
+    contactLastNameError.value = '';
     emailError.value = '';
     countryCodeError.value = '';
     cellError.value = '';
     addressError.value = '';
     cityNameError.value = '';
     apiErrorMessage.value = '';
+    passwordError.value = '';
   }
 
   // Validate email format
@@ -139,9 +148,15 @@ class RegisterController extends GetxController {
       isValid = false;
     }
 
-    // Validate Contact Name
-    if (contactNameController.text.trim().isEmpty) {
-      contactNameError.value = 'Contact name is required';
+    // Validate First Name
+    if (contactFirstNameController.text.trim().isEmpty) {
+      contactFirstNameError.value = 'First name is required';
+      isValid = false;
+    }
+
+    // Validate Last Name
+    if (contactLastNameController.text.trim().isEmpty) {
+      contactLastNameError.value = 'Last name is required';
       isValid = false;
     }
 
@@ -166,7 +181,21 @@ class RegisterController extends GetxController {
       isValid = false;
     }
 
+    // Validate Address
+    if (addressController.text.trim().isEmpty) {
+      addressError.value = 'Address is required';
+      isValid = false;
+    }
 
+    // Validate Password
+    final password = passwordController.text.trim();
+    if (password.isEmpty) {
+      passwordError.value = 'Password is required';
+      isValid = false;
+    } else if (password.length < 6) {
+      passwordError.value = 'Password must be at least 6 characters';
+      isValid = false;
+    }
 
     // Validate City Name
     if (cityNameController.text.trim().isEmpty) {
@@ -205,17 +234,21 @@ class RegisterController extends GetxController {
       // Call the API service for registration request
       final response = await authController.registerRequest(
         agencyName: agencyNameController.text.trim(),
-        contactName: contactNameController.text.trim(),
+        firstName: contactFirstNameController.text.trim(),
+        lastName: contactLastNameController.text.trim(),
         email: emailController.text.trim(),
         countryCode: '+${selectedCountry.value.phoneCode}',
         cellNumber: cellController.text.trim(),
-        address: "",
+        address: addressController.text.trim(),
         city: cityNameController.text.trim(),
+        password: passwordController.text.trim(),
+
       );
 
       if (response['success']) {
         // Get email from response or use the entered email
         final email = response['email'] ?? emailController.text.trim();
+        final password = passwordController.text.trim();
 
         // Show success message
         Get.snackbar(
@@ -228,8 +261,14 @@ class RegisterController extends GetxController {
           duration: Duration(seconds: 2),
         );
 
-        // Navigate to OTP verification screen with email
-        Get.to(() => OtpVerificationScreen(), arguments: email);
+        // Navigate to OTP verification screen with email and password
+        Get.to(
+          () => OtpVerificationScreen(),
+          arguments: {
+            'email': email,
+            'password': password,
+          },
+        );
       } else {
         // Store API error message
         apiErrorMessage.value = response['message'] ?? 'Registration request failed';

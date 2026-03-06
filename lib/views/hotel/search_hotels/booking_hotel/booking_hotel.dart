@@ -3,18 +3,162 @@ import 'package:get/get.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:ready_flights/views/hotel/search_hotels/booking_hotel/payment_hotel/payment_method.dart';
 import 'package:ready_flights/views/hotel/search_hotels/select_room/controller/select_room_controller.dart';
+import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
+import 'package:ready_flights/views/users/rejistration/register.dart';
 import '../../../../utility/colors.dart';
 import '../../../../widgets/snackbar.dart';
 import '../../hotel/guests/guests_controller.dart';
 import 'booking_controller.dart';
-import 'booking_voucher/booking_voucher.dart';
 import 'payment_hotel/important_booking_details_card.dart';
 
-class BookingHotelScreen extends StatelessWidget {
+class BookingHotelScreen extends StatefulWidget {
+  const BookingHotelScreen({super.key});
+
+  @override
+  State<BookingHotelScreen> createState() => _BookingHotelScreenState();
+}
+
+class _BookingHotelScreenState extends State<BookingHotelScreen> {
   final BookingController bookingController = Get.put(BookingController());
   final GuestsController guestsController = Get.find<GuestsController>();
 
-  BookingHotelScreen({super.key});
+  bool _promoDialogShown = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _maybeShowLoginPromoDialog();
+    });
+  }
+
+  Future<void> _maybeShowLoginPromoDialog() async {
+    if (!mounted || _promoDialogShown) return;
+
+    final authController =
+        Get.isRegistered<AuthController>() ? Get.find<AuthController>() : Get.put(AuthController());
+
+    final isLoggedIn = await authController.isLoggedIn();
+    if (!mounted) return;
+
+    if (!isLoggedIn) {
+      _promoDialogShown = true;
+      _showLoginPromoDialog();
+    }
+  }
+
+  void _showLoginPromoDialog() {
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (dialogContext) {
+        return Dialog(
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Center(
+                      child: Image.asset(
+                        'assets/images/logo1.png',
+                        height: 48,
+                        fit: BoxFit.contain,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    RichText(
+                      textAlign: TextAlign.center,
+                      text: TextSpan(
+                        style: const TextStyle(
+                          color: Colors.black87,
+                          fontSize: 14,
+                          height: 1.35,
+                        ),
+                        children: const [
+                          TextSpan(text: 'Promo code '),
+                          TextSpan(
+                            text: 'WELCOME',
+                            style: TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          TextSpan(text: '. Get PKR 500 off.'),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Create an account and use promo code WELCOME and enjoy PKR 500 off on your first booking.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.grey.shade700,
+                        fontSize: 12.5,
+                        height: 1.35,
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: OutlinedButton(
+                            onPressed: () => Navigator.of(dialogContext).pop(),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              side: BorderSide(color: Colors.grey.shade300),
+                            ),
+                            child: const Text(
+                              'Close',
+                              style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.of(dialogContext).pop();
+                              Get.to(() => RegisterAccount());
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: TColors.primary,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              elevation: 0,
+                            ),
+                            child: const Text(
+                              'Sign up & continue',
+                              style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              Positioned(
+                top: 6,
+                right: 6,
+                child: IconButton(
+                  onPressed: () => Navigator.of(dialogContext).pop(),
+                  icon: const Icon(Icons.close, size: 20, color: Colors.black54),
+                  splashRadius: 20,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -374,11 +518,6 @@ class BookingHotelScreen extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  void _showCountryPicker() {
-    // This method is no longer needed as we're using the country_picker package
-    // The showCountryPicker method is called directly in the onTap of the country picker button
   }
 
   Widget _buildSpecialRequestsCard() {

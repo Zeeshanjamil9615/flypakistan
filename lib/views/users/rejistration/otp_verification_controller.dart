@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../login/login_api_service/login_api.dart';
 import '../login/login.dart';
+import '../../home/home_screen.dart';
 
 class OtpVerificationController extends GetxController {
   final AuthController authController = Get.find<AuthController>();
 
   // Observable variables
   final RxString email = ''.obs;
+  final RxString password = ''.obs;
   final RxString otp = ''.obs;
   final RxInt remainingTime = 900.obs; // 15 minutes in seconds
   final RxInt attemptsRemaining = 3.obs;
@@ -35,11 +37,13 @@ class OtpVerificationController extends GetxController {
   @override
   void onInit() {
     super.onInit();
-    // Get email from arguments
+    // Get email (and optionally password) from arguments
     if (Get.arguments != null && Get.arguments is String) {
       email.value = Get.arguments as String;
     } else if (Get.arguments != null && Get.arguments is Map) {
-      email.value = Get.arguments['email'] ?? '';
+      final args = Get.arguments as Map;
+      email.value = args['email'] ?? '';
+      password.value = args['password'] ?? '';
     }
 
     // Add listeners to OTP controllers to update reactive length
@@ -162,13 +166,33 @@ class OtpVerificationController extends GetxController {
           colorText: Colors.white,
           snackPosition: SnackPosition.BOTTOM,
           margin: const EdgeInsets.all(10),
-          duration: const Duration(seconds: 3),
+          duration: const Duration(seconds: 2),
         );
 
-        // Navigate to login screen after a short delay
-        Future.delayed(const Duration(seconds: 1), () {
+        // If we have a stored password, login automatically; otherwise go to Login screen
+        if (password.value.isNotEmpty) {
+          final loginResult = await authController.login(
+            email: email.value,
+            password: password.value,
+          );
+
+          if (loginResult['success'] == true) {
+            Get.offAll(() => HomeScreen());
+          } else {
+            Get.offAll(() => Login());
+            Get.snackbar(
+              'Login Failed',
+              loginResult['message'] ?? 'Unable to login automatically. Please login manually.',
+              backgroundColor: Colors.red,
+              colorText: Colors.white,
+              snackPosition: SnackPosition.BOTTOM,
+              margin: const EdgeInsets.all(10),
+              duration: const Duration(seconds: 3),
+            );
+          }
+        } else {
           Get.offAll(() => Login());
-        });
+        }
       } else {
         // Decrement attempts
         attemptsRemaining.value--;
