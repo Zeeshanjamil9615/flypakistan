@@ -55,23 +55,27 @@ class OtpVerificationScreen extends StatelessWidget {
                           const SizedBox(height: 40),
 
                           // Title
-                          Text(
-                            'Verify Your Email',
-                            style: TextStyle(
-                              color: TColors.text,
-                              fontSize: 28,
-                              fontWeight: FontWeight.bold,
+                          Center(
+                            child: Text(
+                              'Verify Your Email',
+                              style: TextStyle(
+                                color: TColors.text,
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
 
                           const SizedBox(height: 12),
 
                           // Description
-                          Text(
-                            'We\'ve sent a 6-digit OTP to',
-                            style: TextStyle(
-                              color: TColors.text.withOpacity(0.7),
-                              fontSize: 16,
+                          Center(
+                            child: Text(
+                              'We\'ve sent a 6-digit OTP to',
+                              style: TextStyle(
+                                color: TColors.text.withOpacity(0.7),
+                                fontSize: 16,
+                              ),
                             ),
                           ),
 

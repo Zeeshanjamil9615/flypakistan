@@ -172,17 +172,6 @@ class RegisterAccount extends StatelessWidget {
                       ),
                     ),
 
-                          // Agency Name field
-                          _buildModernTextField(
-                            label: 'Agency Name',
-                            hint: 'Enter agency name',
-                            controller: controller.agencyNameController,
-                            prefixIcon: Icons.business_outlined,
-                            errorText: controller.getErrorText(controller.agencyNameError),
-                          ),
-
-                          const SizedBox(height: 20),
-
                           // First Name field
                           _buildModernTextField(
                             label: 'First Name',

@@ -218,10 +218,7 @@ class CustomerServiceSection extends StatelessWidget {
                       '24/7 Customer Service',
                       style: AppConstants.customerServiceTitleStyle,
                     ),
-                    Text(
-                      'Speak to Asma or another travel expert',
-                      style: AppConstants.customerServiceSubtitleStyle,
-                    ),
+                   
                   ],
                 ),
               ),

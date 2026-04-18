@@ -142,12 +142,6 @@ class RegisterController extends GetxController {
     resetErrors();
     bool isValid = true;
 
-    // Validate Agency Name
-    if (agencyNameController.text.trim().isEmpty) {
-      agencyNameError.value = 'Agency name is required';
-      isValid = false;
-    }
-
     // Validate First Name
     if (contactFirstNameController.text.trim().isEmpty) {
       contactFirstNameError.value = 'First name is required';
@@ -208,6 +202,7 @@ class RegisterController extends GetxController {
 
   // Register method - now sends registration request and navigates to OTP screen
   void register() async {
+    
     // Clear focus to hide keyboard
     FocusManager.instance.primaryFocus?.unfocus();
 
@@ -230,6 +225,11 @@ class RegisterController extends GetxController {
     try {
       // Show loading indicator
       isLoading.value = true;
+
+      // Backend expects agency_name; per requirement, send it from First + Last name.
+      agencyNameController.text =
+          '${contactFirstNameController.text.trim()} ${contactLastNameController.text.trim()}'
+              .trim();
 
       // Call the API service for registration request
       final response = await authController.registerRequest(

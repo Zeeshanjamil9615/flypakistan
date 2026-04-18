@@ -6,7 +6,6 @@ import 'package:get/get.dart' hide FormData;
 import 'package:intl/intl.dart';
 import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
 
-import '../utility/utils.dart';
 import '../views/hotel/hotel/guests/guests_controller.dart';
 import '../views/hotel/search_hotels/booking_hotel/booking_controller.dart';
 import '../views/hotel/search_hotels/search_hotel_controller.dart';
@@ -121,6 +120,77 @@ class ApiServiceHotel extends GetxService {
         options: Options(method: 'GET', headers: headers),
       );
       if (response.statusCode == 200) {
+        List<dynamic> _sortCities(List<dynamic> items) {
+          const List<String> preferredCityOrder = [
+            'karachi',
+            'lahore',
+            'islamabad',
+            'faisalabad',
+            'peshawar',
+            'multan',
+            'sialkot',
+            'gujranwala',
+            'murree',
+            'nathia gali',
+            'hunza',
+            'skardu',
+            'swat',
+            'hyderabad',
+            'gilgit',
+            'rawalpindi',
+          ];
+          final Map<String, int> preferredCityIndex = {
+            for (int i = 0; i < preferredCityOrder.length; i++)
+              preferredCityOrder[i]: i,
+          };
+
+          String keyOf(dynamic item) {
+            if (item is String) return item;
+            if (item is Map) {
+              const keys = [
+                'name',
+                'city',
+                'label',
+                'text',
+                'destination',
+                'destinationName',
+                'CityName',
+                'city_name',
+              ];
+              for (final k in keys) {
+                final v = item[k];
+                if (v != null) return v.toString();
+              }
+              // If the shape is unknown, at least make it deterministic.
+              return item.values.isNotEmpty ? item.values.first.toString() : '';
+            }
+            return item?.toString() ?? '';
+          }
+
+          String normalizedCityName(dynamic item) {
+            final raw = keyOf(item).trim().toLowerCase();
+            final cleaned = raw
+                .replaceAll(RegExp(r',\s*pakistan$'), '')
+                .replaceAll(RegExp(r'\s+'), ' ')
+                .trim();
+            if (cleaned == 'nathiagali') return 'nathia gali';
+            return cleaned;
+          }
+
+          items.sort((a, b) {
+            final ka = normalizedCityName(a);
+            final kb = normalizedCityName(b);
+            final ia = preferredCityIndex[ka];
+            final ib = preferredCityIndex[kb];
+
+            if (ia != null && ib != null) return ia.compareTo(ib);
+            if (ia != null) return -1;
+            if (ib != null) return 1;
+            return ka.compareTo(kb);
+          });
+          return items;
+        }
+
         // Print raw response data type for debugging
         // Handle string response that needs to be parsed as JSON
         if (response.data is String) {
@@ -129,9 +199,9 @@ class ApiServiceHotel extends GetxService {
             if (decodedData is Map &&
                 decodedData['status'] == 200 &&
                 decodedData['data'] != null) {
-              return decodedData['data'] as List;
+              return _sortCities(List<dynamic>.from(decodedData['data'] as List));
             } else if (decodedData is List) {
-              return decodedData;
+              return _sortCities(List<dynamic>.from(decodedData));
             } else {
               return [];
             }
@@ -142,14 +212,16 @@ class ApiServiceHotel extends GetxService {
         // Handle Map response structure
         else if (response.data is Map) {
           if (response.data['status'] == 200 && response.data['data'] != null) {
-            return response.data['data'] as List;
+            return _sortCities(
+              List<dynamic>.from(response.data['data'] as List),
+            );
           } else {
             return [];
           }
         }
         // Handle direct List response
         else if (response.data is List) {
-          return response.data as List;
+          return _sortCities(List<dynamic>.from(response.data as List));
         }
         // Fallback for unexpected response types
         else {
@@ -186,24 +258,21 @@ class ApiServiceHotel extends GetxService {
         ),
         data: requestData,
       );
-
       // Log response
       print('━━━ fetchHotelDetailImage RESPONSE ━━━');
       print('Status: ${response.statusCode}');
       print('Data: ${response.data}');
 
       if (response.statusCode != 200) return null;
-
       var data = response.data;
       if (data is String) {
         try {
-          data = json.decode(data);
+          data = json.decode(data); 
         } catch (e) {
           return null;
         }
       }
       if (data is! Map || data['status'] != 200) return null;
-
       var hotelImage = data['hotel_image']?.toString();
       if (hotelImage != null && hotelImage.isNotEmpty) {
         print('hotel_image: $hotelImage');
