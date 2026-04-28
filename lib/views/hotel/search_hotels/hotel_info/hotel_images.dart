@@ -79,10 +79,11 @@ class _HotelImagesGalleryScreenState extends State<HotelImagesGalleryScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TColors.black,
-      body: GestureDetector(
-        onTap: _toggleUI,
-        child: Stack(
-          children: [
+      body: SafeArea(
+        child: GestureDetector(
+          onTap: _toggleUI,
+          child: Stack(
+            children: [
             // Main photo gallery
             PhotoViewGallery.builder(
               scrollPhysics: const BouncingScrollPhysics(),
@@ -405,7 +406,8 @@ class _HotelImagesGalleryScreenState extends State<HotelImagesGalleryScreen>
                 );
               },
             ),
-          ],
+            ],
+          ),
         ),
       ),
     );

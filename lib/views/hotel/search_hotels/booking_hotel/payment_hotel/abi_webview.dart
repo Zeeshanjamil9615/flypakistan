@@ -209,7 +209,10 @@ class _AbhipayWebViewState extends State<AbhipayWebView> {
           },
         ),
       ),
-      body: WebViewWidget(controller: controller),
+      body: SafeArea(
+        top: false,
+        child: WebViewWidget(controller: controller),
+      ),
     );
   }
 }

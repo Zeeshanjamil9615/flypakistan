@@ -21,7 +21,8 @@ class HotelFormScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
+      body: SafeArea(
+        child: Stack(
         children: [
           // Background with gradient
           Container(
@@ -99,6 +100,7 @@ class HotelFormScreen extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

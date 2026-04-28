@@ -51,24 +51,27 @@ class _HotelPaymentScreenState extends State<HotelPaymentScreen>
     return Scaffold(
       backgroundColor: TColors.background,
       appBar: _buildAppBar(),
-      body: Column(
-        children: [
-          _buildTabBar(),
-          Expanded(
-            child: AnimatedBuilder(
-              animation: _fadeAnimation,
-              builder: (context, child) {
-                return Opacity(
-                  opacity: _fadeAnimation.value,
-                  child: Transform.translate(
-                    offset: Offset(0, 30 * (1 - _fadeAnimation.value)),
-                    child: Obx(() => _buildTabContent()),
-                  ),
-                );
-              },
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            _buildTabBar(),
+            Expanded(
+              child: AnimatedBuilder(
+                animation: _fadeAnimation,
+                builder: (context, child) {
+                  return Opacity(
+                    opacity: _fadeAnimation.value,
+                    child: Transform.translate(
+                      offset: Offset(0, 30 * (1 - _fadeAnimation.value)),
+                      child: Obx(() => _buildTabContent()),
+                    ),
+                  );
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -1165,10 +1168,12 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
           ),
         ),
       ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
+      body: SafeArea(
+        top: false,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               if (isChecking) ...[
@@ -1243,6 +1248,7 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
                 child: const Text('Back to Payment'),
               ),
             ],
+            ),
           ),
         ),
       ),

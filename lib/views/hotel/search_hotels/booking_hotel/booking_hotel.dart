@@ -181,36 +181,39 @@ class _BookingHotelScreenState extends State<BookingHotelScreen> {
           onPressed: () => Get.back(),
         ),
       ),
-      body: Obx(
-        () => Stack(
-          children: [
-            SingleChildScrollView(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const ImportantBookingDetailsCard(),
-                    const SizedBox(height: 16),
-                    _buildRoomCards(),
-                    const SizedBox(height: 16),
-                    _buildBookerInfoCard(),
-                    const SizedBox(height: 16),
-                    _buildSpecialRequestsCard(),
-                    const SizedBox(height: 16),
-                    _buildTermsAndConditions(),
-                    const SizedBox(height: 24),
-                    _buildSubmitButton(),
-                    const SizedBox(height: 24),
-                  ],
+      body: SafeArea(
+        top: false,
+        child: Obx(
+          () => Stack(
+            children: [
+              SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const ImportantBookingDetailsCard(),
+                      const SizedBox(height: 16),
+                      _buildRoomCards(),
+                      const SizedBox(height: 16),
+                      _buildBookerInfoCard(),
+                      const SizedBox(height: 16),
+                      _buildSpecialRequestsCard(),
+                      const SizedBox(height: 16),
+                      _buildTermsAndConditions(),
+                      const SizedBox(height: 24),
+                      _buildSubmitButton(),
+                      const SizedBox(height: 24),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            if (bookingController.isLoading.value)
-              const Center(
-                child: CircularProgressIndicator(color: TColors.primary),
-              ),
-          ],
+              if (bookingController.isLoading.value)
+                const Center(
+                  child: CircularProgressIndicator(color: TColors.primary),
+                ),
+            ],
+          ),
         ),
       ),
     );

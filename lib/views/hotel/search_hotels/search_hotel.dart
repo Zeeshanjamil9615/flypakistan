@@ -166,7 +166,9 @@ class _HotelScreenState extends State<HotelScreen> {
           ),
         ),
       ),
-      body: Column(
+      body: SafeArea(
+        top: false,
+        child: Column(
         children: [
           // Header Section with Search Text Field and Buttons - Only show when not loading
           Obx(() {
@@ -254,6 +256,7 @@ class _HotelScreenState extends State<HotelScreen> {
             }),
           ),
         ],
+        ),
       ),
     );
   }
@@ -447,8 +450,8 @@ class _HotelScreenState extends State<HotelScreen> {
                     max: maxPrice,
                     divisions: 10,
                     labels: RangeLabels(
-                      '\$${lowerValue.round()}',
-                      '\$${upperValue.round()}',
+                      'PKR ${lowerValue.round()}',
+                      'PKR ${upperValue.round()}',
                     ),
                     onChanged: (values) {
                       setState(() {
@@ -1221,6 +1224,7 @@ class _MapScreenState extends State<MapScreen> {
         hotelPrice > 0 ? (hotelPrice / dateController.nights.value).round() : 0;
 
     showModalBottomSheet(
+      
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
@@ -1408,7 +1412,7 @@ class _MapScreenState extends State<MapScreen> {
   }
 
   // Add this new method to handle navigation to hotel details
-  void _navigateToHotelDetails(Map hotel) {
+  Future<void> _navigateToHotelDetails (Map hotel) async {
     // Update controller values with selected hotel data
     controller.ratingstar.value = (hotel['rating'] as double).toInt();
     controller.hotelCode.value = hotel['hotelCode'];
@@ -1419,17 +1423,95 @@ class _MapScreenState extends State<MapScreen> {
 
     // Clear previous room data
     controller.roomsdata.clear();
+          
+          // Show loading indicator
+          Get.dialog(
+            const Center(
+              child: CircularProgressIndicator(color: TColors.primary),
+            ),
+            barrierDismissible: false,
+          );
+          
+          await ApiServiceHotel().fetchRoomDetails(
+          hotel['hotelCode'] ?? '',
+            controller.sessionId.value,
+          );
+          
+          // Close loading dialog
+          Get.back();
+          
+          // Check if rooms are available
+          if (controller.roomsdata.isEmpty) {
+            Get.dialog(
+              AlertDialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                title: Row(
+                  children: [
+                    Icon(Icons.info_outline, color: TColors.iconclr, size: 28),
+                    SizedBox(width: 12),
+                    Text(
+                      'No Rooms Available',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: TColors.text,
+                      ),
+                    ),
+                  ],
+                ),
+                content: Text(
+                  'Sorry, there are no rooms available for this hotel at the moment. Please try another hotel or different dates.',
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: TColors.text,
+                    height: 1.5,
+                  ),
+                ),
+                actions: [
+                  TextButton(
+                    onPressed: () {
+                      try {
+                        Get.back();
+                      } catch (e) {
+                        // Dialog already closed
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      backgroundColor: TColors.primary,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                    ),
+                    child: Text(
+                      'OK',
+                      style: TextStyle(
+                        color: TColors.white,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              barrierDismissible: false,
+            );
+          } else {
+            controller.filterhotler();
+            Get.to(() => const SelectRoomScreen());
+          }
 
     // Fetch hotel details and navigate
-    ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
-    controller.filterhotler();
+    // ApiServiceHotel().fetchHotelDetails(hotel['hotelCode']);
+    // controller.filterhotler();
 
-    Get.off(
-      () => HotelInfoScreen(
-        hotelId: hotel['hotelCode'],
-        hotelData: hotel as Map<String, dynamic>,
-      ),
-    );
+    // Get.off(
+    //   () => HotelInfoScreen(
+    //     hotelId: hotel['hotelCode'],
+    //     hotelData: hotel as Map<String, dynamic>,
+    //   ),
+    // );
   }
 
   // Helper method to build small hotel image
@@ -1551,15 +1633,18 @@ class _MapScreenState extends State<MapScreen> {
           // ),
         ],
       ),
-      body: GoogleMap(
-        initialCameraPosition: initialPosition,
-        markers: markers,
-        onMapCreated: (GoogleMapController controller) {
-          mapController = controller;
-        },
-        myLocationEnabled: true,
-        myLocationButtonEnabled: true,
-        zoomControlsEnabled: true,
+      body: SafeArea(
+        top: false,
+        child: GoogleMap(
+          initialCameraPosition: initialPosition,
+          markers: markers,
+          onMapCreated: (GoogleMapController controller) {
+            mapController = controller;
+          },
+          myLocationEnabled: true,
+          myLocationButtonEnabled: true,
+          zoomControlsEnabled: true,
+        ),
       ),
       floatingActionButton: Column(
         mainAxisAlignment: MainAxisAlignment.end,

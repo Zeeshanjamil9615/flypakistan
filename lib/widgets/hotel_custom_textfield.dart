@@ -5,7 +5,7 @@ import '../services/api_service_hotel.dart';
 import '../utility/app_constants.dart';
 import '../utility/colors.dart';
 
-class CityData {
+class CityData {       
   final String value;
   final String countryCode;
   final String zone;

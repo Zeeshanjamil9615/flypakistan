@@ -65,21 +65,23 @@ class _HotelInfoScreenState extends State<HotelInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: TColors.background,
-      body: Stack( // Changed to Stack to overlay floating button
-        children: [
-          // Main content
-          isLoading
-              ? _buildLoadingWidget()
-              : errorMessage != null
-                  ? _buildErrorWidget()
-                  : hotelDetails == null
-                      ? _buildNoDataWidget()
-                      : _buildHotelContent(),
-          
-          // Floating Select Room Button
-          if (!isLoading && errorMessage == null && hotelDetails != null)
-            _buildFloatingSelectRoomButton(),
-        ],
+      body: SafeArea(
+        child: Stack( // Changed to Stack to overlay floating button
+          children: [
+            // Main content
+            isLoading
+                ? _buildLoadingWidget()
+                : errorMessage != null
+                    ? _buildErrorWidget()
+                    : hotelDetails == null
+                        ? _buildNoDataWidget()
+                        : _buildHotelContent(),
+            
+            // Floating Select Room Button
+            if (!isLoading && errorMessage == null && hotelDetails != null)
+              _buildFloatingSelectRoomButton(),
+          ],
+        ),
       ),
     );
   }
@@ -798,15 +800,18 @@ class MapScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back, color: TColors.iconclr),
         ),
       ),
-      body: GoogleMap(
-        initialCameraPosition: initialPosition,
-        markers: {
-          Marker(
-            markerId: MarkerId(hotelName),
-            position: LatLng(latitude, longitude),
-            infoWindow: InfoWindow(title: hotelName),
-          ),
-        },
+      body: SafeArea(
+        top: false,
+        child: GoogleMap(
+          initialCameraPosition: initialPosition,
+          markers: {
+            Marker(
+              markerId: MarkerId(hotelName),
+              position: LatLng(latitude, longitude),
+              infoWindow: InfoWindow(title: hotelName),
+            ),
+          },
+        ),
       ),
     );
   }

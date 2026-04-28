@@ -298,7 +298,9 @@ Widget build(BuildContext context) {
             )
           : null,
     ),
-    body: Obx(() {
+    body: SafeArea(
+      top: false,
+      child: Obx(() {
       if (controller.roomsdata.isEmpty) {
         return Center(
           child: Column(
@@ -420,6 +422,7 @@ Widget build(BuildContext context) {
           );
         }
       }),
+    ),
       bottomNavigationBar:
           guestsController.roomCount.value > 1 && allRoomsSelected
               ? Container(

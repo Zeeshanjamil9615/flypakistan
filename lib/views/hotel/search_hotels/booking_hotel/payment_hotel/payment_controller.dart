@@ -250,7 +250,7 @@ class PaymentController extends GetxController {
   }
 
   // Get payment status from API - use orderId
-  Future<String?> _getPaymentStatus(String orderId) async {
+  Future<String?>                                                                                                                                            _getPaymentStatus(String orderId) async {
     try {
       final response = await http.get(
         Uri.parse('$abhipayBaseUrl/orders/$orderId'),
@@ -275,11 +275,10 @@ class PaymentController extends GetxController {
         return null;
       }
     } catch (e) {
-      print('Status check exception: $e');
+      print('Status check exception: $e');                                   
       return null;
     }
   }
-
   // Stop polling and handle navigation - UPDATED
   void _stopPollingAndNavigate(bool success) {
     print('Stopping polling, success: $success');
@@ -296,7 +295,6 @@ class PaymentController extends GetxController {
       print('❌ Payment failed via WebView - Status: ${bookingController.payment_status.value}');
     }
   }
-
   void _navigateToSuccess(String orderId) {
     if (!Get.currentRoute.contains('HotelBookingThankYouScreen')) {
       print('Navigating to success screen for Order ID: $orderId');
@@ -307,7 +305,6 @@ class PaymentController extends GetxController {
       });
     }
   }
-
   void _navigateToFailure() {
     if (Get.currentRoute.contains('AbhipayWebView')) {
       Get.back();

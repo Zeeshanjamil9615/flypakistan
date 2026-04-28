@@ -67,26 +67,30 @@ class HotelBookingThankYouScreen extends StatelessWidget {
           ),
         ],
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            _buildSuccessHeader(),
-            const SizedBox(height: 20),
-            _buildBookingDetailsCard(),
-            const SizedBox(height: 16),
-            _buildHotelDetailsCard(),
-            const SizedBox(height: 16),
-            ..._buildRoomDetailsCards(), // Changed to build multiple room cards
-            const SizedBox(height: 16),
-            // _buildBookerDetailsCard(),
-            const SizedBox(height: 16),
-            _buildPrivacyPolicySection(), // New privacy policy section
+      body: SafeArea(
+        top: false,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              _buildSuccessHeader(),
+              const SizedBox(height: 20),
+              _buildBookingDetailsCard(),
+              const SizedBox(height: 16),
+              _buildHotelDetailsCard(),
+              const SizedBox(height: 16),
+              ..._buildRoomDetailsCards(), // Changed to build multiple room cards
+              const SizedBox(height: 16),
+              // _buildBookerDetailsCard(),
+              const SizedBox(height: 16),
+              
+              _buildInstructionsSection(),
 
-            const SizedBox(height: 16),
-            _buildContactSupportSection(), // New contact support section
+              const SizedBox(height: 16),
+              _buildContactSupportSection(), // New contact support section
 
-            const SizedBox(height: 20),
-          ],
+              const SizedBox(height: 20),
+            ],
+          ),
         ),
       ),
     );
@@ -137,7 +141,7 @@ class HotelBookingThankYouScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'Thanks for choosing readyflight.pk. We have received your hotel booking and it will be confirmed with hotel shortly after confirmation of payment from your side.',
+            'Thanks for choosing flypakistan.pk. We have received your hotel booking and it will be confirmed with hotel shortly after confirmation of payment from your side.',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -146,7 +150,7 @@ class HotelBookingThankYouScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            'You can also call us at our customer support no: +92 3219667909',
+            'You can also call us at our customer support no: +92 3459668442',
             style: TextStyle(
               fontSize: 14,
               color: Colors.grey.shade600,
@@ -291,7 +295,7 @@ class HotelBookingThankYouScreen extends StatelessWidget {
                 const Icon(Icons.hotel, color: TColors.iconclr),
                 const SizedBox(width: 8),
                 const Text(
-                  'Hotel details',
+                  'Hotel',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -722,7 +726,7 @@ Container(
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton(
-                    onPressed: () => _makePhoneCall('+923219667909'),
+                    onPressed: () => _makePhoneCall('+923459668442'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: TColors.primary,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -837,9 +841,7 @@ Container(
     );
   }
 
-  // New Privacy Policy Section
- // New Privacy Policy Section with improved design
-Widget _buildPrivacyPolicySection() {
+Widget _buildInstructionsSection() {
   return Container(
     margin: const EdgeInsets.symmetric(horizontal: 16),
     decoration: BoxDecoration(
@@ -855,7 +857,6 @@ Widget _buildPrivacyPolicySection() {
     ),
     child: Column(
       children: [
-        // Header Section
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
@@ -881,7 +882,7 @@ Widget _buildPrivacyPolicySection() {
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: const Icon(
-                  Icons.security_rounded,
+                  Icons.info_outline,
                   color: TColors.primary,
                   size: 20,
                 ),
@@ -889,7 +890,7 @@ Widget _buildPrivacyPolicySection() {
               const SizedBox(width: 12),
               const Expanded(
                 child: Text(
-                  'Privacy & Legal Information',
+                  'Instructions',
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.bold,
@@ -901,85 +902,12 @@ Widget _buildPrivacyPolicySection() {
           ),
         ),
         
-        // Content Section
         Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Your privacy and security are important to us. Please review our policies to understand how we handle your information.',
-                style: TextStyle(
-                  fontSize: 14,
-                  color: Colors.grey.shade700,
-                  height: 1.4,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              
-              const SizedBox(height: 20),
-              
-              // Privacy Policy Button
-              _buildPolicyButton(
-                icon: Icons.privacy_tip_outlined,
-                title: 'Privacy Policy',
-                subtitle: 'How we collect and use your data',
-                onTap: () => _launchPrivacyPolicy(),
-                color: TColors.primary,
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // Terms of Service Button (optional - you can add this method)
-              _buildPolicyButton(
-                icon: Icons.article_outlined,
-                title: 'Terms of Service',
-                subtitle: 'Rules and guidelines for using our service',
-                onTap: () => _launchTermsOfService(),
-                color: TColors.secondary,
-              ),
-              
-              const SizedBox(height: 12),
-              
-              // Cancellation Policy Button (optional - you can add this method)
-              _buildPolicyButton(
-                icon: Icons.cancel_outlined,
-                title: 'Cancellation Policy',
-                subtitle: 'Booking modification and cancellation terms',
-                onTap: () => _launchCancellationPolicy(),
-                color: TColors.third,
-              ),
-              
-              const SizedBox(height: 16),
-              
-              // Footer note
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: TColors.background2.withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.info_outline,
-                      size: 16,
-                      color: Colors.grey.shade600,
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'By proceeding with this booking, you agree to our terms and conditions.',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                          height: 1.3,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+              ..._buildInstructionRows(),
             ],
           ),
         ),
@@ -988,72 +916,43 @@ Widget _buildPrivacyPolicySection() {
   );
 }
 
-// Helper method for policy buttons
-Widget _buildPolicyButton({
-  required IconData icon,
-  required String title,
-  required String subtitle,
-  required VoidCallback onTap,
-  required Color color,
-}) {
-  return InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(8),
-    child: Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: color.withOpacity(0.3)),
-        borderRadius: BorderRadius.circular(8),
-        color: color.withOpacity(0.05),
-      ),
+List<String> _instructionItems() {
+  return const [
+    "Payment will only be received in the company account, the owner's account, or at the physical head office.",
+    'Non-refundable bookings cannot be cancelled under any circumstances.',
+    'Refunds will be processed within 3 months after cancellation.',
+    'Same day booking will be confirmed after receiving the payment.',
+    'Booking is valid only on a company-issued hotel voucher.',
+  ];
+}
+
+List<Widget> _buildInstructionRows() {
+  final items = _instructionItems();
+  return List.generate(items.length, (index) {
+    return Padding(
+      padding: EdgeInsets.only(bottom: index == items.length - 1 ? 0 : 10),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: color.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Icon(
-              icon,
-              color: color,
-              size: 18,
-            ),
+          const Padding(
+            padding: EdgeInsets.only(top: 6),
+            child: Icon(Icons.circle, size: 8, color: Colors.green),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    color: color,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: TextStyle(
-                    fontSize: 12,
-                    color: Colors.grey.shade600,
-                    height: 1.2,
-                  ),
-                ),
-              ],
+            child: Text(
+              items[index],
+              style: TextStyle(
+                fontSize: 14,
+                color: Colors.grey.shade700,
+                height: 1.4,
+              ),
             ),
-          ),
-          Icon(
-            Icons.arrow_forward_ios,
-            size: 14,
-            color: color.withOpacity(0.7),
           ),
         ],
       ),
-    ),
-  );
+    );
+  });
 }
 Widget _buildDetailRow(String label, String value) {
     return Row(
@@ -1152,25 +1051,6 @@ Widget _buildDetailRow(String label, String value) {
         ),
       ),
     );
-  }
-
-  // Privacy Policy and Terms launch methods
-  Future<void> _launchPrivacyPolicy() async {
-    const url = 'https://readyflight.pk/privacy-policy';
-    final Uri uri = Uri.parse(url);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _launchTermsOfService() async {
-    const url = 'https://readyflight.pk/terms-of-service';
-    final Uri uri = Uri.parse(url);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-
-  Future<void> _launchCancellationPolicy() async {
-    const url = 'https://readyflight.pk/cancellation-policy';
-    final Uri uri = Uri.parse(url);
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   Future<void> _generatePDF(BuildContext context) async {
@@ -1314,6 +1194,10 @@ Widget _buildDetailRow(String label, String value) {
             ),
             
             pw.SizedBox(height: 20),
+
+            _buildPDFInstructionsSection(),
+
+            pw.SizedBox(height: 20),
             
             // Contact Info
             pw.Container(
@@ -1336,7 +1220,7 @@ Widget _buildDetailRow(String label, String value) {
                   ),
                   pw.SizedBox(height: 8),
                   pw.Text(
-                    'Phone: +92 3219667909',
+                    'Phone: +92 3459668442',
                     style: const pw.TextStyle(fontSize: 14),
                   ),
                   pw.Text(
@@ -1352,6 +1236,73 @@ Widget _buildDetailRow(String label, String value) {
     );
 
     return pdf.save();
+  }
+
+  pw.Widget _buildPDFInstructionsSection() {
+    final items = _instructionItems();
+    return pw.Container(
+      decoration: pw.BoxDecoration(
+        border: pw.Border.all(color: PdfColors.grey300),
+        borderRadius: pw.BorderRadius.circular(8),
+      ),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Container(
+            width: double.infinity,
+            padding: const pw.EdgeInsets.all(12),
+            decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              borderRadius: const pw.BorderRadius.only(
+                topLeft: pw.Radius.circular(8),
+                topRight: pw.Radius.circular(8),
+              ),
+            ),
+            child: pw.Text(
+              'Instructions',
+              style: pw.TextStyle(
+                fontSize: 14,
+                fontWeight: pw.FontWeight.bold,
+              ),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(12),
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: items.map(
+                (item) => pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 8),
+                  child: pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Padding(
+                        padding: const pw.EdgeInsets.only(top: 3),
+                        child: pw.Container(
+                          width: 5,
+                          height: 5,
+                          decoration: const pw.BoxDecoration(
+                            color: PdfColors.green,
+                            shape: pw.BoxShape.circle,
+                          ),
+                        ),
+                      ),
+                      pw.SizedBox(width: 8),
+                      pw.Expanded(
+                        child: pw.Text(
+                          item,
+                          style: const pw.TextStyle(fontSize: 11),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ).toList(),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   pw.Widget _buildPDFSection(String title, List<List<String>> data) {
