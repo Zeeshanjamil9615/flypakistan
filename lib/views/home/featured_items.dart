@@ -30,11 +30,11 @@ class FeatureCarouselState extends State<FeatureCarousel> {
       imagePath: 'assets/img/support.png',
       description: 'Always here to help',
     ),
-    FeatureItem(
-      title: 'Refunds within 48 hours',
-      imagePath: 'assets/img/refund.png',
-      description: 'Quick and hassle-free',
-    ),
+    // FeatureItem(
+    //   title: 'Refunds within 48 hours',
+    //   imagePath: 'assets/img/refund.png',
+    //   description: 'Quick and hassle-free',
+    // ),
     FeatureItem(
       title: 'Secure Transactions',
       imagePath: 'assets/img/secure.png',

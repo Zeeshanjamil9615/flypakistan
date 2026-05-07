@@ -1099,14 +1099,14 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
         });
 
         // Handle different payment statuses
-        if (status == 'APPROVED' || status == 'COMPLETED') {
+        if (PaymentController.paymentStatusIsSuccessful(status?.toString())) {
           // Payment successful
           Get.offAll(() => HotelBookingThankYouScreen(), arguments: {
             'paymentMethod': 'Card Payment (Abhipay)',
             'transactionId': widget.orderId,
             'paymentStatus': 'Success',
           });
-        } else if (status == 'DECLINED' || status == 'FAILED' || status == 'CANCELLED') {
+        } else if (PaymentController.paymentStatusIsFailed(status?.toString())) {
           // Payment failed
           _showPaymentFailedDialog();
         }
@@ -1185,11 +1185,11 @@ class _PaymentStatusPageState extends State<PaymentStatusPage> {
                 ),
               ] else ...[
                 Icon(
-                  paymentStatus == 'APPROVED' || paymentStatus == 'COMPLETED'
+                  PaymentController.paymentStatusIsSuccessful(paymentStatus)
                       ? Icons.check_circle
                       : Icons.error,
                   size: 80,
-                  color: paymentStatus == 'APPROVED' || paymentStatus == 'COMPLETED'
+                  color: PaymentController.paymentStatusIsSuccessful(paymentStatus)
                       ? Colors.green
                       : Colors.red,
                 ),

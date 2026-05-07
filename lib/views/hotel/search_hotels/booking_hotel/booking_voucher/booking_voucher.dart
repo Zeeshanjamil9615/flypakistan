@@ -27,11 +27,19 @@ class HotelBookingThankYouScreen extends StatelessWidget {
   final HotelDateController hotelDateController = Get.find<HotelDateController>();
   final GuestsController guestsController = Get.find<GuestsController>();
   final BookingController bookingController = Get.find<BookingController>();
-  final SelectRoomController selectRoomController = Get.find<SelectRoomController>();
+  final SelectRoomController selectRoomController = _resolveSelectRoomController();
   final PaymentController paymentController=Get.put(PaymentController());
   final Map<int, dynamic> selectedRooms = {};
 
   HotelBookingThankYouScreen({super.key});
+
+  static SelectRoomController _resolveSelectRoomController() {
+    if (Get.isRegistered<SelectRoomController>()) {
+      return Get.find<SelectRoomController>();
+    }
+    // Fallback so success screen does not crash when route stack was rebuilt.
+    return Get.put(SelectRoomController());
+  }
 
   @override
   Widget build(BuildContext context) {

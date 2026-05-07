@@ -293,29 +293,7 @@ class _HotelFormState extends State<HotelForm> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          Container(
-            height: 7,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: Colors.grey.shade200,
-              borderRadius: BorderRadius.circular(5),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 120,
-                  height: 7,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [TColors.primary, TColors.third],
-                    ),
-                    borderRadius: BorderRadius.circular(5),
-                  ),
-                ),
-              ],
-            ),
-          ),
+        
         ],
       ),
     );

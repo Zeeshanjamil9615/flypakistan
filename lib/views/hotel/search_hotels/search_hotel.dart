@@ -34,7 +34,6 @@ class _HotelScreenState extends State<HotelScreen> {
       controller.filterhotler();
     });
   }
-
   @override
   Widget build(BuildContext context) {
     final SearchHotelController controller = Get.find<SearchHotelController>();
@@ -49,7 +48,6 @@ class _HotelScreenState extends State<HotelScreen> {
         direction: Axis.horizontal,
       );
     }
-
     void showFilterSheet(BuildContext context) {
       showModalBottomSheet(
         context: context,
@@ -65,7 +63,7 @@ class _HotelScreenState extends State<HotelScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Filter by Rating',
+                       'Filter by Rating',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -260,7 +258,6 @@ class _HotelScreenState extends State<HotelScreen> {
       ),
     );
   }
-
   Widget _buildButton(
     BuildContext context,
     IconData icon,
@@ -289,8 +286,7 @@ class _HotelScreenState extends State<HotelScreen> {
       ),
     );
   }
-
-  void _showSortOptionsBottomSheet(
+void _showSortOptionsBottomSheet(
     BuildContext context,
     SearchHotelController controller,
   ) {
