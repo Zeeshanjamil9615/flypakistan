@@ -391,6 +391,11 @@ class _HotelFormState extends State<HotelForm> {
           // Get values from selected city
           String destinationCode = selectedCity.value!.value;
           String countryCode = selectedCity.value!.countryCode;
+          // City name for our own-DB hotels API ('Lahore, Pakistan' -> 'Lahore')
+          String cityName =
+              selectedCity.value!.label.isNotEmpty
+                  ? selectedCity.value!.label
+                  : selectedCity.value!.zone;
 
           // Default values
           String nationality = "PK"; // You might want to make this dynamic too
@@ -428,6 +433,7 @@ class _HotelFormState extends State<HotelForm> {
               checkOutDate: checkOutDate,
               rooms: rooms,
               cityId: selectedCity.value!.cityId ?? '1',
+              cityName: cityName,
             );
           } catch (e) {
             // Check if it's a network-related error

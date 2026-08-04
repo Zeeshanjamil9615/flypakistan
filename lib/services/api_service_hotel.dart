@@ -9,6 +9,7 @@ import 'package:ready_flights/views/users/login/login_api_service/login_api.dart
 import '../views/hotel/hotel/guests/guests_controller.dart';
 import '../views/hotel/search_hotels/booking_hotel/booking_controller.dart';
 import '../views/hotel/search_hotels/search_hotel_controller.dart';
+import 'hotel_merge_util.dart';
 
 class ApiServiceHotel extends GetxService {
   late final Dio dio;
@@ -45,6 +46,34 @@ class ApiServiceHotel extends GetxService {
     } catch (e) {
       return isoDate;
     }
+  }
+
+  /// Helper: Number of nights between two dates, minimum 1.
+  int _nightsBetween(String checkInDate, String checkOutDate) {
+    try {
+      final int nights = DateTime.parse(
+        checkOutDate,
+      ).difference(DateTime.parse(checkInDate)).inDays;
+      return nights > 0 ? nights : 1;
+    } catch (e) {
+      return 1;
+    }
+  }
+
+  /// Helper: 'Lahore, Punjab, Pakistan' -> 'Lahore' for the own-DB city param.
+  String _cityNameOnly(String rawCity) {
+    return rawCity.split(',').first.trim();
+  }
+
+  /// Helper: own-DB text fields arrive HTML-escaped (e.g. 'Hotel &amp; Suites').
+  String _unescapeHtml(String value) {
+    return value
+        .replaceAll('&lt;', '<')
+        .replaceAll('&gt;', '>')
+        .replaceAll('&quot;', '"')
+        .replaceAll('&#039;', "'")
+        .replaceAll('&nbsp;', ' ')
+        .replaceAll('&amp;', '&');
   }
 
   // Add this method to fetch margin and ROE
@@ -287,6 +316,114 @@ class ApiServiceHotel extends GetxService {
     }
   }
 
+  /// Fetches hotels from OUR OWN database for the same search the Arabian
+  /// Hotels API is given: city, check-in, check-out and adults.
+  ///
+  /// Returns cards normalized into the same shape [fetchHotels] builds, so both
+  /// sources can be merged into one list (see `hotel_merge_util.dart`).
+  /// Never throws: on any failure it returns an empty list so the third-party
+  /// results still render.
+  Future<List<Map<String, dynamic>>> fetchOwnDbHotels({
+    required String cityName,
+    required String checkInDate,
+    required String checkOutDate,
+    required List<Map<String, dynamic>> rooms,
+  }) async {
+    final String city = _cityNameOnly(cityName);
+    if (city.isEmpty) return [];
+
+    // Same search window the third-party request uses; own-DB prices are
+    // per night, so we need the nights count to build a stay total.
+    final int nights = _nightsBetween(checkInDate, checkOutDate);
+    final int adults = rooms.fold<int>(
+      0,
+      (sum, room) => sum + (int.tryParse(room['Adult']?.toString() ?? '') ?? 0),
+    );
+
+    final Map<String, dynamic> queryParameters = {
+      'city': city,
+      'chkin': _formatDate(checkInDate),
+      'chkout': _formatDate(checkOutDate),
+      'adults': (adults > 0 ? adults : 1).toString(),
+    };
+
+    const String url = 'https://flypakistan.pk/tdubai/db-hotels-api.php';
+
+    try {
+      print('━━━ fetchOwnDbHotels REQUEST ━━━');
+      print('URL: $url');
+      print('Query: $queryParameters');
+
+      final response = await Dio().get(
+        url,
+        queryParameters: queryParameters,
+        options: Options(method: 'GET'),
+      );
+
+      print('━━━ fetchOwnDbHotels RESPONSE ━━━');
+      print('Status: ${response.statusCode}');
+
+      if (response.statusCode != 200) return [];
+
+      var data = response.data;
+      if (data is String) {
+        try {
+          data = json.decode(data);
+        } catch (e) {
+          return [];
+        }
+      }
+      if (data is! Map) return [];
+
+      final hotels = data['hotels'];
+      if (hotels is! List) return [];
+
+      print('Own DB hotels: ${hotels.length}');
+
+      return hotels
+          .whereType<Map>()
+          .map((hotel) => _normalizeOwnDbHotel(hotel, nights))
+          .where((hotel) => hotel['hotelCode'].toString().isNotEmpty)
+          .toList();
+    } catch (e) {
+      print('━━━ fetchOwnDbHotels ERROR ━━━');
+      print('$e');
+      return [];
+    }
+  }
+
+  /// Maps one own-DB hotel record onto the card shape used by the listing.
+  Map<String, dynamic> _normalizeOwnDbHotel(Map hotel, int nights) {
+    // 'price_after_margin' is a per-night PKR rate already carrying our margin,
+    // so no ROE/margin conversion here. The card divides by nights to show a
+    // nightly rate, so store the stay total like the third-party 'price' does.
+    final double perNight =
+        double.tryParse(hotel['price_after_margin']?.toString() ?? '') ?? 0.0;
+
+    // Own-DB records ship a full, already percent-encoded image URL. Keep it
+    // verbatim — some paths legitimately contain '&amp;' / '%E2%80%99', so it
+    // must NOT be HTML-unescaped. The few records with no image fall through to
+    // fetchHotelDetailImage and then the placeholder asset.
+    final String image = hotel['image']?.toString() ?? '';
+    final bool imageIsUsable = image.startsWith('http') || image.startsWith('/');
+
+    final String address = _unescapeHtml(hotel['address']?.toString() ?? '');
+
+    return {
+      'name': _unescapeHtml(hotel['hotel_name']?.toString() ?? 'Unknown Hotel'),
+      'price': perNight * nights,
+      'address': address.isEmpty ? 'Address not available' : address,
+      'image': imageIsUsable ? image : '',
+      'rating': double.tryParse(hotel['rating']?.toString() ?? '') ?? 3.0,
+      // Kept as strings: the controller stores lat/lon in RxString fields.
+      'latitude': (hotel['lat'] ?? '').toString(),
+      'longitude': (hotel['lon'] ?? '').toString(),
+      'hotelCode': hotel['hotel_id']?.toString().trim() ?? '',
+      'hotelCity': hotel['cs_city']?.toString() ?? '',
+      'source': kHotelSourceOwn,
+    };
+  }
+
   Future<void> fetchHotels({
     required String destinationCode,
     required String countryCode,
@@ -296,6 +433,7 @@ class ApiServiceHotel extends GetxService {
     required String checkOutDate,
     required List<Map<String, dynamic>> rooms,
     String? cityId,
+    String? cityName,
   }) async {
     final searchController = Get.find<SearchHotelController>();
 
@@ -307,6 +445,17 @@ class ApiServiceHotel extends GetxService {
 
     try {
       await fetchMarginAndROE();
+
+      // Our own-DB hotels are fetched with the SAME search parameters, in
+      // parallel with the Arabian request. It never throws, so a failure there
+      // just leaves the third-party results untouched.
+      final Future<List<Map<String, dynamic>>> ownHotelsFuture =
+          fetchOwnDbHotels(
+            cityName: cityName ?? '',
+            checkInDate: checkInDate,
+            checkOutDate: checkOutDate,
+            rooms: rooms,
+          );
 
       final requestBody = {
         "SearchParameter": {
@@ -343,7 +492,9 @@ class ApiServiceHotel extends GetxService {
 
         searchController.sessionId.value = sessionId ?? '';
         searchController.destinationCode.value = destinationCode ?? '';
-        searchController.hotels.value = hotels.map<Map<String, dynamic>>((hotel) {
+
+        final List<Map<String, dynamic>> thirdPartyHotels =
+            hotels.map<Map<String, dynamic>>((hotel) {
           double originalPrice = double.tryParse(hotel['minPrice']?.toString() ?? '0') ?? 0;
           double finalPrice = applyPricingLogic(originalPrice);
           String hotelCode = hotel['code']?.toString() ?? '';
@@ -360,9 +511,18 @@ class ApiServiceHotel extends GetxService {
             'longitude': hotel['hotelInfo']?['lon'] ?? 0.0,
             'hotelCode': hotelCode,
             'hotelCity': hotel['hotelInfo']?['city'] ?? '',
+            'source': kHotelSourceThirdParty,
           };
         }).toList();
-        
+
+        // Own-DB records override the third-party entry for the same hotel id;
+        // own-only hotels are appended. Only the 'source' flag differs.
+        final List<Map<String, dynamic>> ownHotels = await ownHotelsFuture;
+        searchController.hotels.value = mergeHotelLists(
+          thirdPartyHotels: thirdPartyHotels,
+          ownHotels: ownHotels,
+        );
+
         // Initialize filter data after hotels are loaded
         searchController.filterhotler();
       }

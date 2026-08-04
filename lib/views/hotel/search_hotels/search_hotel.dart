@@ -13,6 +13,7 @@ import 'dart:ui' as ui;
 import 'dart:typed_data';
 
 import '../../../services/api_service_hotel.dart';
+import '../../../services/hotel_merge_util.dart';
 import 'search_hotel_controller.dart';
 import 'select_room/selectroom.dart';
 
@@ -748,9 +749,15 @@ class HotelCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // When card is shown (e.g. on scroll), fetch hotel image by hotel_id if not yet loaded
+    // When card is shown (e.g. on scroll), fetch hotel image by hotel_id if not yet loaded.
+    // Own-DB hotels already carry their own full image URL, so skip the lookup:
+    // a fetched image takes priority in _buildHotelImage and would replace it.
+    // Third-party cards keep the existing behaviour.
     final hotelCode = hotel['hotelCode']?.toString() ?? '';
-    if (hotelCode.isNotEmpty) {
+    final bool hasOwnDbImage =
+        isOwnHotel(hotel) &&
+        (hotel['image']?.toString() ?? '').startsWith('http');
+    if (hotelCode.isNotEmpty && !hasOwnDbImage) {
       controller.ensureHotelImage(hotelCode);
     }
     return InkWell(
@@ -907,6 +914,32 @@ class HotelCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 12),
+            // Book Now: orange for hotels served from our own database,
+            // brand green for third-party ones. Same action either way.
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _selectRoom,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor:
+                      isOwnHotel(hotel) ? TColors.orange : TColors.primary,
+                  foregroundColor: Colors.white,
+                  elevation: 0,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                child: const Text(
+                  'Book Now',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
           ],
         ),

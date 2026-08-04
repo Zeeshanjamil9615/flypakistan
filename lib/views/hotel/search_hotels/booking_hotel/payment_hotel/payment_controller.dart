@@ -627,13 +627,12 @@ class PaymentController extends GetxController {
         headers: {
           'Authorization': authToken,
           'Content-Type': 'application/json',
-        },
+        },    
       );
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         _logFullResponse('Verify payment response', response.body);
-        
+                 
         if (data['code'] == '00000') {
           final status = data['payload']?['paymentStatus'];
           
@@ -654,7 +653,6 @@ class PaymentController extends GetxController {
       return null;
     }
   }
-
   // ADDED METHOD to manually refresh status
   void updatePaymentStatus(String newStatus) {
     bookingController.payment_status.value = newStatus;
@@ -662,7 +660,6 @@ class PaymentController extends GetxController {
     update(); // Force GetX controller update
     print('📱 Payment status manually updated to: $newStatus');
   }
-
   @override
   void onClose() {
     _paymentPollingTimer?.cancel();
@@ -692,7 +689,6 @@ class PaymentController extends GetxController {
     }
   }
 }
-
 class FlightPaymentData {
   final AirBlueFlight outboundFlight;
   final AirBlueFlight? returnFlight;
