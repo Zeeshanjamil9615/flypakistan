@@ -388,22 +388,25 @@ void _showSortOptionsBottomSheet(
     BuildContext context,
     SearchHotelController controller,
   ) {
-    // Calculate min and max prices dynamically from the original hotels list
+    // Calculate min and max prices dynamically from the original hotels list.
+    // "Price on call" hotels carry no amount, so they are left out of the range
+    // (they are never filtered out by it either).
     final prices =
         controller.originalHotels
-            .map(
-              (hotel) =>
-                  double.tryParse(
-                    hotel['price'].toString().replaceAll(',', '').trim(),
-                  ) ??
-                  0.0,
-            )
+            .where((hotel) => !isPriceOnCall(hotel))
+            .map((hotel) => priceOfHotel(hotel))
             .toList();
 
     double minPrice =
         prices.isNotEmpty ? prices.reduce((a, b) => a < b ? a : b) : 0.0;
     double maxPrice =
         prices.isNotEmpty ? prices.reduce((a, b) => a > b ? a : b) : 0.0;
+
+    // RangeSlider asserts min < max, which breaks when every hotel costs the
+    // same (or nothing at all).
+    if (maxPrice <= minPrice) {
+      maxPrice = minPrice + 1000;
+    }
 
     double lowerValue = minPrice;
     double upperValue = maxPrice;
@@ -664,14 +667,13 @@ class HotelCard extends StatelessWidget {
             barrierDismissible: false,
           );
           
-          await ApiServiceHotel().fetchRoomDetails(
-          hotel['hotelCode'] ?? '',
-            controller.sessionId.value,
-          );
-          
+          // Own-DB hotels load their rooms from our own database, third-party
+          // hotels from the Arabian RoomDetails API.
+          await ApiServiceHotel().fetchRoomsForHotel(hotel);
+
           // Close loading dialog
           Get.back();
-          
+
           // Check if rooms are available
           if (controller.roomsdata.isEmpty) {
             Get.dialog(
@@ -730,7 +732,9 @@ class HotelCard extends StatelessWidget {
               barrierDismissible: false,
             );
           } else {
-            controller.filterhotler();
+            // No filterhotler() here: it rebuilds `originalHotels` from the
+            // currently visible list, which would silently drop every hotel the
+            // active filter/search hid and reset the user's sorting.
             Get.to(() => const SelectRoomScreen());
           }
 
@@ -887,37 +891,49 @@ class HotelCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                Text.rich(
-                  TextSpan(
-                    children: [
-                      TextSpan(
-                        text: 'PKR ',
+                // Hotels without a price (own-DB "price on call" records) show
+                // the text instead of "PKR 0".
+                isPriceOnCall(hotel)
+                    ? const Text(
+                        'Price on call',
                         style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.normal,
-                          color: Colors.black54,
-                        ),
-                      ),
-                      TextSpan(
-                        text: NumberFormat('#,###').format(
-                          ((hotel['price'] ?? 0.0) /
-                                  dateController.nights.value)
-                              .round(),
-                        ),
-                        style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 16,
                           fontWeight: FontWeight.bold,
                           color: Colors.black87,
                         ),
+                      )
+                    : Text.rich(
+                        TextSpan(
+                          children: [
+                            TextSpan(
+                              text: 'PKR ',
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.normal,
+                                color: Colors.black54,
+                              ),
+                            ),
+                            TextSpan(
+                              text: NumberFormat('#,###').format(
+                                ((hotel['price'] ?? 0.0) /
+                                        dateController.nights.value)
+                                    .round(),
+                              ),
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                    ],
-                  ),
-                ),
               ],
             ),
             const SizedBox(height: 12),
-            // Book Now: orange for hotels served from our own database,
-            // brand green for third-party ones. Same action either way.
+            // Hotels from our own database are a request, not an instant
+            // booking: orange button labelled "Request Now". Third-party hotels
+            // keep the brand-green "Book Now". Same action either way.
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
@@ -932,9 +948,9 @@ class HotelCard extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                 ),
-                child: const Text(
-                  'Book Now',
-                  style: TextStyle(
+                child: Text(
+                  isOwnHotel(hotel) ? 'Request Now' : 'Book Now',
+                  style: const TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                   ),
@@ -1066,7 +1082,7 @@ class _MapScreenState extends State<MapScreen> {
             : 0;
 
     final selectedMarkerIcon = await _createPriceMarker(
-      'PKR $selectedPricePerNight',
+      selectedPricePerNight > 0 ? 'PKR $selectedPricePerNight' : 'On call',
       true, // isSelected
     );
 
@@ -1112,7 +1128,7 @@ class _MapScreenState extends State<MapScreen> {
                 : 0;
 
         final nearbyMarkerIcon = await _createPriceMarker(
-          pricePerNight > 0 ? 'PKR $pricePerNight' : 'N/A',
+          pricePerNight > 0 ? 'PKR $pricePerNight' : 'On call',
           false, // isSelected
         );
 
@@ -1388,22 +1404,25 @@ class _MapScreenState extends State<MapScreen> {
                     ],
                   ),
 
-                  // Price with larger text
+                  // Price with larger text ("Price on call" when there is none)
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        'PKR $pricePerNight',
+                        isPriceOnCall(hotel)
+                            ? 'Price on call'
+                            : 'PKR $pricePerNight',
                         style: TextStyle(
-                          fontSize: 22,
+                          fontSize: isPriceOnCall(hotel) ? 18 : 22,
                           color: TColors.primary,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      const Text(
-                        'per night',
-                        style: TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
+                      if (!isPriceOnCall(hotel))
+                        const Text(
+                          'per night',
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
                     ],
                   ),
                 ],
@@ -1461,11 +1480,10 @@ class _MapScreenState extends State<MapScreen> {
             barrierDismissible: false,
           );
           
-          await ApiServiceHotel().fetchRoomDetails(
-          hotel['hotelCode'] ?? '',
-            controller.sessionId.value,
-          );
-          
+          // Own-DB hotels load their rooms from our own database, third-party
+          // hotels from the Arabian RoomDetails API.
+          await ApiServiceHotel().fetchRoomsForHotel(hotel);
+
           // Close loading dialog
           Get.back();
           
@@ -1527,7 +1545,9 @@ class _MapScreenState extends State<MapScreen> {
               barrierDismissible: false,
             );
           } else {
-            controller.filterhotler();
+            // No filterhotler() here: it rebuilds `originalHotels` from the
+            // currently visible list, which would silently drop every hotel the
+            // active filter/search hid and reset the user's sorting.
             Get.to(() => const SelectRoomScreen());
           }
 

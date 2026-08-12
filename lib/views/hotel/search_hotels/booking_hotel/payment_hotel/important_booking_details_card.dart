@@ -293,7 +293,12 @@ class _ImportantBookingDetailsCardState
             child: _buildBadge("Refundable"),
           ),
           const Divider(height: 16),
-          _buildPriceRow('Total Price', 'PKR $price', isTotal: true),
+          // Rooms sold on request have no rate yet — never show "PKR 0".
+          _buildPriceRow(
+            'Total Price',
+            (double.tryParse(price) ?? 0) > 0 ? 'PKR $price' : 'Price on call',
+            isTotal: true,
+          ),
         ],
       ),
     );

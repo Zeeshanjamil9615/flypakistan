@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:ready_flights/services/api_service_hotel.dart';
+import 'package:ready_flights/services/hotel_merge_util.dart';
 
 class SearchHotelController extends GetxController {
   // Define the hotels list with explicit type
@@ -19,7 +20,10 @@ class SearchHotelController extends GetxController {
 
   var dio = Dio();
 
-  // Initialize the filter data - call this after fetching hotels
+  // Initialize the filter data - call this after fetching hotels.
+  // NOTE: only call this right after a new search result is loaded — it rebuilds
+  // `originalHotels` from the current list, so calling it while a filter is
+  // applied would make the filtered subset the new full list.
   void filterhotler() {
     // Take a snapshot of the latest API result and normalize default ordering
     final List<Map<String, dynamic>> snapshot = List<Map<String, dynamic>>.from(
@@ -27,23 +31,33 @@ class SearchHotelController extends GetxController {
     );
 
     // Default "Recommended" sorting so list is not random by default.
-    // Primary: higher rating first
-    // Secondary: lower price first (stable tie-breaker)
+    // Primary: source — third-party (Arabian) hotels always above our own-DB ones
+    // Secondary: higher rating first
+    // Tertiary: lower price first (stable tie-breaker)
     snapshot.sort((a, b) {
+      final int sourceCompare = _sourceRank(a).compareTo(_sourceRank(b));
+      if (sourceCompare != 0) return sourceCompare;
+
       final double ratingA = _parseRating(a['rating']);
       final double ratingB = _parseRating(b['rating']);
       final int ratingCompare = ratingB.compareTo(ratingA); // desc
       if (ratingCompare != 0) return ratingCompare;
 
-      final double priceA = _parsePrice(a['price']);
-      final double priceB = _parsePrice(b['price']);
-      return priceA.compareTo(priceB); // asc
+      return _sortablePrice(a).compareTo(_sortablePrice(b)); // asc
     });
 
     originalHotels.value = snapshot;
     filteredHotels.value = List<Map<String, dynamic>>.from(snapshot);
     hotels.value = List<Map<String, dynamic>>.from(snapshot);
   }
+
+  /// Third-party hotels rank above own-database hotels everywhere in the list.
+  int _sourceRank(Map<String, dynamic> hotel) => isOwnHotel(hotel) ? 1 : 0;
+
+  /// Price used for sorting. "Price on call" hotels carry no amount, so they are
+  /// pushed to the end of every price sort instead of pretending to cost 0.
+  double _sortablePrice(Map<String, dynamic> hotel) =>
+      isPriceOnCall(hotel) ? double.infinity : _parsePrice(hotel['price']);
 
   double _parsePrice(dynamic price) {
     final String priceStr = price?.toString().replaceAll(',', '').trim() ?? '';
@@ -125,6 +139,10 @@ class SearchHotelController extends GetxController {
       // Create a new list with filtered hotels
       List<Map<String, dynamic>> filtered =
           originalHotels.where((hotel) {
+            // "Price on call" hotels have no amount to compare, so a price
+            // range never hides them.
+            if (isPriceOnCall(hotel)) return true;
+
             // Remove commas and parse the price to a double
             double price = _parsePrice(hotel['price']);
             bool inRange = price >= minPrice && price <= maxPrice;
@@ -159,19 +177,26 @@ class SearchHotelController extends GetxController {
       );
 
       switch (sortOption) {
+        // Both price sorts keep third-party hotels above own-DB hotels, and
+        // "price on call" hotels at the bottom of their own group.
         case 'Price (low to high)':
           sortedList.sort((a, b) {
-            double priceA = _parsePrice(a['price']);
-            double priceB = _parsePrice(b['price']);
-            return priceA.compareTo(priceB);
+            final int sourceCompare = _sourceRank(a).compareTo(_sourceRank(b));
+            if (sourceCompare != 0) return sourceCompare;
+            return _sortablePrice(a).compareTo(_sortablePrice(b));
           });
           break;
 
         case 'Price (high to low)':
           sortedList.sort((a, b) {
-            double priceA = _parsePrice(a['price']);
-            double priceB = _parsePrice(b['price']);
-            return priceB.compareTo(priceA);
+            final int sourceCompare = _sourceRank(a).compareTo(_sourceRank(b));
+            if (sourceCompare != 0) return sourceCompare;
+
+            final bool onCallA = isPriceOnCall(a);
+            final bool onCallB = isPriceOnCall(b);
+            if (onCallA != onCallB) return onCallA ? 1 : -1;
+
+            return _parsePrice(b['price']).compareTo(_parsePrice(a['price']));
           });
           break;
 
@@ -230,6 +255,16 @@ class SearchHotelController extends GetxController {
   var roomsdata = [].obs;
   var ratingstar = 0.obs;
   var hotelid = 0.obs;
+
+  /// True while the rooms currently in [roomsdata] came from our own database
+  /// (hotel-details-api.php) instead of the third-party Arabian API.
+  /// Own-DB rooms have no session/rateKey, so PreBook, CancellationPolicy and
+  /// PriceBreakup are skipped for them and booking goes straight through.
+  final isOwnDbHotel = false.obs;
+
+  /// `rooms_gst_percent` of the own-DB hotel currently open (0 when unknown or
+  /// when a third-party hotel is open).
+  final ownHotelGstPercent = 0.obs;
 
 
   var hotelName = ''.obs;

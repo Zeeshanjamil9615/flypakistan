@@ -81,7 +81,8 @@ class CityController extends GetxController {
 
       // Fetch cities with a common keyword or empty to get default cities
       final response = await _apiService.fetchCities(''); 
-      print(response);// or use a default keyword like 'a'
+              print("fecthcites.......${response}");
+// or use a default keyword like 'a'
 
       if (response != null && response.isNotEmpty) {
         final cityList = response.map<CityData>((cityJson) {

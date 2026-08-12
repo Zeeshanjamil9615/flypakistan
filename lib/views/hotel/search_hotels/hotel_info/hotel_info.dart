@@ -668,10 +668,9 @@ Widget _buildFloatingSelectRoomButton() {
             barrierDismissible: false,
           );
           
-          await ApiServiceHotel().fetchRoomDetails(
-            widget.hotelData['hotelCode'] ?? '',
-            controller.sessionId.value,
-          );
+          // Own-DB hotels load their rooms from our own database, third-party
+          // hotels from the Arabian RoomDetails API.
+          await ApiServiceHotel().fetchRoomsForHotel(widget.hotelData);
           
           // Close loading dialog
           Get.back();
@@ -734,7 +733,9 @@ Widget _buildFloatingSelectRoomButton() {
               barrierDismissible: false,
             );
           } else {
-            controller.filterhotler();
+            // No filterhotler() here: it rebuilds `originalHotels` from the
+            // currently visible list, which would silently drop every hotel the
+            // active filter/search hid and reset the user's sorting.
             Get.to(() => const SelectRoomScreen());
           }
         },

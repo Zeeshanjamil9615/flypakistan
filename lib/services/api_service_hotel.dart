@@ -7,8 +7,10 @@ import 'package:intl/intl.dart';
 import 'package:ready_flights/views/users/login/login_api_service/login_api.dart';
 
 import '../views/hotel/hotel/guests/guests_controller.dart';
+import '../views/hotel/hotel/hotel_date_controller.dart';
 import '../views/hotel/search_hotels/booking_hotel/booking_controller.dart';
 import '../views/hotel/search_hotels/search_hotel_controller.dart';
+import '../views/hotel/search_hotels/select_room/controller/select_room_controller.dart';
 import 'hotel_merge_util.dart';
 
 class ApiServiceHotel extends GetxService {
@@ -149,6 +151,7 @@ class ApiServiceHotel extends GetxService {
         options: Options(method: 'GET', headers: headers),
       );
       if (response.statusCode == 200) {
+        print("fecthcites....... 113${response.data}");
         List<dynamic> _sortCities(List<dynamic> items) {
           const List<String> preferredCityOrder = [
             'karachi',
@@ -347,7 +350,7 @@ class ApiServiceHotel extends GetxService {
       'adults': (adults > 0 ? adults : 1).toString(),
     };
 
-    const String url = 'https://flypakistan.pk/tdubai/db-hotels-api.php';
+    const String url = 'https://flypakistan.pk/db-hotels-api.php';
 
     try {
       print('━━━ fetchOwnDbHotels REQUEST ━━━');
@@ -420,6 +423,17 @@ class ApiServiceHotel extends GetxService {
       'longitude': (hotel['lon'] ?? '').toString(),
       'hotelCode': hotel['hotel_id']?.toString().trim() ?? '',
       'hotelCity': hotel['cs_city']?.toString() ?? '',
+      // 'link' carries the exact `hid` token the details API expects, e.g.
+      // 'hotel.php?hotelname=Serena+Hotel&hid=MklUU01ZX1NFQ1JFVF9WQUxVRUNPREU='.
+      // Kept so the room-details call reuses it instead of rebuilding the token.
+      'ownDetailLink': hotel['link']?.toString() ?? '',
+      'roomsGstPercent':
+          int.tryParse(hotel['rooms_gst']?.toString() ?? '') ?? 0,
+      // Hotels sold "price on call" come back with price 0; the card shows the
+      // text instead of an amount (see `isPriceOnCall`).
+      'priceOnCall':
+          hotel['price_on_call'] == true ||
+          hotel['price_on_call']?.toString() == '1',
       'source': kHotelSourceOwn,
     };
   }
@@ -579,6 +593,10 @@ class ApiServiceHotel extends GetxService {
   final guestsController = Get.find<GuestsController>();
   final searchController = Get.find<SearchHotelController>();
 
+  // Third-party rooms: availability is validated with PreBook before booking.
+  searchController.isOwnDbHotel.value = false;
+  searchController.ownHotelGstPercent.value = 0;
+
   // Ensure we have the latest margin and ROE
   await fetchMarginAndROE();
 
@@ -689,7 +707,215 @@ class ApiServiceHotel extends GetxService {
   } catch (e) {
     searchController.roomsdata.value = [];
   }
-}/// Pre-book a room.
+}
+
+  /// Loads the rooms of the tapped hotel card from the right source.
+  ///
+  /// Own-DB cards (`source == kHotelSourceOwn`) have no third-party session or
+  /// hotel code on the Arabian side, so they are loaded from
+  /// hotel-details-api.php. Everything else keeps the existing RoomDetails call.
+  Future<void> fetchRoomsForHotel(Map<dynamic, dynamic> hotel) async {
+    // Opening a new hotel: drop the rooms/policies selected on the previous one
+    // so nothing stale (rate type, room id, price) reaches the booking request.
+    if (Get.isRegistered<SelectRoomController>()) {
+      Get.find<SelectRoomController>().clearData();
+    }
+
+    final int nights =
+        Get.isRegistered<HotelDateController>()
+            ? Get.find<HotelDateController>().nights.value
+            : 1;
+
+    if (isOwnHotel(hotel)) {
+      await fetchOwnDbRoomDetails(
+        hotelId: hotel['hotelCode']?.toString() ?? '',
+        hotelName: hotel['name']?.toString() ?? '',
+        latitude: hotel['latitude']?.toString() ?? '',
+        longitude: hotel['longitude']?.toString() ?? '',
+        detailLink: hotel['ownDetailLink']?.toString() ?? '',
+        nights: nights > 0 ? nights : 1,
+      );
+      return;
+    }
+
+    await fetchRoomDetails(
+      hotel['hotelCode']?.toString() ?? '',
+      Get.find<SearchHotelController>().sessionId.value,
+    );
+  }
+
+  /// The `hid` token hotel-details-api.php expects.
+  ///
+  /// The listing endpoint already ships it inside `link`
+  /// (`hotel.php?...&hid=<token>`), so that value is reused when present.
+  /// Otherwise it is rebuilt: base64 of `<hotel_id>ITSMY_SECRET_VALUECODE`.
+  String _ownDbHid(String hotelId, String detailLink) {
+    if (detailLink.isNotEmpty) {
+      // Read it raw: the token is base64 and may contain '+', which query-string
+      // decoding would turn into a space.
+      final match = RegExp(r'[?&]hid=([^&]*)').firstMatch(detailLink);
+      final String? fromLink = match?.group(1);
+      if (fromLink != null && fromLink.isNotEmpty) return fromLink;
+    }
+    return base64Encode(utf8.encode('${hotelId}ITSMY_SECRET_VALUECODE'));
+  }
+
+  /// Fetches hotel + rooms of ONE own-database hotel and puts the rooms into
+  /// `SearchHotelController.roomsdata` in the same shape the select-room screen
+  /// already renders for third-party rooms.
+  ///
+  /// Never throws: on any failure `roomsdata` is left empty and the screen shows
+  /// its "No Rooms Available" state.
+  Future<void> fetchOwnDbRoomDetails({
+    required String hotelId,
+    required String hotelName,
+    required String latitude,
+    required String longitude,
+    required int nights,
+    String detailLink = '',
+  }) async {
+    final searchController = Get.find<SearchHotelController>();
+
+    // Own-DB rooms are booked directly — no PreBook / availability round-trip.
+    searchController.isOwnDbHotel.value = true;
+    searchController.ownHotelGstPercent.value = 0;
+    searchController.roomsdata.value = [];
+
+    const String url = 'https://flypakistan.pk/api/hotel-details-api.php';
+    final Map<String, dynamic> queryParameters = {
+      'hotelname': hotelName,
+      'hid': _ownDbHid(hotelId, detailLink),
+      'lat': latitude,
+      'long': longitude,
+    };
+
+    try {
+      print('━━━ fetchOwnDbRoomDetails REQUEST ━━━');
+      print('URL: $url');
+      print('Query: $queryParameters');
+
+      final response = await Dio().get(url, queryParameters: queryParameters);
+
+      print('━━━ fetchOwnDbRoomDetails RESPONSE ━━━');
+      print('Status: ${response.statusCode}');
+
+      if (response.statusCode != 200) return;
+
+      var data = response.data;
+      if (data is String) {
+        try {
+          data = json.decode(data);
+        } catch (e) {
+          return;
+        }
+      }
+      if (data is! Map || data['status']?.toString() != 'success') return;
+
+      final payload = data['data'];
+      if (payload is! Map) return;
+
+      final hotel = payload['hotel'];
+      final images = payload['images'];
+      final rooms = payload['rooms'];
+
+      // Header of the select-room screen.
+      searchController.hotelName.value = _unescapeHtml(
+        (hotel is Map ? hotel['name']?.toString() : null) ?? hotelName,
+      );
+      if (images is List && images.isNotEmpty) {
+        searchController.image.value = images.first?.toString() ?? '';
+      }
+      if (hotel is Map) {
+        final int starRating =
+            int.tryParse(hotel['star_rating']?.toString() ?? '') ?? 0;
+        if (starRating > 0) searchController.ratingstar.value = starRating;
+
+        final String address = _unescapeHtml(hotel['address']?.toString() ?? '');
+        if (address.isNotEmpty) searchController.hotelAddress.value = address;
+
+        final status = hotel['status'];
+        if (status is Map) {
+          searchController.ownHotelGstPercent.value =
+              int.tryParse(status['rooms_gst_percent']?.toString() ?? '') ?? 0;
+        }
+      }
+
+      if (rooms is! List) return;
+
+      final List<Map<String, dynamic>> normalized =
+          rooms
+              .whereType<Map>()
+              .map(
+                (room) => _normalizeOwnDbRoom(
+                  room,
+                  nights,
+                  searchController.ownHotelGstPercent.value,
+                ),
+              )
+              // Sold-out rooms must not be bookable: there is no availability
+              // check later in the own-DB flow.
+              .where((room) => (room['availableQuantity'] as int) > 0)
+              .toList();
+
+      print('Own DB rooms: ${normalized.length}');
+      searchController.roomsdata.value = normalized;
+    } catch (e) {
+      print('━━━ fetchOwnDbRoomDetails ERROR ━━━');
+      print('$e');
+      searchController.roomsdata.value = [];
+    }
+  }
+
+  /// Maps one own-DB room record onto the room shape the select-room screen and
+  /// [SelectRoomController] read (`roomName`, `meal`, `rateType`, `price.net`).
+  ///
+  /// `price` is a per-night PKR rate that already carries our margin — it is the
+  /// same number the listing shows as `price_after_margin` — so no ROE/margin
+  /// conversion here. `price.net` holds the stay total because the room card
+  /// divides by nights to display the nightly rate.
+  Map<String, dynamic> _normalizeOwnDbRoom(
+    Map room,
+    int nights,
+    int gstPercent,
+  ) {
+    final double perNight =
+        double.tryParse(room['price']?.toString() ?? '') ?? 0.0;
+    final double stayTotal = perNight * nights;
+
+    final capacity = room['capacity'] is Map ? room['capacity'] as Map : const {};
+
+    // '0' means no free cancellation on the own-DB side.
+    final String cancellationPolicy =
+        room['cancellation_policy']?.toString().trim() ?? '0';
+    final bool isRefundable =
+        cancellationPolicy.isNotEmpty &&
+        cancellationPolicy != '0' &&
+        cancellationPolicy.toLowerCase() != 'non-refundable';
+
+    final String meal = room['meal']?.toString().trim() ?? '';
+
+    return <String, dynamic>{
+      'roomName': _unescapeHtml(room['name']?.toString().trim() ?? 'Room'),
+      'meal': (meal.isEmpty || meal.toLowerCase() == 'none') ? 'Room Only' : meal,
+      'rateType': isRefundable ? 'Refundable' : 'Non-Refundable',
+      'price': {'net': stayTotal, 'gross': stayTotal},
+      'perNightPrice': perNight,
+      'roomId': room['id']?.toString() ?? '',
+      'availableQuantity':
+          int.tryParse(room['available_quantity']?.toString() ?? '') ?? 0,
+      'maxAdults': int.tryParse(capacity['max_adults']?.toString() ?? '') ?? 0,
+      'maxChilds': int.tryParse(capacity['max_childs']?.toString() ?? '') ?? 0,
+      'extraBedPrice':
+          double.tryParse(capacity['extra_bed_price']?.toString() ?? '') ?? 0.0,
+      'sizeSqm': room['size_sqm']?.toString() ?? '',
+      'image': room['image']?.toString() ?? '',
+      'cancellationPolicy': cancellationPolicy,
+      'gstPercent': gstPercent,
+      'source': kHotelSourceOwn,
+    };
+  }
+
+  /// Pre-book a room.
   Future<Map<String, dynamic>?> prebook({
     required String sessionId,
     required String hotelCode,

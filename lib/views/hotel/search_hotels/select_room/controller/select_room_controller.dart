@@ -19,7 +19,30 @@ class SelectRoomController extends GetxController {
   final RxMap<int, String> roomMeals = RxMap<int, String>({});
   final RxMap<int, String> roomRateTypes = RxMap<int, String>({});
   final RxMap<int, double> roomPrices = RxMap<int, double>({});
+
+  /// Own-DB room id per selected room index ('' for third-party rooms), so the
+  /// booking request can tell our backend which room record was booked.
+  final RxMap<int, String> roomIds = RxMap<int, String>({});
   get selectedRoomsData => null;
+
+  /// Own-database booking: there is no PreBook response to store, so policy
+  /// details stay empty and only the selected room data is (re)applied.
+  ///
+  /// [selectedRooms] maps room index -> the selected room map from
+  /// `SearchHotelController.roomsdata`.
+  void prepareOwnDbBooking(Map<int, dynamic> selectedRooms) {
+    prebookResponse.value = {};
+    roomsPolicyDetails.clear();
+
+    selectedRooms.forEach((roomIndex, roomData) {
+      if (roomData != null) updateSelectedRoom(roomIndex, roomData);
+    });
+
+    calculateTotalPrice();
+
+    print('=== OWN DB BOOKING PREPARED (no prebook) ===');
+    debugPrintRoomData();
+  }
 
   // Method to store prebook response data for SINGLE ROOM booking
   void storePrebookResponseSingleRoom(Map<String, dynamic> response) {
@@ -173,6 +196,7 @@ totalPrice.value = total ;
     roomNames[roomIndex] = roomData['roomName'] ?? '';
     roomMeals[roomIndex] = roomData['meal'] ?? '';
     roomRateTypes[roomIndex] = roomData['rateType'] ?? '';
+    roomIds[roomIndex] = roomData['roomId']?.toString() ?? '';
 
     // Update room price
     double roomPrice = 0.0;
@@ -226,6 +250,11 @@ totalPrice.value = total ;
     return roomPrices[roomIndex] ?? 0.0;
   }
 
+  /// Own-DB room id for a specific room ('' for third-party rooms).
+  String getRoomId(int roomIndex) {
+    return roomIds[roomIndex] ?? '';
+  }
+
   // Method to clear all stored data
   void clearData() {
     prebookResponse.value = {};
@@ -234,6 +263,7 @@ totalPrice.value = total ;
     roomMeals.clear();
     roomRateTypes.clear();
     roomPrices.clear();
+    roomIds.clear();
     totalPrice.value = 0.0;
   }
   

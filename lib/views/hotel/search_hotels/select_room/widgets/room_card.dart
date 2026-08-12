@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:ready_flights/utility/utils.dart';
 
 import '../../../../../services/api_service_hotel.dart';
+import '../../../../../services/hotel_merge_util.dart';
 import '../../../../../utility/colors.dart';
 import '../../search_hotel_controller.dart';
 
@@ -730,6 +731,11 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
     final pricePerNight = (room['price']['net']) / nights ?? 0.0;
     final totalPrice = pricePerNight * nights;
     final isRefundable = (room['rateType'] ?? '').toLowerCase() == 'refundable';
+    // Own-DB rooms carry no rateKey/groupCode, so the third-party policy and
+    // price-breakup lookups do not apply to them.
+    final isOwnDbRoom = room['source']?.toString() == kHotelSourceOwn;
+    // Rooms sold on request carry no rate: show the text, never "PKR 0".
+    final bool priceOnCall = totalPrice <= 0;
 
     return Container(
       decoration: BoxDecoration(
@@ -808,7 +814,28 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                     color: Colors.grey.shade50,
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Row(
+                  child: priceOnCall
+                      ? Row(
+                          children: [
+                            Icon(
+                              Icons.phone_in_talk_outlined,
+                              size: 16,
+                              color: TColors.iconclr,
+                            ),
+                            const SizedBox(width: 8),
+                            const Expanded(
+                              child: Text(
+                                'Price on call',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black87,
+                                ),
+                              ),
+                            ),
+                          ],
+                        )
+                      : Row(
                     children: [
                       // Per Night Price
                       Expanded(
@@ -954,6 +981,11 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                 // Action Buttons Row
                 Row(
                   children: [
+                    // Own-DB rooms: no third-party policy/breakup endpoints, so
+                    // show what our own database gives us instead.
+                    if (isOwnDbRoom)
+                      Expanded(child: _buildOwnRoomInfo())
+                    else ...[
                     // Info Links
                     InkWell(
                       onTap: () => _showCancellationPolicy(context),
@@ -1014,8 +1046,9 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                       ),
                     ),
                     const Spacer(),
-                    // Book Now / Select Button
-                    _buildActionButton(),
+                    ],
+                    // Book Now / Request Now / Select Button
+                    _buildActionButton(isOwnDbRoom),
                   ],
                 ),
               ],
@@ -1026,14 +1059,55 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
     );
   }
   
-  Widget _buildActionButton() {
+  /// Own-DB rooms show the details our database provides (size, capacity,
+  /// remaining rooms) in place of the third-party Policy / Breakup links.
+  Widget _buildOwnRoomInfo() {
+    final String sizeSqm = room['sizeSqm']?.toString() ?? '';
+    final int maxAdults = room['maxAdults'] is int ? room['maxAdults'] as int : 0;
+    final int available =
+        room['availableQuantity'] is int ? room['availableQuantity'] as int : 0;
+
+    final List<String> details = [
+      if (sizeSqm.isNotEmpty) '$sizeSqm m²',
+      if (maxAdults > 0) 'Max $maxAdults ${maxAdults == 1 ? 'adult' : 'adults'}',
+      if (available > 0 && available <= 5) '$available left',
+    ];
+
+    if (details.isEmpty) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        Icon(
+          Icons.info_outline_rounded,
+          size: 14,
+          color: Colors.grey.shade400,
+        ),
+        const SizedBox(width: 4),
+        Expanded(
+          child: Text(
+            details.join(' · '),
+            style: TextStyle(
+              color: Colors.grey.shade600,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// Own-DB rooms are booked as a request, so their button says "Request Now".
+  Widget _buildActionButton(bool isOwnDbRoom) {
     if (showBookNowButton) {
       return SizedBox(
         height: 36,
         child: ElevatedButton(
           onPressed: isLoading ? null : () => onSelect(room),
           style: ElevatedButton.styleFrom(
-            backgroundColor: TColors.primary,
+            backgroundColor: isOwnDbRoom ? TColors.orange : TColors.primary,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 20),
             shape: RoundedRectangleBorder(
@@ -1050,9 +1124,9 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
                     strokeWidth: 2,
                   ),
                 )
-              : const Text(
-                  'Book Now',
-                  style: TextStyle(
+              : Text(
+                  isOwnDbRoom ? 'Request Now' : 'Book Now',
+                  style: const TextStyle(
                     fontWeight: FontWeight.w600,
                     fontSize: 13,
                   ),

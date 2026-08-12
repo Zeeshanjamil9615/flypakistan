@@ -46,6 +46,14 @@ class _SelectRoomScreenState extends State<SelectRoomScreen>
     });
 
     try {
+      // Own-DB rooms have no rateKey/session: there is nothing to pre-book, so
+      // availability is not re-checked and we go straight to the booking page.
+      if (controller.isOwnDbHotel.value) {
+        selectRoomController.prepareOwnDbBooking(selectedRooms);
+        Get.to(() => BookingHotelScreen());
+        return;
+      }
+
       // Extract rate keys from selected rooms
       List<String> rateKeys =
           selectedRooms.values
@@ -118,6 +126,13 @@ class _SelectRoomScreenState extends State<SelectRoomScreen>
     });
 
     try {
+      // Own-DB room: booked directly, no PreBook availability round-trip.
+      if (controller.isOwnDbHotel.value) {
+        selectRoomController.prepareOwnDbBooking({0: room});
+        Get.to(() => BookingHotelScreen());
+        return;
+      }
+
       // Extract rate key from selected room
       List<String> rateKeys = [room['rateKey'].toString()];
 
@@ -446,14 +461,21 @@ Widget build(BuildContext context) {
                       child: ElevatedButton(
                         onPressed: isLoading ? null : handleBookNow,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: TColors.primary,
+                          // Own-DB stays are requested, not instantly booked.
+                          backgroundColor: controller.isOwnDbHotel.value
+                              ? TColors.orange
+                              : TColors.primary,
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(8),
                           ),
                         ),
                         child: Text(
-                          isLoading ? '' : 'Book Now',
+                          isLoading
+                              ? ''
+                              : (controller.isOwnDbHotel.value
+                                  ? 'Request Now'
+                                  : 'Book Now'),
                           style: const TextStyle(
                             color: TColors.white,
                             fontWeight: FontWeight.bold,

@@ -483,6 +483,8 @@ HotelDateController hotelDateController = Get.find<HotelDateController>();
         "p_end_time": pEndTime,
         "room_name": selectRoomController.getRoomName(i),
         "room_bordbase": selectRoomController.getRoomMeal(i),
+        // Own-DB rooms are identified by their room id ('' for third-party).
+        "room_id": selectRoomController.getRoomId(i),
         "policy_details": policyDetails,
         "pax_details": paxDetails,
       };
@@ -499,6 +501,10 @@ HotelDateController hotelDateController = Get.find<HotelDateController>();
     if (isTwinBed.value) specialRequests.add("Twin Bed");
     if (isSmoking.value) specialRequests.add("Smoking");
 
+    // Own-database hotels never go through the third-party search/PreBook, so
+    // they have no session, group code or rate key to send.
+    final bool isOwnDbHotel = searchHotelController.isOwnDbHotel.value;
+
     // Create request body with null safety - using full phone number with country code
     final Map<String, dynamic> requestBody = {
       "bookeremail": emailController.text.trim(),
@@ -511,12 +517,14 @@ HotelDateController hotelDateController = Get.find<HotelDateController>();
       "bookercity": cityController.text.trim(),
       "om_ordate": DateTime.now().toIso8601String().split('T')[0].toString(),
       "cancellation_buffer": "",
-      "session_id": searchHotelController.sessionId.value,
+      "session_id": isOwnDbHotel ? "" : searchHotelController.sessionId.value,
       "group_code":
-          searchHotelController.roomsdata.isNotEmpty
-              ? searchHotelController.roomsdata[0]['groupCode'] ?? ""
-              : "",
-      "rate_key": _buildRateKey(),
+          isOwnDbHotel
+              ? ""
+              : (searchHotelController.roomsdata.isNotEmpty
+                  ? searchHotelController.roomsdata[0]['groupCode'] ?? ""
+                  : ""),
+      "rate_key": isOwnDbHotel ? "" : _buildRateKey(),
       "om_hid": searchHotelController.hotelCode.value,
       "om_nights": hotelDateController.nights.value,
       "buying_price": double.parse(totalBuyingPrice.toStringAsFixed(2)), // Without margin
@@ -533,7 +541,7 @@ HotelDateController hotelDateController = Get.find<HotelDateController>();
       "om_smoking": "",
       "om_status": "0",
       "payment_status": "Pending",
-      "om_suppliername": "Arabian",
+      "om_suppliername": isOwnDbHotel ? "Flypakistan" : "Arabian",
       "Rooms": roomsList,
     };
 

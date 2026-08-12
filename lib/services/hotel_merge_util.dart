@@ -14,24 +14,44 @@ const String kHotelSourceOwn = 'own';
 const String kHotelSourceThirdParty = 'third_party';
 
 /// True when this card is rendered from our own database data.
-/// Used only to style the Book Now button — never to change behaviour.
+/// Own-DB cards say "Request Now", are listed below the third-party ones and
+/// skip the third-party availability check.
 bool isOwnHotel(Map<dynamic, dynamic> hotel) =>
     hotel['source']?.toString() == kHotelSourceOwn;
 
 String _hotelIdOf(Map<String, dynamic> hotel) =>
     hotel['hotelCode']?.toString().trim() ?? '';
 
-double _priceOf(Map<String, dynamic> hotel) =>
-    double.tryParse(hotel['price']?.toString().replaceAll(',', '').trim() ?? '') ??
+/// Comparison key for "the same hotel from both sources": the name with case,
+/// punctuation and spacing removed. Search results are always for one city, so
+/// the name alone identifies a hotel well enough.
+String _nameKeyOf(Map<String, dynamic> hotel) => hotel['name']
+    ?.toString()
+    .toLowerCase()
+    .replaceAll(RegExp(r'[^a-z0-9]'), '') ??
+    '';
+
+double priceOfHotel(Map<dynamic, dynamic> hotel) =>
+    double.tryParse(
+      hotel['price']?.toString().replaceAll(',', '').trim() ?? '',
+    ) ??
     0.0;
 
-/// Merges the third-party list with our own-DB list, matching on hotel id
-/// (`hotelCode`, which is `hotel_id` on the own-DB side).
+/// True when the card must show "Price on call" instead of an amount: either
+/// our database flags the hotel as price-on-call, or no price came back at all.
+bool isPriceOnCall(Map<dynamic, dynamic> hotel) {
+  final flag = hotel['priceOnCall'];
+  if (flag == true || flag == 1 || flag?.toString() == '1') return true;
+  return priceOfHotel(hotel) <= 0;
+}
+
+/// Merges the third-party list with our own-DB list.
 ///
-/// * id in BOTH lists  -> our own record wins and replaces the third-party one,
-///   keeping the third-party position so existing ordering is undisturbed.
-/// * id only in the third-party list -> passed through untouched.
-/// * id only in our own DB -> appended to the list.
+/// * The third-party (Arabian) hotels come FIRST, in their original order and
+///   completely untouched.
+/// * Our own-DB hotels are appended BELOW them, and any own hotel that is also
+///   in the third-party list is dropped — the Arabian record wins. A duplicate
+///   is detected by hotel id (`hotelCode` / `hotel_id`) or by hotel name.
 ///
 /// Every returned card carries `source`: [kHotelSourceOwn] or
 /// [kHotelSourceThirdParty]. Own records without an id are skipped: they cannot
@@ -40,51 +60,36 @@ List<Map<String, dynamic>> mergeHotelLists({
   required List<Map<String, dynamic>> thirdPartyHotels,
   required List<Map<String, dynamic>> ownHotels,
 }) {
-  final Map<String, Map<String, dynamic>> ownById = {};
-  for (final hotel in ownHotels) {
-    final String id = _hotelIdOf(hotel);
-    if (id.isEmpty) continue;
-    ownById[id] = <String, dynamic>{...hotel, 'source': kHotelSourceOwn};
-  }
-
   final List<Map<String, dynamic>> merged = [];
-  final Set<String> overriddenIds = {};
+  final Set<String> seenIds = {};
+  final Set<String> seenNames = {};
 
   for (final thirdParty in thirdPartyHotels) {
+    merged.add(<String, dynamic>{
+      ...thirdParty,
+      'source': kHotelSourceThirdParty,
+    });
+
     final String id = _hotelIdOf(thirdParty);
-    final Map<String, dynamic>? own = id.isEmpty ? null : ownById[id];
-
-    if (own == null) {
-      merged.add(<String, dynamic>{
-        ...thirdParty,
-        'source': kHotelSourceThirdParty,
-      });
-      continue;
-    }
-
-    overriddenIds.add(id);
-    merged.add(_withPriceFallback(own: own, thirdParty: thirdParty));
+    if (id.isNotEmpty) seenIds.add(id);
+    final String nameKey = _nameKeyOf(thirdParty);
+    if (nameKey.isNotEmpty) seenNames.add(nameKey);
   }
 
-  for (final entry in ownById.entries) {
-    if (overriddenIds.contains(entry.key)) continue;
-    merged.add(entry.value);
+  for (final own in ownHotels) {
+    final String id = _hotelIdOf(own);
+    if (id.isEmpty) continue;
+
+    final String nameKey = _nameKeyOf(own);
+    // Already served by the third-party API (or listed twice in our own DB).
+    if (seenIds.contains(id)) continue;
+    if (nameKey.isNotEmpty && seenNames.contains(nameKey)) continue;
+
+    seenIds.add(id);
+    if (nameKey.isNotEmpty) seenNames.add(nameKey);
+
+    merged.add(<String, dynamic>{...own, 'source': kHotelSourceOwn});
   }
 
   return merged;
-}
-
-/// Our own record wins, but "price on call" hotels come back with a 0 price.
-/// When we are overriding a third-party entry that does have a price, keep that
-/// price so the card never renders "PKR 0". Everything else stays own-DB data.
-Map<String, dynamic> _withPriceFallback({
-  required Map<String, dynamic> own,
-  required Map<String, dynamic> thirdParty,
-}) {
-  if (_priceOf(own) > 0) return own;
-
-  final double thirdPartyPrice = _priceOf(thirdParty);
-  if (thirdPartyPrice <= 0) return own;
-
-  return <String, dynamic>{...own, 'price': thirdPartyPrice};
 }
