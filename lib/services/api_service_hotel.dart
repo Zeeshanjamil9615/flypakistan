@@ -596,6 +596,7 @@ class ApiServiceHotel extends GetxService {
   // Third-party rooms: availability is validated with PreBook before booking.
   searchController.isOwnDbHotel.value = false;
   searchController.ownHotelGstPercent.value = 0;
+  searchController.isPriceOnCallHotel.value = false;
 
   // Ensure we have the latest margin and ROE
   await fetchMarginAndROE();
@@ -734,6 +735,9 @@ class ApiServiceHotel extends GetxService {
         longitude: hotel['longitude']?.toString() ?? '',
         detailLink: hotel['ownDetailLink']?.toString() ?? '',
         nights: nights > 0 ? nights : 1,
+        // The card already knows this hotel shows no price; the details API can
+        // only confirm it, never take it back.
+        priceOnCall: isPriceOnCall(hotel),
       );
       return;
     }
@@ -773,12 +777,14 @@ class ApiServiceHotel extends GetxService {
     required String longitude,
     required int nights,
     String detailLink = '',
+    bool priceOnCall = false,
   }) async {
     final searchController = Get.find<SearchHotelController>();
 
     // Own-DB rooms are booked directly — no PreBook / availability round-trip.
     searchController.isOwnDbHotel.value = true;
     searchController.ownHotelGstPercent.value = 0;
+    searchController.isPriceOnCallHotel.value = priceOnCall;
     searchController.roomsdata.value = [];
 
     const String url = 'https://flypakistan.pk/api/hotel-details-api.php';
@@ -837,6 +843,13 @@ class ApiServiceHotel extends GetxService {
         if (status is Map) {
           searchController.ownHotelGstPercent.value =
               int.tryParse(status['rooms_gst_percent']?.toString() ?? '') ?? 0;
+
+          // Price-on-call hotels do keep room rates in our database, but no
+          // amount may be shown for them anywhere in the flow.
+          final onCall = status['price_on_call'];
+          if (onCall == true || onCall?.toString() == '1') {
+            searchController.isPriceOnCallHotel.value = true;
+          }
         }
       }
 

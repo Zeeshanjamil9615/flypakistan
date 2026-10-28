@@ -17,6 +17,8 @@ class TypeSelectorState extends State<TypeSelector> {
   final List<Map<String, dynamic>> travelTypes = [
     // {'icon': Icons.flight_takeoff, 'label': 'Flights'},
     {'icon': Icons.hotel, 'label': 'Hotels'},
+    {'icon': Icons.landscape, 'label': 'Tours'},
+    {'icon': Icons.directions_car, 'label': 'Cars'},
     // {'icon': Icons.group, 'label': 'Group Tickets'},
   ];
 

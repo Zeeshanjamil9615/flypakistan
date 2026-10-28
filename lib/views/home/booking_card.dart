@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 
 import '../../views/flight/form/flight_form.dart';
 import '../../views/hotel/hotel/hotel_form.dart';
+import '../../views/tours/tours_tab.dart';
+import '../../views/cars/cars_tab.dart';
 import '../../utility/colors.dart';
 import '../../utility/app_constants.dart';
 
@@ -47,6 +49,8 @@ class _BookingCardState extends State<BookingCard> {
             // Show the relevant form based on the selected type
             // if (selectedType == 'Flights') FlightBookingScreen(),
             if (selectedType == 'Hotels') HotelForm(),
+            if (selectedType == 'Tours') const ToursTab(),
+            if (selectedType == 'Cars') const CarsTab(),
             // if (selectedType == 'Group Tickets') const GroupTicketsSelector(),
           ],
         ),

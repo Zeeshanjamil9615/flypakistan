@@ -64,3 +64,8 @@ android {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    // FileProvider used by MainActivity to share tour photos to WhatsApp.
+    implementation("androidx.core:core:1.13.1")
+}

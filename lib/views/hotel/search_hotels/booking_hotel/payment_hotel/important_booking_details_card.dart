@@ -293,10 +293,16 @@ class _ImportantBookingDetailsCardState
             child: _buildBadge("Refundable"),
           ),
           const Divider(height: 16),
-          // Rooms sold on request have no rate yet — never show "PKR 0".
+          // Rooms sold on request have no rate to show — never "PKR 0", and
+          // never an amount for a price-on-call hotel.
           _buildPriceRow(
             'Total Price',
-            (double.tryParse(price) ?? 0) > 0 ? 'PKR $price' : 'Price on call',
+            ((double.tryParse(price) ?? 0) > 0 &&
+                    !Get.find<SearchHotelController>()
+                        .isPriceOnCallHotel
+                        .value)
+                ? 'PKR $price'
+                : 'Price on call',
             isTotal: true,
           ),
         ],

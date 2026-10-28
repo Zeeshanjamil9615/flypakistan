@@ -1,13 +1,22 @@
-request fetch selct hotel room
-var headers = {
-  'Cookie': 'PHPSESSID=0fb1lts2ovdium9e86ceqlhpt2'
-};
+
+
+
+
+
+
+
+fetch tours request
+
+
+
+
+
+
 var dio = Dio();
 var response = await dio.request(
-  'https://flypakistan.pk/api/hotel-details-api.php?hotelname=Faizi+Furnished+Apartments&hid=MjZJVFNNWV9TRUNSRVRfVkFMVUVDT0RF&lat=31.50340&long=73.21520',
+  'https://flypakistan.pk/api/fetch-tours',
   options: Options(
     method: 'GET',
-    headers: headers,
   ),
 );
 
@@ -17,81 +26,341 @@ if (response.statusCode == 200) {
 else {
   print(response.statusMessage);
 }
-
-
-response
-
+and the response is like this 
 {
-    "status": "success",
-    "data": {
-        "hotel": {
-            "id": 26,
-            "name": "Faizi Furnished Apartments",
-            "city": "Faisalabad",
-            "address": "F.block,Main boulevard, Wapdacity, Canal Road Apartments,block-F-13, 38000",
-            "phone": "03217680975",
-            "star_rating": 1,
-            "user_score": 7,
-            "rating_text": "Fine",
-            "description": "Every unit features a private bathroom and shower, air conditioning, a flat-screen TV and a fridge. For added convenience, the property can provide towels and bed linen for an extra charge.\r\n\r\nAn Asian breakfast is available daily at the apartment.\r\n\r\n• Faizi Furnished Apartments offers a children's playground.\r\n\r\nA car rental service is available at the accommodations.",
-            "facilities": [
-                "1",
-                "5",
-                "45",
-                "54",
-                "50",
-                "53",
-                "107"
-            ],
-            "location": {
-                "latitude": "31.50340",
-                "longitude": "73.21520"
-            },
-            "status": {
-                "verified": "Active",
-                "cs_status": "1",
-                "price_on_call": false,
-                "rooms_gst_percent": 16
-            }
+    "status": 200,
+    "message": "Tours found.",
+    "total": 22,
+    "tours": [
+        {
+            "id": "4",
+            "tour_name": "Karachi City Tour",
+            "description": "Explore Karachi, Pakistan's commercial hub with a rich colonial past and diverse culture. Visit the Mausoleum of the Founder of Pakistan and his house-turned-museum. Discover the city’s Victorian-era architecture, ethnic diversity, and vibrant history shaped by Parsi, Hindu, and Muslim communities. The city tour includes a visit to old Karachi, bustling souvenir markets, and architectural wonders like mosques, cathedrals, and temples, offering a unique blend of cultures and traditions.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Karachi%20City%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Karachi+City+Tour+tour.+Can+you+please+provide+more+details%3F"
         },
-        "images": [
-            "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/faizi-furnished-apartments-img1-171564370.jpg",
-            "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/faizi-furnished-apartments-img2-302791990.jpg",
-            "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/faizi-furnished-apartments-img3-302792000.jpg",
-            "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/faizi-furnished-apartments-img4-302792001.jpg",
-            "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/faizi-furnished-apartments-img5-288257528.jpg"
-        ],
-        "rooms": [
-            {
-                "id": "63",
-                "name": "Double Room",
-                "price": 6000,
-                "size_sqm": "35",
-                "available_quantity": 5,
-                "capacity": {
-                    "max_adults": 2,
-                    "max_childs": 0,
-                    "extra_bed_price": 0
-                },
-                "meal": "None",
-                "cancellation_policy": "0",
-                "image": "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/double-room-img1-sssssdd.jpg"
-            },
-            {
-                "id": "62",
-                "name": " Photo Of Name #1 Apartment",
-                "price": 6648,
-                "size_sqm": "290",
-                "available_quantity": 5,
-                "capacity": {
-                    "max_adults": 2,
-                    "max_childs": 0,
-                    "extra_bed_price": 0
-                },
-                "meal": "None",
-                "cancellation_policy": "0",
-                "image": "https://flypakistan.pk/hotels/imgs/Faisalabad/Faizi%20Furnished%20Apartments/-photo-of-name-%231-apartment-img1-b3.jpg"
-            }
-        ]
-    }
+        {
+            "id": "3",
+            "tour_name": "Islamabad City Tour",
+            "description": "Discover Islamabad unique attractions in an 8-hour guided tour. Visit the iconic Faisal Mosque, Pakistan Monument (with optional Lok Virsa Museum), Lake View Park, Daman-e-Koh, and Centaurus Mall. Enjoy stunning views of the city and surrounding landscapes from Daman-e-Koh, the highest viewpoint in Islamabad. Experience a blend of modern architecture, natural beauty, and cultural heritage on this unforgettable city tour.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Islamabad%20City%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Islamabad+City+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "9",
+            "tour_name": "Khanpur Day Tour ",
+            "description": "Get ready for an exciting adventure at Khanpur Dam! Join us for an unforgettable One Day Tour filled with thrilling water sports and the exhilarating experience of paragliding. Whether you're an adventure enthusiast or simply looking to enjoy the scenic beauty, this tour promises a lifetime experience. Dive into the clear waters, explore the stunning surroundings, and feel the rush of excitement as you take to the skies. Don’t miss this action-packed day at Khanpur Dam—your ultimate adventure awaits!",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Khanpur%20Day%20Tour%20.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Khanpur+Day+Tour++tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "19",
+            "tour_name": "Ansoo Lake Tour",
+            "description": "Ansoo Lake, named after its tear-drop shape, is located in the stunning Kaghan Valley. The lake's unique teardrop form is what makes it so special. Reaching Ansoo Lake is no easy feat, which is why it remained undiscovered by locals until 1993. It was then that pilots from the Pakistan Air Force, flying low over the area, stumbled upon the hidden gem. Its remote location and challenging access add to the allure of this breathtaking natural wonder.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Ansoo%20Lake%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Ansoo+Lake+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "13",
+            "tour_name": "Ancient Buddhist Heritage - Texila",
+            "description": "Taxila, located around 32 km from Islamabad, is a significant site of Buddhist civilization. It serves as a testament to Buddhist beliefs, art, and architecture. Historically, it is believed that Buddha spent considerable time teaching in this region. FlyPakistan.pk offers services to Buddhist travelers to explore this ancient city of stones, allowing visitors to experience one of the most secret and historical places of Buddhist heritage.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Ancient%20Buddhist%20Heritage%20-%20Texila.jpeg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Ancient+Buddhist+Heritage+-+Texila+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "20",
+            "tour_name": "Air Safari",
+            "description": "Air Safari stands out by offering exceptional aviation services in Pakistan. We provide a wide range of aviation solutions, including pilot training courses for Ultralight, Sports, and Experimental Aircraft. As a leading aviation service provider in the country, Air Safari is committed to delivering high-quality services to aviation enthusiasts and professionals alike.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Air%20Safari.jpeg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Air+Safari+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "11",
+            "tour_name": "Motorway M2 Day Tour ",
+            "description": "Experience the thrilling drive on Motorway M2, with scenic views and a short stopover at Khewra Salt Mine, Kalar Kahar Lake, Kartas Raj Temple, and Khanpur Dam, where you can indulge in exciting water sports. The tour also includes a lunch break at Bhera, offering a relaxing pause before continuing the journey.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Motorway%20M2%20Day%20Tour%20.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Motorway+M2+Day+Tour++tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "1",
+            "tour_name": "Lahore City Tour",
+            "description": "Explore Lahore on a private, guided day trip through its rich history and culture. Visit iconic landmarks like the Badshahi Mosque (1763) and Masjid Wazir Khan (1641), both architectural gems of the Mughal Dynasty. Discover Lahore Fort, the Lahore Museum, and the historic Walled City of Lahore. This flexible tour lasts from 6 to 8 hours and includes an air-conditioned vehicle and an English-speaking guide to enhance your experience.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Lahore%20City%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Lahore+City+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "14",
+            "tour_name": "Khunjerab Pass Tour",
+            "description": "Khunjerab Pass, more commonly referred to as Pak-China border, is the highest point on the architectural marvel known as Karakoram Highway. Located at an altitude of 15,397 feet, it is also the highest paved international border crossing in the world.\r\nThe best time to visit this beautiful landmark is between May and September.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Khunjerab%20Pass%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Khunjerab+Pass+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "18",
+            "tour_name": "Lake Saif Ul Malook",
+            "description": "Lake Saif-ul-Malook is one of the most stunning lakes in Pakistan and the world. Located near Naran, a popular tourist destination in northern Pakistan, this lake is a must-see. With its clear, cold blue waters and a backdrop of snow-capped peaks, it offers a picturesque setting that could easily be a desktop wallpaper. This serene spot is among the top attractions in the northern regions of Pakistan and a must-visit for nature lovers and adventure seekers alike.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Lake%20Saif%20Ul%20Malook.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Lake+Saif+Ul+Malook+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "8",
+            "tour_name": "Faisalabad – Nankana Sahib Day Tour",
+            "description": "Gurdwara Nankana Sahib, located in Nankana Sahib, is one of the holiest sites in Sikhism, marking the birthplace of Guru Nanak, the founder of the Sikh faith. Our Nankana Sahib day trip planner makes visiting the Gurdwara and exploring other local attractions hassle-free. Whether you’re a devotee or a history enthusiast, this tour offers a personalized experience to connect with the spiritual and cultural heritage of the region. Discover the peaceful ambiance, historical landmarks, and significant religious sites that make Nankana Sahib a revered pilgrimage destination.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Faisalabad%20%E2%80%93%20Nankana%20Sahib%20Day%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Faisalabad+%E2%80%93+Nankana+Sahib+Day+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "2",
+            "tour_name": "Faisalabad City Tour",
+            "description": "Explore Faisalabad, the 3rd largest city in Pakistan, known for its iconic Ghanta Ghar (Clock Tower). This tour includes a visit to historic landmarks like the Agriculture University (1909), Jinnah Gardens, Old Railway Junction, and the Lyallpur Galleria Shopping Mall. You’ll also get a unique opportunity to visit a renowned Textile Mill, where you can witness the fascinating process of turning cotton thread into finished fabric products like bed sheets.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Faisalabad%20City%20Tour.jpeg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Faisalabad+City+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "7",
+            "tour_name": "Kartarpur Day Tour",
+            "description": "Kartarpur, located just 4 kilometers from the India-Pakistan border, is an important Sikh religious site where Guru Nanak spent 18 years of his life and took his last breath. This site has gained immense popularity, particularly after its inauguration by PTI in 2019. Today, it attracts over 3,000 visitors daily, with the numbers increasing on weekends. While the site is mainly visited by Sikh pilgrims from India, it also draws a significant number of tourists from Pakistan and abroad, eager to experience its rich historical, spiritual, and cultural significance. The Kartarpur Corridor has made this sacred destination accessible, fostering connections between the two nations while preserving the spiritual heritage of the Sikh community.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Kartarpur%20Day%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Kartarpur+Day+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "15",
+            "tour_name": "City Bus Lahore Tour - Sight Seeing",
+            "description": "The shiny, red double-decker bus brightens up Lahore's landscape, offering an unforgettable experience. This iconic bus provides tours around Lahore's centuries-old Mughal architecture, allowing visitors to travel back in time and witness the grandeur of the empire from an elevated view. The tours start from Gaddafi Stadium and offer three options: a non-stop round trip to Badshahi Mosque, a round trip with a one-hour break at Food Street, or a one-hour break at Lahore Fort. It's recommended to purchase tickets in advance for a seamless experience.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/City%20Bus%20Lahore%20Tour%20-%20Sight%20Seeing.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+City+Bus+Lahore+Tour+-+Sight+Seeing+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "22",
+            "tour_name": "Lahore Orange Train Tour",
+            "description": "Lahore, the second-largest city in Pakistan, is home to the Orange Line Metro, the country's first driverless metro system. This automated rapid transit line spans 26 stations, with Anarkali and Central stations located underground, while the other 24 stations are elevated. The Orange Line offers a convenient and efficient way to travel through Lahore’s bustling streets. Our tour packages for this metro system include:\r\n\r\nGreen Line (MRT): Ferozepur Road, Mall Road, Ravi Road, Shahdara\r\nOrange Line Metro Rapid Transit (MRT): Raiwind Road, Multan Road, McLeod Road, Railway Station, GT Road\r\nBlue Line (MRT): Township, Gulberg Boulevard, Jail Road\r\nPurple Line (MRT): Bhatti Gate, Allama Iqbal Road, Airport",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Lahore%20Orange%20Train%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Lahore+Orange+Train+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "10",
+            "tour_name": "Islamabad – Murree Day Tour",
+            "description": "Murree Tours 2021 are becoming increasingly popular as the summer season kicks off. Known as &quot;The Queen of Mountains,&quot; Murree is located in the Galyat region within the Rawalpindi District of Punjab, Pakistan, at an altitude of 2,291 meters. Just 30KM from Islamabad, Murree is easily accessible via the national highway and motorway, making the journey smooth and convenient.\r\n\r\nMurree has always been a top destination for both local and international travelers. Whether you're exploring the bustling Mall Road, enjoying scenic views from Chairlifts, or admiring the vistas from Pindi and Kashmir Points, Murree offers a truly memorable experience for every visitor.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Islamabad%20%E2%80%93%20Murree%20Day%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Islamabad+%E2%80%93+Murree+Day+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "12",
+            "tour_name": "Naran – Kaghan 3Nights- 4Days Tour",
+            "description": "Naran, located in Kaghan Valley, Khyber Pakhtunkhwa, at an altitude of 2,500 meters, is a popular holiday destination known for its stunning landscapes, including icy peaks, green meadows, and glacial lakes. Notable spots include Lake Saif-ul-Malook, Lulusar Lake, Ansoo Jheel, and the Sat Sar Mala Lakes. Saral Lakes and the Kunhar River offer opportunities for activities like trekking, hiking, jeep rides, fishing, boating, and camping, making Naran a haven for nature lovers and adventure seekers.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Naran%20%E2%80%93%20Kaghan%203Nights-%204Days%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Naran+%E2%80%93+Kaghan+3Nights-+4Days+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "17",
+            "tour_name": "Gilgit Hunza Tour",
+            "description": "We offer the best Gilgit Hunza tour packages in Pakistan. A trip to Gilgit and Hunza Valley is a soft adventure amidst the stunning Karakoram mountains. In 2018, over two and a half million domestic tourists visited this region, making it one of the top destinations for both local and international travelers. Our Gilgit Hunza tours are often called Hunza Valley tours since Gilgit is just a small part of the journey. Explore the natural beauty and rich culture of these breathtaking valleys with us!",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Gilgit%20Hunza%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Gilgit+Hunza+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "6",
+            "tour_name": "Khewra Salt Mine & Kartas Raj Temples",
+            "description": "Embark on a day tour from Lahore, Islamabad, or Faisalabad to the Khewra Salt Mine, the world's 2nd largest salt mine, just a 2-hour drive away via the Motorway M2. Enjoy a train ride through this natural wonder. Visit the nearby Kartas Raj Temples, a historical complex of Hindu temples in Chakwal District. The tour concludes with a delicious lunch at Bhera Service Station on the M2.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Khewra%20Salt%20Mine%20%26%20Kartas%20Raj%20Temples.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Khewra+Salt+Mine+%26+Kartas+Raj+Temples+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "21",
+            "tour_name": "Lahore Food Street",
+            "description": "Lahore, often affectionately called &quot;Lahori&quot; by locals, is renowned for its vibrant food culture. The city's food – from traditional dishes to local street eats – is a true reflection of its rich history, culture, and traditions. Among the many food hubs in the city, New Fort Food Street stands out as one of the most popular and beloved spots. This street is a must-visit for anyone looking to experience Lahore's culinary delights at their best.",
+            "country": "Pakistan",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Lahore%20Food%20Street.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Lahore+Food+Street+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "5",
+            "tour_name": "Multan City Tour",
+            "description": "Experience Multan with a city tour starting from your hotel. Visit the Mausoleum of Shah Shams Tabrez, a revered saint, and explore the ancient fort area, showcasing 2000 years of history. Visit the shrines of Shah Rukne Alam and Ghous Bahauddin Zakaria, along with the viewpoint and tourist shopping area. Drive through the historic Hussain Agahi Bazaar, passing the Multan Clock Tower. Enjoy a walk through the vibrant bazaar before returning to your hotel after approximately 4 hours.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Multan%20City%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Multan+City+Tour+tour.+Can+you+please+provide+more+details%3F"
+        },
+        {
+            "id": "16",
+            "tour_name": "Deosai National Park Tour",
+            "description": "The Deosai National Park Tour is an unforgettable adventure for families, friends, students, and couples. Known as the Land of Giants, this national park is a must-see for every Pakistani and attracts international tourists from across the globe. The park, located at an average height of 4,000 meters, is famous for its lush green grass, streams, and snow-capped mountains. Situated on the boundary of the Himalayas and Karakoram, Deosai is snow-covered for seven months, with the ideal visiting time between July and September when the area turns vibrant green. It's a paradise for nature lovers and a perfect spot for camping.",
+            "country": "PAKISTAN",
+            "image": "https://flypakistan.pk/oldflypak/assets/img/tours/Deosai%20National%20Park%20Tour.jpg",
+            "price_type": 0,
+            "price_on_call": true,
+            "currency": null,
+            "price": null,
+            "pax_no": 0,
+            "adult_rate": null,
+            "child_rate": null,
+            "whatsapp_url": "https://wa.me/923459668442?text=Hello%21+I%27m+interested+in+the+Deosai+National+Park+Tour+tour.+Can+you+please+provide+more+details%3F"
+        }
+    ]
 }

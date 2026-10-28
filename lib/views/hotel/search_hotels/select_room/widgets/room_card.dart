@@ -734,8 +734,11 @@ Widget _buildSummaryRow(String label, String value, IconData icon) {
     // Own-DB rooms carry no rateKey/groupCode, so the third-party policy and
     // price-breakup lookups do not apply to them.
     final isOwnDbRoom = room['source']?.toString() == kHotelSourceOwn;
-    // Rooms sold on request carry no rate: show the text, never "PKR 0".
-    final bool priceOnCall = totalPrice <= 0;
+    // No amount is shown when the room itself has no rate, or when the whole
+    // hotel is sold "price on call" (its rooms may still carry rates).
+    final bool priceOnCall =
+        totalPrice <= 0 ||
+        Get.find<SearchHotelController>().isPriceOnCallHotel.value;
 
     return Container(
       decoration: BoxDecoration(

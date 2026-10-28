@@ -50,6 +50,17 @@
             </intent-filter>
         </activity>
 
+        <!-- Shares tour photos to WhatsApp (MainActivity "flypakistan/whatsapp" channel) -->
+        <provider
+            android:name=".TourShareFileProvider"
+            android:authorities="${applicationId}.tourshare"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/tour_share_paths" />
+        </provider>
+
         <!-- Don't delete the meta-data below.
              This is used by the Flutter tool to generate GeneratedPluginRegistrant.java -->
         <meta-data
@@ -72,5 +83,9 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="https" />
         </intent>
+
+        <!-- Tour enquiries are shared straight to WhatsApp -->
+        <package android:name="com.whatsapp" />
+        <package android:name="com.whatsapp.w4b" />
     </queries>
 </manifest>

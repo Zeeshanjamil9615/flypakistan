@@ -266,6 +266,12 @@ class SearchHotelController extends GetxController {
   /// when a third-party hotel is open).
   final ownHotelGstPercent = 0.obs;
 
+  /// True when the hotel currently open is sold "price on call". Its rooms may
+  /// still carry rates in our database, but no amount is shown anywhere for it —
+  /// the listing card, the room cards and the booking total all say
+  /// "Price on call".
+  final isPriceOnCallHotel = false.obs;
+
 
   var hotelName = ''.obs;
   var image = ''.obs;

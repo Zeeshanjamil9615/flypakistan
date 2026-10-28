@@ -128,11 +128,26 @@ class HomeBanner extends StatelessWidget {
 class CustomerServiceSection extends StatelessWidget {
   const CustomerServiceSection({super.key});
 
-  final String mobileNumber = "923219667909";
+  final String mobileNumber = "923459668442";
 
   Future<void> launchWhatsApp(BuildContext context) async {
-    try {
-      String message = "Ready FLights ";
+    try {                 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+      
+      String message = "Fly Pakistan";
       final url = Uri.parse("https://wa.me/$mobileNumber?text=${Uri.encodeComponent(message)}");
 
       final launched = await launchUrl(url, mode: LaunchMode.externalApplication);
