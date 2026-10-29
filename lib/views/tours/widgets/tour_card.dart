@@ -119,12 +119,14 @@ class WhatsAppBookButton extends StatelessWidget {
   final bool isSending;
   final VoidCallback? onPressed;
   final double height;
+  final String label;
 
   const WhatsAppBookButton({
     super.key,
     required this.isSending,
     required this.onPressed,
     this.height = 40,
+    this.label = 'Book via WhatsApp',
   });
 
   @override
@@ -156,7 +158,9 @@ class WhatsAppBookButton extends StatelessWidget {
               )
             : Icon(MdiIcons.whatsapp, size: 20),
         label: Text(
-          isSending ? 'Opening WhatsApp...' : 'Book via WhatsApp',
+          isSending ? 'Opening WhatsApp...' : label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
         ),
       ),

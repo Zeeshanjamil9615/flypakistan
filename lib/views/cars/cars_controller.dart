@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../services/api_service_cars.dart';
 import '../tours/tour_whatsapp.dart';
@@ -91,13 +92,41 @@ class CarsController extends GetxController {
     return result;
   }
 
-  /// e.g. "Hello! I'm interested in renting the Yaris (2021) in Faisalabad.
-  /// Can you please provide more details?"
+  /// Same wording as the website's "Whatsapp Now" button, e.g. "Hello! I'm
+  /// interested in renting the Yaris in Faisalabad. Can you please provide
+  /// more details?"
   static String enquiryMessage(CarModel car) {
-    final String year = car.year.isNotEmpty ? ' (${car.year})' : '';
     final String city = car.city.isNotEmpty ? ' in ${car.city}' : '';
-    return "Hello! I'm interested in renting the ${car.name}$year$city. "
+    return "Hello! I'm interested in renting the ${car.name}$city. "
         'Can you please provide more details?';
+  }
+
+  /// "+92 345 9668442" — calls go to the same number as WhatsApp.
+  static String get displayPhone {
+    const String phone = TourWhatsApp.phone;
+    return '+${phone.substring(0, 2)} ${phone.substring(2, 5)} '
+        '${phone.substring(5)}';
+  }
+
+  Future<void> callNow() async {
+    bool opened = false;
+    try {
+      opened = await launchUrl(
+        Uri(scheme: 'tel', path: '+${TourWhatsApp.phone}'),
+      );
+    } catch (e) {
+      print('CarsController call error: $e');
+    }
+    if (!opened) {
+      Get.snackbar(
+        'Call',
+        'Could not open the dialer. Please call us on $displayPhone.',
+        snackPosition: SnackPosition.BOTTOM,
+        backgroundColor: Colors.red.withOpacity(0.85),
+        colorText: Colors.white,
+        margin: const EdgeInsets.all(12),
+      );
+    }
   }
 
   Future<void> bookViaWhatsApp(CarModel car) async {

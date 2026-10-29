@@ -3,9 +3,9 @@ import 'package:get/get.dart';
 
 import '../../../utility/colors.dart';
 import '../../tours/widgets/tour_card.dart';
+import '../car_details_screen.dart';
 import '../car_model.dart';
 import '../cars_controller.dart';
-import 'car_details_sheet.dart';
 
 /// Car photo shown whole on white, like the website — the photos are
 /// cut-outs, so cropping them (as tour photos are) would cut the car off.
@@ -148,7 +148,14 @@ class CarWhatsAppButton extends StatelessWidget {
   final CarModel car;
   final double height;
 
-  const CarWhatsAppButton({super.key, required this.car, this.height = 40});
+  final String label;
+
+  const CarWhatsAppButton({
+    super.key,
+    required this.car,
+    this.height = 40,
+    this.label = 'Book via WhatsApp',
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -160,13 +167,53 @@ class CarWhatsAppButton extends StatelessWidget {
             ? () => controller.bookViaWhatsApp(car)
             : null,
         height: height,
+        label: label,
+      ),
+    );
+  }
+}
+
+/// Green "View more" button, as on the website; opens the car details page.
+class CarViewMoreButton extends StatelessWidget {
+  final CarModel car;
+  final double height;
+
+  const CarViewMoreButton({super.key, required this.car, this.height = 40});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: ElevatedButton(
+        onPressed: () => openCarDetails(car),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: TColors.primary,
+          foregroundColor: Colors.white,
+          elevation: 0,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: const Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'View more',
+              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            SizedBox(width: 6),
+            Icon(Icons.arrow_forward, size: 16),
+          ],
+        ),
       ),
     );
   }
 }
 
 /// Car card: photo with model-year badge, name, city, both rates and the
-/// WhatsApp button. Tapping the card opens the details sheet.
+/// "View more" button. Tapping the card or the button opens the details page.
 ///
 /// [compact] is the narrow card of the home carousel: no description, and it
 /// fills the carousel height with the button pinned to the bottom so all cards
@@ -218,7 +265,7 @@ class CarCard extends StatelessWidget {
           ],
           if (compact) const Spacer() else const SizedBox(height: 12),
           if (compact) const SizedBox(height: 10),
-          CarWhatsAppButton(car: car, height: compact ? 38 : 42),
+          CarViewMoreButton(car: car, height: compact ? 38 : 42),
         ],
       ),
     );
@@ -240,7 +287,7 @@ class CarCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
-          onTap: () => showCarDetailsSheet(context, car),
+          onTap: () => openCarDetails(car),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

@@ -1,6 +1,7 @@
 import 'package:intl/intl.dart';
 
-/// One rental car from https://flypakistan.pk/api/fetch-cars.
+/// One rental car from https://flypakistan.pk/api/fetch-cars or
+/// https://flypakistan.pk/api/car-details.
 class CarModel {
   final String id;
   final String name;
@@ -8,6 +9,12 @@ class CarModel {
   final String year;
   final String city;
   final String currency;
+
+  /// Color, seats and transmission only come from the car-details API;
+  /// fetch-cars leaves them empty / 0.
+  final String color;
+  final int capacity;
+  final String transmission;
 
   /// Rent for driving within the city.
   final double? rate;
@@ -28,6 +35,9 @@ class CarModel {
     required this.currency,
     required this.image,
     required this.detailsUrl,
+    this.color = '',
+    this.capacity = 0,
+    this.transmission = '',
     this.rate,
     this.outRate,
   });
@@ -48,10 +58,22 @@ class CarModel {
       outRate: _toDouble(json['out_rate']),
       image: json['image']?.toString().trim() ?? '',
       detailsUrl: json['details_url']?.toString().trim() ?? '',
+      // Sent in any case, e.g. 'grey', 'manual'.
+      color: _capitalize(json['vehicle_color']?.toString() ?? ''),
+      capacity: int.tryParse(json['vehicle_capacity']?.toString() ?? '') ?? 0,
+      transmission: _capitalize(
+        json['vehicle_transmission']?.toString() ?? '',
+      ),
     );
   }
 
   bool get hasRate => (rate ?? 0) > 0;
+
+  bool get hasSpecs =>
+      color.isNotEmpty || capacity > 0 || transmission.isNotEmpty;
+
+  /// "4 Persons", as on the website.
+  String get capacityLabel => capacity == 1 ? '1 Person' : '$capacity Persons';
 
   /// "PKR 6,000", or "On Call" when the rate is missing.
   String rateLabel(double? amount) =>
@@ -62,6 +84,13 @@ class CarModel {
 
   static double? _toDouble(dynamic value) =>
       value == null ? null : double.tryParse(value.toString());
+
+  /// 'grey and white' -> 'Grey and white'
+  static String _capitalize(String value) {
+    final String trimmed = value.trim();
+    if (trimmed.isEmpty) return trimmed;
+    return trimmed[0].toUpperCase() + trimmed.substring(1);
+  }
 
   /// Descriptions are HTML-escaped, e.g. 'Ac &amp; Heater'.
   static String _unescapeHtml(String value) {

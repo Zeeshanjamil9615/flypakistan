@@ -47,7 +47,7 @@ class MyApp extends StatelessWidget {
 
     return GetMaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Flutter Demo',
+      title: 'Fly Pakistan',
       theme: ThemeData(
         // This is the theme of your application.
         //
